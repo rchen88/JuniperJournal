@@ -54,9 +54,9 @@ Code review + merge → develop → main
 
 
 Project Structure Documentation:
-- .gitgnore
+- .gitgnore- git files
 - .metadata
-- README.md 
+- README.md- overview
 - analysis_options.yaml
 - pubspec.lock
 - pubspec.yaml
