@@ -59,7 +59,8 @@ Project Structure Documentation:
 - README.md- overview
 - analysis_options.yaml- configures the Dart Analyzer
 - pubspec.lock- lock down exact dependency versions
-- pubspec.yaml
-- style guide
+- pubspec.yaml- defines your project’s metadata, dependencies, assets, and 
+environment setup so that Flutter knows how to build and run your app
+- style guide- colors, typography, git & workflow info
 
 
