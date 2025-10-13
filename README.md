@@ -1,16 +1,18 @@
-# juniper_journal
+Juniper Journal is an environmental education and collaborative learning app designed to help students and educators engage with sustainability through project-based learning. It serves as a project database and design tool where students create NGSS-aligned learning modules and user-led projects. 
 
-A new Flutter project.
+Users: Designed for K-12 students, educators, and eco-focused organizations.
 
-## Getting Started
+Design focus: Clean, green aesthetic with intuitive UX and accessible layouts.
 
-This project is a starting point for a Flutter application.
+Key features: 
+- Learn and apply sustainability and engineering concepts.
+- Share and replicate design projects with measurable impact data.
+- Collaborate through chats, classroom communities, and shared journals.
+- Explore projects, join design challenges, and access curated resources.
 
-A few resources to get you started if this is your first Flutter project:
+Impact System:
+- Track progress in key areas (energy, waste, water, carbon, education, biogrowth).
+- Earn EcoPoints, badges, and milestones for completed work.
+- View impact dashboards and set personal sustainability goals.
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Goal: Make sustainability education interactive, measurable, and community-driven

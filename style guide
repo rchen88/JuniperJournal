@@ -1,0 +1,62 @@
+Colors:
+black(#212525)
+dark_green(#5DB075)
+light_green(#DCF7E4)
+dark_grey(#717171)
+medium_green(#D2E2DA)
+dark_blue(#2C70BF)
+dark_red(#E73E2C)
+yellow(#FFC93D)
+light_grey(#F6F6F5)
+light_blue(#DCF7E4)
+light_red(#FFE4E3)
+
+Typography:
+Headings
+  bold
+    inter
+      24px
+Sub_headings
+  bold
+    inter
+      14px
+Body1
+  inter
+    12px
+Body2
+  semi bold
+    inter
+      uppercase
+        10px
+
+
+Git & Workflow:
+Branching model (css)
+main          → production-ready code
+develop       → staging and QA-ready code
+
+Workflow (using bash)
+1. Clone repository
+    git clone <repo-url>
+
+2. Create a feature branch
+    git checkout -b feature/add-metrics
+
+3. Commit convention:
+    feat: add project cost tracker
+    fix: correct null bug in metrics API
+    docs: update readme for new flow
+
+4. Push and open PR:
+    git push origin feature/add-metrics
+
+Code review + merge → develop → main
+
+
+Project Structure Documentation:
+- /README.md – Overview
+- /docs/api.md – All endpoints with input/output examples
+- /docs/design.md – Component library & design decisions
+- /docs/database.md – Schema diagram and relationships
+
+
