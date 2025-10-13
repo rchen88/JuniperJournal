@@ -57,7 +57,9 @@ Project Structure Documentation:
 - .gitgnore- git files
 - .metadata- flutter tools
 - README.md- overview
-- analysis_options.yaml- configures the Dart Analyzer
+- analysis_options.yaml- This file sets up the Dart analyzer, 
+which automatically checks Dart code for errors, warnings, and style issues. Any problems 
+the analyzer finds are shown directly within Dart-enabled editors.
 - pubspec.lock- lock down exact dependency versions
 - pubspec.yaml- defines your project’s metadata, dependencies, assets, and 
 environment setup so that Flutter knows how to build and run your app
