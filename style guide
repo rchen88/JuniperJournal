@@ -35,23 +35,6 @@ Branching model (css)
 main          → production-ready code
 develop       → staging and QA-ready code
 
-Workflow (using bash)
-1. Clone repository
-    git clone <repo-url>
-
-2. Create a feature branch
-    git checkout -b feature/add-metrics
-
-3. Commit convention:
-    feat: add project cost tracker
-    fix: correct null bug in metrics API
-    docs: update readme for new flow
-
-4. Push and open PR:
-    git push origin feature/add-metrics
-
-Code review + merge → develop → main
-
 
 Project Structure Documentation:
 - .gitgnore- git files
