@@ -30,7 +30,7 @@ Body2
         10px
 
 
-Git & Workflow:
+Git/Workflow:
 Branching model (css)
 main          → production-ready code
 develop       → staging and QA-ready code
