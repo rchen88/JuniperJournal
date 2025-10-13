@@ -30,35 +30,30 @@ Body2
         10px
 
 
-
 Git & Workflow:
-Branching model
+Branching model (css)
 main          → production-ready code
 develop       → staging and QA-ready code
-feature/*     → new feature development
-bugfix/*      → quick fixes
 
-Workflow
+Workflow (using bash)
+1. Clone repository
+    git clone <repo-url>
 
-Clone repository
-git clone <repo-url>
+2. Create a feature branch
+    git checkout -b feature/add-metrics
 
-Create a feature branch
-git checkout -b feature/add-metrics
+3. Commit convention:
+    feat: add project cost tracker
+    fix: correct null bug in metrics API
+    docs: update readme for new flow
 
-Commit convention:
-feat: add project cost tracker
-fix: correct null bug in metrics API
-docs: update readme for new flow
-
-Push and open PR:
-git push origin feature/add-metrics
+4. Push and open PR:
+    git push origin feature/add-metrics
 
 Code review + merge → develop → main
 
 
-Project Structure Documentation
-
+Project Structure Documentation:
 - /README.md – Overview
 - /docs/api.md – All endpoints with input/output examples
 - /docs/design.md – Component library & design decisions
