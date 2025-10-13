@@ -16,7 +16,11 @@ class _CreateTemplateScreenState extends State<CreateTemplateScreen> {
   String? _selectedDifficulty;
 
   // TODO change to correct difficulty bands
-  final List<String> _difficultyOptions = ['1', '2', '3', '4'];
+  final List<String> _difficultyOptions = [
+      'Basic (100 EcoPoints)', 
+      'Intermediate (250 EcoPoints)', 
+      'Advanced (500 EcoPoints)'
+    ];
 
   @override
   void dispose() {
