@@ -57,8 +57,8 @@ Project Structure Documentation:
 - .gitgnore- git files
 - .metadata- flutter tools
 - README.md- overview
-- analysis_options.yaml- onfigures the Dart Analyzer
-- pubspec.lock
+- analysis_options.yaml- configures the Dart Analyzer
+- pubspec.lock- lock down exact dependency versions
 - pubspec.yaml
 - style guide
 
