@@ -54,9 +54,12 @@ Code review + merge → develop → main
 
 
 Project Structure Documentation:
-- /README.md – Overview
-- /docs/api.md – All endpoints with input/output examples
-- /docs/design.md – Component library & design decisions
-- /docs/database.md – Schema diagram and relationships
+- .gitgnore
+- .metadata
+- README.md 
+- analysis_options.yaml
+- pubspec.lock
+- pubspec.yaml
+- style guide
 
 
