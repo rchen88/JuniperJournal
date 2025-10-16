@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:juniper_journal/src/backend/db/repositories/learning_module_repo.dart';
 import '../../styling/app_colors.dart';
 
 class CreateTemplateScreen extends StatefulWidget {
@@ -9,18 +10,15 @@ class CreateTemplateScreen extends StatefulWidget {
 }
 
 class _CreateTemplateScreenState extends State<CreateTemplateScreen> {
-  // used for validation of 'module name' and 'difficulty band' inputs
-  final _formKey = GlobalKey<FormState>(); 
-
+  final _formKey = GlobalKey<FormState>();
   final _moduleNameController = TextEditingController();
   String? _selectedDifficulty;
 
-  // TODO change to correct difficulty bands
   final List<String> _difficultyOptions = [
-      'Basic (100 EcoPoints)', 
-      'Intermediate (250 EcoPoints)', 
-      'Advanced (500 EcoPoints)'
-    ];
+    'Basic (100 EcoPoints)',
+    'Intermediate (250 EcoPoints)',
+    'Advanced (500 EcoPoints)'
+  ];
 
   @override
   void dispose() {
@@ -66,8 +64,10 @@ class _CreateTemplateScreenState extends State<CreateTemplateScreen> {
                   labelStyle: const TextStyle(color: AppColors.textSecondary),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide:
-                        const BorderSide(color: AppColors.inputBorder, width: 2),
+                    borderSide: const BorderSide(
+                      color: AppColors.inputBorder,
+                      width: 2,
+                    ),
                   ),
                   filled: true,
                   fillColor: AppColors.inputBackground,
@@ -100,8 +100,10 @@ class _CreateTemplateScreenState extends State<CreateTemplateScreen> {
                 decoration: InputDecoration(
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
-                    borderSide:
-                        const BorderSide(color: AppColors.inputBorder, width: 2),
+                    borderSide: const BorderSide(
+                      color: AppColors.inputBorder,
+                      width: 2,
+                    ),
                   ),
                   filled: true,
                   fillColor: AppColors.inputBackground,
@@ -114,10 +116,13 @@ class _CreateTemplateScreenState extends State<CreateTemplateScreen> {
                     .map(
                       (value) => DropdownMenuItem<String>(
                         value: value,
-                        child: Text(value,
-                            style: const TextStyle(color: AppColors.inputText)),
+                        child: Text(
+                          value,
+                          style: const TextStyle(color: AppColors.inputText),
+                        ),
                       ),
-                    ).toList(),
+                    )
+                    .toList(),
                 onChanged: (value) {
                   setState(() => _selectedDifficulty = value);
                 },
@@ -135,12 +140,48 @@ class _CreateTemplateScreenState extends State<CreateTemplateScreen> {
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton(
-                  onPressed: () {
+                  onPressed: () async {
                     if (_formKey.currentState!.validate()) {
-                      debugPrint('Creating module: ${_moduleNameController.text}');
-                      debugPrint('Difficulty: $_selectedDifficulty');
+                      final moduleName = _moduleNameController.text.trim();
+                      final difficulty = _selectedDifficulty!;
+                      int ecoPoints = 0;
 
-                      // TODO implement creation logic
+                      if (difficulty.contains('Basic')) {
+                        ecoPoints = 100;
+                      } else if (difficulty.contains('Intermediate')) {
+                        ecoPoints = 250;
+                      } else if (difficulty.contains('Advanced')) {
+                        ecoPoints = 500;
+                      }
+
+                      // Purpose here is to avoid using buildcontext across async gaps:
+                      // cache messenger/navigator first
+                      final messenger = ScaffoldMessenger.of(context);
+                      final navigator = Navigator.of(context);
+                      final repo = LearningModuleRepo();
+
+                      final success = await repo.createModule(
+                        moduleName: moduleName,
+                        difficulty: difficulty,
+                        ecoPoints: ecoPoints,
+                      );
+
+                      if (success) {
+                        messenger.showSnackBar(
+                          const SnackBar(
+                            content:
+                                Text('Module created successfully!'),
+                          ),
+                        );
+                        // TODO: Navigate to next screen
+                        navigator.pop();
+                      } else {
+                        messenger.showSnackBar(
+                          const SnackBar(
+                            content: Text('Failed to create module'),
+                          ),
+                        );
+                      }
                     }
                   },
                   style: ElevatedButton.styleFrom(
