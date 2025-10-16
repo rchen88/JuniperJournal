@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:juniper_journal/src/backend/db/supabase_database.dart';
+import 'package:juniper_journal/src/backend/debug/supabase_test_screen.dart';
 import 'src/frontend/learning_module/create_lm_template.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load();
+  await SupabaseDatabase.instance.init();
   runApp(const MyApp());
 }
 
@@ -38,16 +44,32 @@ class MyHomePage extends StatelessWidget {
           style: TextStyle(fontSize: 24),
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const CreateTemplateScreen(),
-            ),
-          );
-        },
-        child: Text('Create LM'),
+      floatingActionButton: Column(
+        mainAxisAlignment: MainAxisAlignment.end,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          FloatingActionButton(
+            heroTag: 'fab1',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SupabaseTestScreen()),
+              );
+            },
+            child: const Icon(Icons.cloud),
+          ),
+          const SizedBox(height: 12),
+          FloatingActionButton(
+            heroTag: 'fab2',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const CreateTemplateScreen()),
+              );
+            },
+            child: const Text('LM'),
+          ),
+        ],
       ),
     );
   }
