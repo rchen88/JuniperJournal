@@ -3,6 +3,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:juniper_journal/src/backend/db/supabase_database.dart';
 import 'package:juniper_journal/src/backend/debug/supabase_test_screen.dart';
 import 'src/frontend/learning_module/create_lm_template.dart';
+import 'src/frontend/submission_template/create_submission_template.dart'; //
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -38,38 +39,35 @@ class MyHomePage extends StatelessWidget {
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: Text(title),
       ),
-      body: const Center(
-        child: Text(
-          'Juniper Journal Home',
-          style: TextStyle(fontSize: 24),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const CreateTemplateScreen(),
+                  ),
+                );
+              },
+              child: const Text('Go to Learning Module'),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const CreateSubmissionScreen(), // Submission screen
+                  ),
+                );
+              },
+              child: const Text('Go to Submission Template'),
+            ),
+          ],
         ),
-      ),
-      floatingActionButton: Column(
-        mainAxisAlignment: MainAxisAlignment.end,
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          FloatingActionButton(
-            heroTag: 'fab1',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const SupabaseTestScreen()),
-              );
-            },
-            child: const Icon(Icons.cloud),
-          ),
-          const SizedBox(height: 12),
-          FloatingActionButton(
-            heroTag: 'fab2',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const CreateTemplateScreen()),
-              );
-            },
-            child: const Text('LM'),
-          ),
-        ],
       ),
     );
   }
