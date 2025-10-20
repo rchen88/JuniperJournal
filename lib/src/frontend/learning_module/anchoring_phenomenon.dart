@@ -1,33 +1,18 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:juniper_journal/src/frontend/learning_module/learning_objective.dart';
+import 'package:juniper_journal/src/styling/app_colors.dart';
 
-void main() => runApp(const ClimateApp());
+class AnchoringPhenomenon extends StatefulWidget {
+  final Map<String, dynamic>? existingModule;
 
-class ClimateApp extends StatelessWidget {
-  const ClimateApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Juniper Journal',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF5DB075)),
-      ),
-      home: const InquiryScreen(),
-    );
-  }
-}
-
-class InquiryScreen extends StatefulWidget {
-  const InquiryScreen({super.key});
+  const AnchoringPhenomenon({super.key, this.existingModule});
 
   @override
-  State<InquiryScreen> createState() => _InquiryScreenState();
+  State<AnchoringPhenomenon> createState() => _CreateAnchoringPhenomenonScreenState();
 }
 
-class _InquiryScreenState extends State<InquiryScreen> {
+class _CreateAnchoringPhenomenonScreenState extends State<AnchoringPhenomenon> {
   final TextEditingController _controller = TextEditingController();
 
   @override
@@ -38,10 +23,7 @@ class _InquiryScreenState extends State<InquiryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const green = Color(0xFF5DB075);
-    const lightGreen = Color(0xFFDCF7E4);
-    const lightBlue = Color(0xFFDFECFD);
-    const blue = Color(0xFF2C70BF);
+    final widgetModule = widget.existingModule!;
 
     return Scaffold(
       body: SafeArea(
@@ -94,13 +76,13 @@ class _InquiryScreenState extends State<InquiryScreen> {
                 children: const [
                   _TagChip(
                     label: 'ANCHORING PHENOMENON',
-                    bg: lightGreen,
-                    fg: green,
+                    bg: AppColors.primary,
+                    fg: AppColors.buttonPrimary,
                   ),
                   _TagChip(
                     label: 'WHY',
-                    bg: lightBlue,
-                    fg: blue,
+                    bg: AppColors.lightBlue,
+                    fg: AppColors.blue,
                   ),
                 ],
               ),
@@ -116,11 +98,11 @@ class _InquiryScreenState extends State<InquiryScreen> {
                   contentPadding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   enabledBorder: OutlineInputBorder(
-                    borderSide: const BorderSide(color: green, width: 1),
+                    borderSide: const BorderSide(color: AppColors.primary, width: 1),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   focusedBorder: OutlineInputBorder(
-                    borderSide: const BorderSide(color: green, width: 1.5),
+                    borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   filled: false,
@@ -159,7 +141,7 @@ class _InquiryScreenState extends State<InquiryScreen> {
                 height: 52,
                 child: FilledButton(
                   style: FilledButton.styleFrom(
-                    backgroundColor: green,
+                    backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
@@ -170,6 +152,14 @@ class _InquiryScreenState extends State<InquiryScreen> {
                     ),
                   ),
                   onPressed: () {
+
+                    Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (context) => LearningObjectiveScreen(
+                              module: widgetModule,
+                            ),
+                          ),
+                        );
                     // TODO: submit handling
                     debugPrint('Complete pressed: ${_controller.text}');
                   },
