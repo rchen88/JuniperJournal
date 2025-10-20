@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'src/frontend/learning_module/create_lm_template.dart';
+import 'src/frontend/submission_template/create_submission_template.dart'; //
 
 void main() {
   runApp(const MyApp());
@@ -32,22 +33,35 @@ class MyHomePage extends StatelessWidget {
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: Text(title),
       ),
-      body: const Center(
-        child: Text(
-          'Juniper Journal Home',
-          style: TextStyle(fontSize: 24),
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const CreateTemplateScreen(),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const CreateTemplateScreen(),
+                  ),
+                );
+              },
+              child: const Text('Go to Learning Module'),
             ),
-          );
-        },
-        child: Text('Create LM'),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const CreateSubmissionScreen(), // Submission screen
+                  ),
+                );
+              },
+              child: const Text('Go to Submission Template'),
+            ),
+          ],
+        ),
       ),
     );
   }
