@@ -12,6 +12,8 @@ class AppColors {
   // Button colors
   static const Color buttonPrimary = Color(0xFF4CAF50); // Green
   static const Color buttonText = Color(0xFFFFFFFF); // White text on buttons
+  static const Color blue = Color(0xFF2C70BF); // blue
+  static const Color lightBlue = Color(0xFFDFECFD); // light blue
 
   // Input field colors
   static const Color inputBorder = Color(0xFF4CAF50); // Green border
