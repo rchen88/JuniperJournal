@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:juniper_journal/src/backend/db/repositories/learning_module_repo.dart';
+import 'package:juniper_journal/src/frontend/learning_module/anchoring_phenomenon.dart';
 import '../../styling/app_colors.dart';
 
 /// **Purpose:**  
@@ -22,11 +23,14 @@ import '../../styling/app_colors.dart';
 
 
 class CreateTemplateScreen extends StatefulWidget {
-  const CreateTemplateScreen({super.key});
+  final Map<String, dynamic>? existingModule;
+
+  const CreateTemplateScreen({super.key, this.existingModule});
 
   @override
   State<CreateTemplateScreen> createState() => _CreateTemplateScreenState();
 }
+
 
 class _CreateTemplateScreenState extends State<CreateTemplateScreen> {
   final _formKey = GlobalKey<FormState>();
@@ -44,6 +48,19 @@ class _CreateTemplateScreenState extends State<CreateTemplateScreen> {
     _moduleNameController.dispose();
     super.dispose();
   }
+
+  @override
+  void initState() {
+    super.initState();
+
+    // If editing, prefill data
+    final module = widget.existingModule;
+    if (module != null) {
+      _moduleNameController.text = module['module_name'] ?? '';
+      _selectedDifficulty = module['difficulty'];
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -167,38 +184,58 @@ class _CreateTemplateScreenState extends State<CreateTemplateScreen> {
 
                       if (difficulty.contains('Basic')) {
                         ecoPoints = 100;
-                      } else if (difficulty.contains('Intermediate')) {
+                      }
+                      else if (difficulty.contains('Intermediate')) {
                         ecoPoints = 250;
-                      } else if (difficulty.contains('Advanced')) {
+                      }
+                      else if (difficulty.contains('Advanced')) {
                         ecoPoints = 500;
                       }
 
-                      // Purpose here is to avoid using buildcontext across async gaps:
-                      // cache messenger/navigator first
+                      // Purpose here is to avoid using context across async gap later
                       final messenger = ScaffoldMessenger.of(context);
                       final navigator = Navigator.of(context);
                       final repo = LearningModuleRepo();
 
-                      final success = await repo.createModule(
-                        moduleName: moduleName,
-                        difficulty: difficulty,
-                        ecoPoints: ecoPoints,
-                      );
+                      Map<String, dynamic>? moduleData;
 
-                      if (success) {
-                        messenger.showSnackBar(
-                          const SnackBar(
-                            content:
-                                Text('Module created successfully!'),
+                      if (widget.existingModule == null) {
+                        // CREATE new module
+                        moduleData = await repo.createModule(
+                          moduleName: moduleName,
+                          difficulty: difficulty,
+                          ecoPoints: ecoPoints,
+                        );
+                      } else {
+                        // UPDATE existing module
+                        final success = await repo.updateModule(
+                          id: widget.existingModule!['id'].toString(),
+                          moduleName: moduleName,
+                          difficulty: difficulty,
+                          ecoPoints: ecoPoints,
+                        );
+                        if (success) {
+                          // Update the existing module data with new values
+                          moduleData = Map<String, dynamic>.from(widget.existingModule!);
+                          moduleData['module_name'] = moduleName;
+                          moduleData['difficulty'] = difficulty;
+                          moduleData['eco_points'] = ecoPoints;
+                        } else {
+                          moduleData = null;
+                        }
+                      }
+
+                      if (moduleData != null) {
+                        navigator.push(
+                          MaterialPageRoute(
+                            builder: (context) => AnchoringPhenomenon(
+                              existingModule: moduleData!,
+                            ),
                           ),
                         );
-                        // TODO: Navigate to next screen
-                        navigator.pop();
                       } else {
                         messenger.showSnackBar(
-                          const SnackBar(
-                            content: Text('Failed to create module'),
-                          ),
+                          const SnackBar(content: Text('Failed to save module')),
                         );
                       }
                     }
