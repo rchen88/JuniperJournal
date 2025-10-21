@@ -2,6 +2,8 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:juniper_journal/src/frontend/learning_module/learning_objective.dart';
 import 'package:juniper_journal/src/styling/app_colors.dart';
+import 'package:juniper_journal/src/backend/db/repositories/learning_module_repo.dart';
+import 'package:intl/intl.dart';
 
 class AnchoringPhenomenon extends StatefulWidget {
   final Map<String, dynamic>? existingModule;
@@ -13,52 +15,111 @@ class AnchoringPhenomenon extends StatefulWidget {
 }
 
 class _CreateAnchoringPhenomenonScreenState extends State<AnchoringPhenomenon> {
-  final TextEditingController _controller = TextEditingController();
+  final List<TextEditingController> _controllers = [TextEditingController()];
+  final _formKey = GlobalKey<FormState>();
+  String _selectedNavigation = 'ANCHORING PHENOMENON';
+  String _selectedQuestionType = 'WHY';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadExistingData();
+  }
 
   @override
   void dispose() {
-    _controller.dispose();
+    for (var controller in _controllers) {
+      controller.dispose();
+    }
     super.dispose();
+  }
+
+  void _loadExistingData() async {
+    final module = widget.existingModule;
+    if (module != null && module['id'] != null) {
+      final repo = LearningModuleRepo();
+
+      // If a user navigates backwards, want to laod in existing data that has already been saved
+      final freshModuleData = await repo.getModule(module['id'].toString());
+
+      if (freshModuleData != null) {
+        setState(() {
+          // Load creator_action (question type)
+          if (freshModuleData['creator_action'] != null) {
+            _selectedQuestionType = freshModuleData['creator_action'];
+          }
+
+          // Load inquiry (array of text)
+          if (freshModuleData['inquiry'] != null && freshModuleData['inquiry'] is List) {
+            final inquiryList = List<String>.from(freshModuleData['inquiry']);
+            if (inquiryList.isNotEmpty) {
+              // Clear the default controller and add controllers for existing data
+              _controllers.clear();
+              for (String text in inquiryList) {
+                final controller = TextEditingController(text: text);
+                _controllers.add(controller);
+              }
+            }
+          }
+        });
+      }
+    }
+  }
+
+  String _formatDate(String? createdAt) {
+    if (createdAt == null) return 'Date not available';
+
+    try {
+      final dateTime = DateTime.parse(createdAt).toLocal();
+      final formatter = DateFormat('EEEE, MMMM d');
+      return formatter.format(dateTime);
+    } catch (e) {
+      return 'Date error';
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final widgetModule = widget.existingModule!;
+    final moduleName = widgetModule['module_name'] ?? 'Module Name';
+    final formattedDate = _formatDate(widgetModule['created_at']);
 
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          child: Column(
+          child: Form(
+            key: _formKey,
+            child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Top bar (back + title + subtitle)
+              // Top bar
               Row(
                 children: [
                   IconButton(
-                    icon: const Icon(CupertinoIcons.back),
-                    onPressed: () => Navigator.maybePop(context),
+                    icon: const Icon(CupertinoIcons.back, color: AppColors.iconPrimary),
+                    onPressed: () => Navigator.of(context).pop(),
                     tooltip: 'Back',
                   ),
                   const SizedBox(width: 4),
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Basics of Climate Change',
-                          style: TextStyle(
+                          moduleName,
+                          style: const TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.w700,
-                            color: Color(0xFF1F2024),
+                            color: AppColors.darkText,
                           ),
                         ),
-                        SizedBox(height: 2),
+                        const SizedBox(height: 2),
                         Text(
-                          'Saturday, May 24',
-                          style: TextStyle(
+                          formattedDate,
+                          style: const TextStyle(
                             fontSize: 12,
-                            color: Color(0xFF868686),
+                            color: AppColors.lightGrey,
                           ),
                         ),
                       ],
@@ -69,65 +130,114 @@ class _CreateAnchoringPhenomenonScreenState extends State<AnchoringPhenomenon> {
               ),
               const SizedBox(height: 16),
 
-              // Chips row
+              // Navigation and question type dropdowns
               Wrap(
                 spacing: 10,
                 runSpacing: 8,
-                children: const [
-                  _TagChip(
-                    label: 'ANCHORING PHENOMENON',
-                    bg: AppColors.primary,
-                    fg: AppColors.buttonPrimary,
-                  ),
-                  _TagChip(
-                    label: 'WHY',
-                    bg: AppColors.lightBlue,
-                    fg: AppColors.blue,
-                  ),
+                children: [
+                  _buildNavigationDropdown(),
+                  _buildQuestionTypeDropdown(),
                 ],
               ),
               const SizedBox(height: 16),
 
-              // Multiline input
-              TextField(
-                controller: _controller,
-                maxLines: 6,
-                decoration: InputDecoration(
-                  hintText: 'Explain the inquiry...',
-                  hintStyle: const TextStyle(color: Color(0xFF808080)),
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                  enabledBorder: OutlineInputBorder(
-                    borderSide: const BorderSide(color: AppColors.primary, width: 1),
-                    borderRadius: BorderRadius.circular(12),
+              // Dynamic text inputs
+              ..._controllers.asMap().entries.map((entry) {
+                final index = entry.key;
+                final controller = entry.value;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: controller,
+                          maxLines: 6,
+                          decoration: InputDecoration(
+                            hintText: index == 0
+                                ? 'Explain the inquiry...'
+                                : 'Additional explanation...',
+                            hintStyle: const TextStyle(color: AppColors.hintText),
+                            contentPadding:
+                                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                            enabledBorder: OutlineInputBorder(
+                              borderSide: const BorderSide(color: AppColors.primary, width: 1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            errorBorder: OutlineInputBorder(
+                              borderSide: const BorderSide(color: AppColors.error, width: 1.5),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            focusedErrorBorder: OutlineInputBorder(
+                              borderSide: const BorderSide(color: AppColors.error, width: 1.5),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            filled: false,
+                          ),
+                          validator: index == 0 ? (value) {
+                            // Only validate the first text field - require at least one explanation
+                            final hasContent = _controllers.any((ctrl) => ctrl.text.trim().isNotEmpty);
+                            if (!hasContent) {
+                              return 'At least one explanation must be completed';
+                            }
+                            return null;
+                          } : null,
+                        ),
+                      ),
+                      if (_controllers.length > 1) ...[
+                        const SizedBox(width: 8),
+                        InkWell(
+                          borderRadius: BorderRadius.circular(18),
+                          onTap: () {
+                            setState(() {
+                              controller.dispose();
+                              _controllers.removeAt(index);
+                            });
+                          },
+                          child: Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              border: Border.all(color: AppColors.error),
+                              color: AppColors.white,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Center(
+                              child: Icon(CupertinoIcons.minus, size: 20, color: Colors.red),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
-                  focusedBorder: OutlineInputBorder(
-                    borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  filled: false,
-                ),
-              ),
-              const SizedBox(height: 12),
+                );
+              }),
 
-              // Small circular "+" button
+              // Add button
               Row(
                 children: [
                   InkWell(
                     borderRadius: BorderRadius.circular(18),
                     onTap: () {
-                      // TODO: add your action (e.g., attach media/step)
+                      setState(() {
+                        _controllers.add(TextEditingController());
+                      });
                     },
                     child: Container(
                       width: 36,
                       height: 36,
                       decoration: BoxDecoration(
-                        border: Border.all(color: const Color(0xFFE0E0E0)),
-                        color: Colors.white,
+                        border: Border.all(color: AppColors.borderLight),
+                        color: AppColors.white,
                         shape: BoxShape.circle,
                       ),
                       child: const Center(
-                        child: Icon(CupertinoIcons.add, size: 20),
+                        child: Icon(CupertinoIcons.add, size: 20, color: AppColors.iconPrimary),
                       ),
                     ),
                   ),
@@ -142,7 +252,7 @@ class _CreateAnchoringPhenomenonScreenState extends State<AnchoringPhenomenon> {
                 child: FilledButton(
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
+                    foregroundColor: AppColors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -151,64 +261,199 @@ class _CreateAnchoringPhenomenonScreenState extends State<AnchoringPhenomenon> {
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                  onPressed: () {
+                  onPressed: () async {
+                    if (_formKey.currentState!.validate()) {
+                      final messenger = ScaffoldMessenger.of(context);
+                      final repo = LearningModuleRepo();
+                      final moduleId = widgetModule['id'].toString();
+                      final navigator = Navigator.of(context);
 
-                    Navigator.of(context).push(
+                      // Get all non-empty text from controllers
+                      final allText = _controllers
+                          .map((controller) => controller.text.trim())
+                          .where((text) => text.isNotEmpty)
+                          .toList();
+
+                      // Save to database
+                      final success = await repo.updateAnchoringPhenomenon(
+                        id: moduleId,
+                        creatorAction: _selectedQuestionType,
+                        inquiry: allText,
+                      );
+
+                      if (success) {
+                        // Navigate to next screen
+                        navigator.push(
                           MaterialPageRoute(
                             builder: (context) => LearningObjectiveScreen(
                               module: widgetModule,
                             ),
                           ),
                         );
-                    // TODO: submit handling
-                    debugPrint('Complete pressed: ${_controller.text}');
+                      } else {
+                        messenger.showSnackBar(
+                          const SnackBar(
+                            content: Text('Failed to save anchoring phenomenon'),
+                            backgroundColor: AppColors.error,
+                          ),
+                        );
+                      }
+                    }
                   },
                   child: const Text('Complete'),
                 ),
               ),
             ],
+            ),
           ),
         ),
       ),
     );
   }
-}
 
-class _TagChip extends StatelessWidget {
-  final String label;
-  final Color bg;
-  final Color fg;
-
-  const _TagChip({
-    required this.label,
-    required this.bg,
-    required this.fg,
-  });
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildNavigationDropdown() {
     return Container(
       height: 28,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 4),
       decoration: BoxDecoration(
-        color: bg,
+        color: AppColors.primary,
         borderRadius: BorderRadius.circular(24),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              color: fg,
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.5,
-            ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: _selectedNavigation,
+          icon: const Icon(
+            Icons.keyboard_arrow_down,
+            size: 16,
+            color: AppColors.white,
           ),
-          const SizedBox(width: 6),
-          Icon(Icons.keyboard_arrow_down, size: 16, color: fg),
-        ],
+          style: const TextStyle(
+            color: AppColors.white,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.5,
+          ),
+          dropdownColor: AppColors.primary,
+          items: const [
+            DropdownMenuItem(
+              value: 'TITLE',
+              child: Text(
+                'TITLE',
+                style: TextStyle(
+                  color: AppColors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+            DropdownMenuItem(
+              value: 'ANCHORING PHENOMENON',
+              child: Text(
+                'ANCHORING PHENOMENON',
+                style: TextStyle(
+                  color: AppColors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+          ],
+          onChanged: (value) {
+            if (value == 'TITLE') {
+              // Go back to title (parent of AP)
+              Navigator.of(context).pop();
+            }
+            // If ANCHORING PHENOMENON is selected, stay on current page
+            setState(() {
+              _selectedNavigation = value!;
+            });
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuestionTypeDropdown() {
+    return Container(
+      height: 28,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      decoration: BoxDecoration(
+        color: AppColors.lightBlue,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: _selectedQuestionType,
+          icon: const Icon(
+            Icons.keyboard_arrow_down,
+            size: 16,
+            color: AppColors.blue,
+          ),
+          style: const TextStyle(
+            color: AppColors.blue,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.5,
+          ),
+          dropdownColor: AppColors.lightBlue,
+          items: const [
+            DropdownMenuItem(
+              value: 'WHY',
+              child: Text(
+                'WHY',
+                style: TextStyle(
+                  color: AppColors.blue,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+            DropdownMenuItem(
+              value: 'HOW',
+              child: Text(
+                'HOW',
+                style: TextStyle(
+                  color: AppColors.blue,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+            DropdownMenuItem(
+              value: 'WHAT',
+              child: Text(
+                'WHAT',
+                style: TextStyle(
+                  color: AppColors.blue,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+            DropdownMenuItem(
+              value: 'WHEN',
+              child: Text(
+                'WHEN',
+                style: TextStyle(
+                  color: AppColors.blue,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+          ],
+          onChanged: (value) {
+            setState(() {
+              _selectedQuestionType = value!;
+            });
+          },
+        ),
       ),
     );
   }

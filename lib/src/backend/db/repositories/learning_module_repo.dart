@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:juniper_journal/src/backend/db/supabase_database.dart';
 
 /// Repository class responsible for handling all database interactions
@@ -12,13 +13,11 @@ import 'package:juniper_journal/src/backend/db/supabase_database.dart';
 /// - (Future) Can be extended to support reading, updating, and deleting modules.
 /// - Converts UI-level data into structured Supabase API calls.
 ///
-/// Using this repository pattern keeps your widget code clean and
-/// makes it easier to maintain and test database logic independently.
 class LearningModuleRepo {
   static const table = 'learning_module';
   final _client = SupabaseDatabase.instance.client;
 
-  Future<bool> createModule({
+  Future<Map<String, dynamic>?> createModule({
     required String moduleName,
     required String difficulty,
     required int ecoPoints,
@@ -31,11 +30,187 @@ class LearningModuleRepo {
             'difficulty': difficulty,
             'eco_points': ecoPoints,
           })
-          .select();
+          .select()
+          .single();
 
-      // If insert succeeded, Supabase returns a non-empty List
-      return response.isNotEmpty;
+      return response;
     } catch (e) {
+      return null;
+    }
+  }
+
+  Future<bool> updateModule({
+    required String id,
+    required String moduleName,
+    required String difficulty,
+    required int ecoPoints,
+  }) async {
+    try {
+      // First check if the record exists
+      final existingRecord = await _client
+          .from(table)
+          .select()
+          .eq('id', id)
+          .maybeSingle();
+
+      if (existingRecord == null) {
+        debugPrint('No record found with id: $id');
+        return false;
+      }
+
+      // Try the update without select first
+      await _client
+          .from(table)
+          .update({
+            'module_name': moduleName,
+            'difficulty': difficulty,
+            'eco_points': ecoPoints,
+          })
+          .eq('id', id);
+
+      // Then verify the update worked by fetching the record again
+      final updatedRecord = await _client
+          .from(table)
+          .select()
+          .eq('id', id)
+          .single();
+
+      debugPrint('Updated record: $updatedRecord');
+
+      // Check if the values were actually updated
+      final isUpdated = updatedRecord['module_name'] == moduleName &&
+                       updatedRecord['difficulty'] == difficulty &&
+                       updatedRecord['eco_points'] == ecoPoints;
+
+      debugPrint('Update successful: $isUpdated');
+      return isUpdated;
+    } catch (e) {
+      debugPrint('Error updating module: $e');
+      return false;
+    }
+  }
+
+  Future<bool> updateLearningObjectives({
+    required String id,
+    required List<String> learningObjectives,
+  }) async {
+    try {
+      debugPrint('Updating learning objectives for module id: $id');
+      debugPrint('Learning objectives: $learningObjectives');
+
+      // Filter out null/empty values
+      final filteredObjectives = learningObjectives.where((obj) => obj.isNotEmpty).toList();
+
+      await _client
+          .from(table)
+          .update({
+            'learning_objectives': filteredObjectives,
+          })
+          .eq('id', id);
+
+      debugPrint('Learning objectives updated successfully');
+      return true;
+    } catch (e) {
+      debugPrint('Error updating learning objectives: $e');
+      return false;
+    }
+  }
+
+  Future<bool> updateSubjectDomains({
+    required String id,
+    required List<String> subjectDomains,
+  }) async {
+    try {
+      debugPrint('Updating subject domains for module id: $id');
+      debugPrint('Subject domains: $subjectDomains');
+
+      // Filter out null/empty values
+      final filteredDomains = subjectDomains.where((domain) => domain.isNotEmpty).toList();
+
+      await _client
+          .from(table)
+          .update({
+            'subject_domain': filteredDomains,
+          })
+          .eq('id', id);
+
+      debugPrint('Subject domains updated successfully');
+      return true;
+    } catch (e) {
+      debugPrint('Error updating subject domains: $e');
+      return false;
+    }
+  }
+
+  Future<bool> updateAnchoringPhenomenon({
+    required String id,
+    required String creatorAction,
+    required List<String> inquiry,
+  }) async {
+    try {
+      debugPrint('Updating anchoring phenomenon for module id: $id');
+      debugPrint('Creator action: $creatorAction');
+      debugPrint('Inquiry: $inquiry');
+
+      // Filter out empty strings
+      final filteredInquiry = inquiry.where((text) => text.isNotEmpty).toList();
+
+      await _client
+          .from(table)
+          .update({
+            'creator_action': creatorAction,
+            'inquiry': filteredInquiry,
+          })
+          .eq('id', id);
+
+      debugPrint('Anchoring phenomenon updated successfully');
+      return true;
+    } catch (e) {
+      debugPrint('Error updating anchoring phenomenon: $e');
+      return false;
+    }
+  }
+
+  Future<Map<String, dynamic>?> getModule(String id) async {
+    try {
+      debugPrint('Fetching module with id: $id');
+
+      final response = await _client
+          .from(table)
+          .select()
+          .eq('id', id)
+          .single();
+
+      debugPrint('Fetched module: $response');
+      return response;
+    } catch (e) {
+      debugPrint('Error fetching module: $e');
+      return null;
+    }
+  }
+
+  Future<bool> updatePerformanceExpectations({
+    required String id,
+    required List<String> performanceExpectations,
+  }) async {
+    try {
+      debugPrint('Updating performance expectations for module id: $id');
+      debugPrint('Performance expectations: $performanceExpectations');
+
+      // Filter out empty strings
+      final filteredExpectations = performanceExpectations.where((exp) => exp.isNotEmpty).toList();
+
+      await _client
+          .from(table)
+          .update({
+            'performance_expectation': filteredExpectations,
+          })
+          .eq('id', id);
+
+      debugPrint('Performance expectations updated successfully');
+      return true;
+    } catch (e) {
+      debugPrint('Error updating performance expectations: $e');
       return false;
     }
   }
