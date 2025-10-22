@@ -1,6 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:juniper_journal/src/frontend/learning_module/learning_objective.dart';
+// import 'package:juniper_journal/src/frontend/learning_module/learning_objective.dart';
 import 'package:juniper_journal/src/styling/app_colors.dart';
 
 class AnchoringPhenomenon extends StatefulWidget {
@@ -152,14 +152,14 @@ class _CreateAnchoringPhenomenonScreenState extends State<AnchoringPhenomenon> {
                     ),
                   ),
                   onPressed: () {
-
+                    /*
                     Navigator.of(context).push(
                           MaterialPageRoute(
                             builder: (context) => LearningObjectiveScreen(
                               module: widgetModule,
                             ),
                           ),
-                        );
+                        ); */
                     // TODO: submit handling
                     debugPrint('Complete pressed: ${_controller.text}');
                   },
