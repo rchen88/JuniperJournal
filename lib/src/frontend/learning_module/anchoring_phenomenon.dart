@@ -1,6 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-// import 'package:juniper_journal/src/frontend/learning_module/learning_objective.dart';
+import 'package:juniper_journal/src/frontend/learning_module/learning_objective.dart';
 import 'package:juniper_journal/src/styling/app_colors.dart';
 import 'package:juniper_journal/src/backend/db/repositories/learning_module_repo.dart';
 import 'package:intl/intl.dart';
