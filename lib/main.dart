@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:juniper_journal/src/backend/db/supabase_database.dart';
-import 'package:juniper_journal/src/backend/debug/supabase_test_screen.dart';
 import 'src/frontend/learning_module/create_lm_template.dart';
 import 'src/frontend/submission_template/create_submission_template.dart'; 
 import 'src/frontend/learning_module/3d_learning.dart';

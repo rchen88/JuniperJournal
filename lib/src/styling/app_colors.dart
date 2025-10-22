@@ -23,4 +23,12 @@ class AppColors {
   // Icon colors
   static const Color iconPrimary = Color(0xFF212121); // Dark grey
   static const Color iconSecondary = Color(0xFF757575); // Light grey
+
+  // Additional colors for UI elements
+  static const Color hintText = Color(0xFF808080); // Medium grey for hint text
+  static const Color borderLight = Color(0xFFE0E0E0); // Light grey border
+  static const Color white = Color(0xFFFFFFFF); // Pure white
+  static const Color darkText = Color(0xFF1F2024); // Dark text
+  static const Color lightGrey = Color(0xFF868686); // Light grey text
+  static const Color error = Colors.red;
 }
