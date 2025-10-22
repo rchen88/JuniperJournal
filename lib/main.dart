@@ -66,20 +66,9 @@ class MyHomePage extends StatelessWidget {
                 );
               },
               child: const Text('Go to Submission Template'),
-              
             ),
           const SizedBox(height: 20),
-  ElevatedButton(
-    onPressed: () {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const ThreeDLearning(),
-        ),
-      );
-    },
-    child: const Text('Go to 3D Learning'),
-  ),],
+          ],
         ),
       ),
     );

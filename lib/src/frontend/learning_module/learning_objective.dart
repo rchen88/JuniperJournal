@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:juniper_journal/src/frontend/learning_module/3d_learning.dart';
 import '../../styling/app_colors.dart';
 import 'create_lm_template.dart';
 import '../../backend/db/repositories/learning_module_repo.dart';
@@ -216,7 +217,7 @@ class _LearningObjectiveScreenState extends State<LearningObjectiveScreen> {
     if (_addedCombinations.isNotEmpty) {
       return _addedCombinations
           .map((combo) => '${combo['objective']!.toUpperCase()}: ${combo['domain']!.toUpperCase()}')
-          .join(', ');
+          .join('\n');
     }
 
     // Fallback to database data if no combinations added yet
@@ -279,7 +280,7 @@ class _LearningObjectiveScreenState extends State<LearningObjectiveScreen> {
       for (int i = 0; i < learningObjectives.length; i++) {
         combinations.add('${learningObjectives[i].toString().toUpperCase()}: ${subjectDomains[i].toString().toUpperCase()}');
       }
-      return combinations.join(', ');
+      return combinations.join('\n');
     }
 
     return 'LEARNING OBJECTIVES NOT SET';
@@ -302,9 +303,7 @@ class _LearningObjectiveScreenState extends State<LearningObjectiveScreen> {
     final inquiryText = _buildInquiryText();
 
     return Scaffold(
-      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: AppColors.background,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: AppColors.border),
@@ -600,6 +599,7 @@ class _LearningObjectiveScreenState extends State<LearningObjectiveScreen> {
                   child: ElevatedButton(
                     onPressed: () async {
                       final messenger = ScaffoldMessenger.of(context);
+                      final navigator = Navigator.of(context);
 
                       // Check if at least one combination has been added
                       if (_addedCombinations.isEmpty) {
@@ -612,15 +612,10 @@ class _LearningObjectiveScreenState extends State<LearningObjectiveScreen> {
                         return;
                       }
 
-                      // All data is already saved to database via + and - buttons
-                      // Just show success and allow navigation
-                      // Snackbar is temporary until next screen is finished
-                      // TODO change to navigation
-                      messenger.showSnackBar(
-                        const SnackBar(
-                          content: Text('Learning objectives completed successfully!'),
-                          backgroundColor: Colors.green,
-                        ),
+                      navigator.push(
+                        MaterialPageRoute(builder: (context) => ThreeDLearning(
+                          module: widget.module,
+                        ))
                       );
                     },
                     style: ElevatedButton.styleFrom(

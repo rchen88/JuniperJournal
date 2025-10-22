@@ -214,4 +214,73 @@ class LearningModuleRepo {
       return false;
     }
   }
+
+  Future<bool> updateDCI({
+    required String id,
+    required List<String> dci,
+  }) async {
+    try {
+      // Filter out empty strings
+      final filteredDCI = dci.where((item) => item.isNotEmpty).toList();
+
+      await _client
+          .from(table)
+          .update({
+            'dci': filteredDCI,
+          })
+          .eq('id', id);
+
+      debugPrint('DCI updated successfully');
+      return true;
+    } catch (e) {
+      debugPrint('Error updating DCI: $e');
+      return false;
+    }
+  }
+
+  Future<bool> updateSEP({
+    required String id,
+    required List<String> sep,
+  }) async {
+    try {
+      // Filter out empty strings
+      final filteredSEP = sep.where((item) => item.isNotEmpty).toList();
+
+      await _client
+          .from(table)
+          .update({
+            'sep': filteredSEP,
+          })
+          .eq('id', id);
+
+      debugPrint('SEP updated successfully');
+      return true;
+    } catch (e) {
+      debugPrint('Error updating SEP: $e');
+      return false;
+    }
+  }
+
+  Future<bool> updateCCC({
+    required String id,
+    required List<String> ccc,
+  }) async {
+    try {
+      // Filter out empty strings
+      final filteredCCC = ccc.where((item) => item.isNotEmpty).toList();
+
+      await _client
+          .from(table)
+          .update({
+            'ccc': filteredCCC,
+          })
+          .eq('id', id);
+
+      debugPrint('CCC updated successfully');
+      return true;
+    } catch (e) {
+      debugPrint('Error updating CCC: $e');
+      return false;
+    }
+  }
 }
