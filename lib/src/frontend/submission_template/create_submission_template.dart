@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../styling/app_colors.dart';
+import 'create_problem_statement.dart';
+import 'create_timeline.dart';
 
 class CreateSubmissionScreen extends StatefulWidget {
   const CreateSubmissionScreen({super.key});
@@ -54,7 +56,6 @@ class _CreateSubmissionScreenState extends State<CreateSubmissionScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Project Name Label
               const Text(
                 'Project Name',
                 style: TextStyle(
@@ -65,18 +66,12 @@ class _CreateSubmissionScreenState extends State<CreateSubmissionScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-
-              // Green-outlined Project Name box
               Container(
                 width: double.infinity,
                 height: 83,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
-                  border: Border.all(
-                    color: const Color(0xFF5DB075),
-                    width: 1,
-                  ),
+                  border: Border.all(color: const Color(0xFF5DB075), width: 1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: TextFormField(
@@ -89,7 +84,6 @@ class _CreateSubmissionScreenState extends State<CreateSubmissionScreen> {
                   ),
                   decoration: const InputDecoration(
                     border: InputBorder.none,
-                    hintText: '',
                     contentPadding: EdgeInsets.zero,
                   ),
                   validator: (value) {
@@ -100,10 +94,7 @@ class _CreateSubmissionScreenState extends State<CreateSubmissionScreen> {
                   },
                 ),
               ),
-
               const SizedBox(height: 40),
-
-              // Tags Label
               const Text(
                 'Tags',
                 style: TextStyle(
@@ -114,8 +105,6 @@ class _CreateSubmissionScreenState extends State<CreateSubmissionScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-
-              // Tag Selection Chips
               Wrap(
                 spacing: 10,
                 runSpacing: 10,
@@ -132,14 +121,12 @@ class _CreateSubmissionScreenState extends State<CreateSubmissionScreen> {
                       });
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                       decoration: BoxDecoration(
                         color: const Color(0xFFD2E2DA),
                         borderRadius: BorderRadius.circular(12),
                         border: isSelected
-                            ? Border.all(
-                                color: const Color(0xFF5DB075), width: 1)
+                            ? Border.all(color: const Color(0xFF5DB075), width: 1)
                             : null,
                       ),
                       child: Text(
@@ -157,18 +144,21 @@ class _CreateSubmissionScreenState extends State<CreateSubmissionScreen> {
                   );
                 }).toList(),
               ),
-
               const SizedBox(height: 60),
-
-              // Create Button (Green Figma style)
               SizedBox(
                 width: double.infinity,
                 height: 48,
                 child: ElevatedButton(
                   onPressed: () {
                     if (_formKey.currentState!.validate()) {
-                      debugPrint('Project Name: ${_projectNameController.text}');
-                      debugPrint('Selected Tags: $_selectedTags');
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => CreateProblemStatementScreen(
+                            projectName: _projectNameController.text,
+                            tags: _selectedTags,
+                          ),
+                        ),
+                      );
                     }
                   },
                   style: ElevatedButton.styleFrom(
