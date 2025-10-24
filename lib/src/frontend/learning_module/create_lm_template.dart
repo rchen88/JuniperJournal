@@ -65,9 +65,7 @@ class _CreateTemplateScreenState extends State<CreateTemplateScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: AppColors.background,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.close, color: AppColors.border),
@@ -170,7 +168,7 @@ class _CreateTemplateScreenState extends State<CreateTemplateScreen> {
                 },
               ),
 
-              const Spacer(),
+              const SizedBox(height: 24),
 
               SizedBox(
                 width: double.infinity,
