@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../styling/app_colors.dart';
 
 class ProjectTimelineScreen extends StatelessWidget {
+  final int projectId;    
   final String projectName;
   final String projectDate;
   final List<String> tags;
@@ -9,6 +10,7 @@ class ProjectTimelineScreen extends StatelessWidget {
 
   const ProjectTimelineScreen({
     super.key,
+    required this.projectId,  
     required this.projectName,
     required this.projectDate,
     required this.tags,

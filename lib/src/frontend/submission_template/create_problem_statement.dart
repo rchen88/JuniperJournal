@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import '../../styling/app_colors.dart';
 import 'create_timeline.dart';
+import 'package:juniper_journal/src/backend/db/repositories/projects_repo.dart';
 
 class CreateProblemStatementScreen extends StatefulWidget {
+  final int projectId; 
   final String projectName;
   final List<String> tags;
 
   const CreateProblemStatementScreen({
     super.key,
+    required this.projectId, 
     required this.projectName,
     required this.tags,
   });
@@ -99,10 +102,29 @@ class _CreateProblemStatementScreenState
               width: double.infinity,
               height: 48,
               child: ElevatedButton(
-                onPressed: () {
+                onPressed: () async {
+                  final text = _problemController.text.trim();
+                  if (text.isEmpty) {
+                    ScaffoldMessenger.of(context)
+                      .showSnackBar(const SnackBar(content: Text('Please write a problem statement.')));
+                    return;
+                  }
+
+                  final ok = await ProjectsRepo().updateProblemStatement(
+                    id: widget.projectId,
+                    problemStatement: text,
+                  );
+
+                  if (!ok) {
+                    ScaffoldMessenger.of(context)
+                      .showSnackBar(const SnackBar(content: Text('Failed to save problem statement.')));
+                    return;
+                  }
+
                   Navigator.of(context).push(
                     MaterialPageRoute(
-                      builder: (context) => ProjectTimelineScreen(
+                      builder: (_) => ProjectTimelineScreen(
+                        projectId: widget.projectId,          // keep carrying it forward
                         projectName: widget.projectName,
                         projectDate: "Saturday, May 24",
                         tags: widget.tags,
