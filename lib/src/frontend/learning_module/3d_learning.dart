@@ -7,6 +7,39 @@ import 'anchoring_phenomenon.dart';
 import 'learning_objective.dart';
 import '../../backend/db/repositories/learning_module_repo.dart';
 
+/*
+Purpose:
+  Identifies the core scientific concepts, inquiry methods, and cross-disciplinary frameworks that underpin the lesson.
+  Ensures alignment with NGSS and supports deeper, more coherent science learning by clarifying what students engage with
+  beyond just the tasks they complete.
+
+Key Functions:
+  - Dropdowns for easy multi-select options
+  - Supports multi-dimensional NGSS alignment
+  - Organized into three NGSS-aligned components:
+
+Disciplinary Core Ideas (DCI):
+  Identify the central science concepts and knowledge areas explored in the lesson.
+  Grouped by domain
+
+Science and Engineering Practices (SEP):
+  Describe how students engage in scientific inquiry and investigation.
+
+Crosscutting Concepts (CCC):
+  Identify the conceptual lenses that connect ideas across science disciplines.
+
+Creator Actions / Behaviors:
+  - Select one or more DCIs based on lesson content.
+  - Choose SEPs to define inquiry and investigation approaches.
+  - Identify relevant CCCs to highlight conceptual connections.
+  - Use dropdown menus to streamline selection and ensure NGSS alignment.
+
+User Actions / Behaviors:
+  - View selected DCIs to understand core science concepts.
+  - See tagged SEPs to understand inquiry expectations.
+  - Interpret CCCs as guiding frameworks linking lessons to broader scientific thinking.
+*/
+
 class ThreeDLearning extends StatefulWidget {
   final Map<String, dynamic> module;
 
