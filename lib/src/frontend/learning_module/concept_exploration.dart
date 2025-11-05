@@ -358,6 +358,193 @@ class _ConceptExplorationScreenState extends State<ConceptExplorationScreen> {
     );
   }
 
+  /// Shows a dialog to configure and insert a table
+  Future<void> _insertTable() async {
+    if (_controller == null) return;
+
+    // Save the current cursor position
+    final savedSelection = _controller!.selection;
+    final savedIndex = savedSelection.isValid && savedSelection.extentOffset >= 0
+        ? savedSelection.extentOffset
+        : _controller!.document.length - 1;
+
+    final rowsController = TextEditingController(text: '3');
+    final colsController = TextEditingController(text: '3');
+
+    final result = await showDialog<Map<String, int>>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Insert Table'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Table dimensions:', style: TextStyle(fontWeight: FontWeight.w500)),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: rowsController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Rows',
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.all(12),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: colsController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Columns',
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.all(12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final rows = int.tryParse(rowsController.text.trim()) ?? 3;
+                final cols = int.tryParse(colsController.text.trim()) ?? 3;
+
+                // Validate dimensions
+                if (rows > 0 && rows <= 10 && cols > 0 && cols <= 10) {
+                  Navigator.of(context).pop({'rows': rows, 'cols': cols});
+                }
+              },
+              child: const Text('Insert'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (result != null && mounted && _controller != null) {
+      _insertTableIntoDocument(result['rows']!, result['cols']!, savedIndex);
+    }
+  }
+
+  /// Updates a table embed in the document with new data
+  void _updateTableEmbed(String oldTableUrl, String newTableUrl) {
+    if (_controller == null || !mounted) return;
+
+    try {
+      // Search through the document to find the old table embed
+      final doc = _controller!.document;
+      var offset = 0;
+
+      for (final node in doc.root.children) {
+        if (node is BlockNode) {
+          for (final child in node.children) {
+            if (child is EmbedNode) {
+              final embed = child.value;
+              if (embed.type == 'image') {
+                final url = embed.data['source'] as String?;
+                if (url == oldTableUrl) {
+                  // Found the table, replace it
+                  final newEmbed = BlockEmbed.image(newTableUrl);
+                  _controller!.replaceText(offset, 1, newEmbed);
+                  return;
+                }
+              }
+            }
+            offset += child.length;
+          }
+        } else {
+          offset += node.length;
+        }
+      }
+    } catch (e) {
+      debugPrint('Error updating table embed: $e');
+    }
+  }
+
+  /// Inserts a table into the Fleather document at the specified index
+  void _insertTableIntoDocument(int rows, int cols, int insertIndex) {
+    if (_controller == null || !mounted) return;
+
+    try {
+      final docLength = _controller!.document.length;
+
+      // If document is empty or nearly empty, add a space first
+      if (docLength <= 1) {
+        _controller!.replaceText(0, 0, '\n');
+      }
+
+      // Recalculate index after potentially adding content
+      final maxIndex = _controller!.document.length - 1;
+      final safeIndex = math.max(0, math.min(insertIndex, maxIndex));
+
+      // Create table data structure - initially empty cells
+      final tableData = {
+        'rows': rows,
+        'cols': cols,
+        'cells': List.generate(rows, (_) => List.generate(cols, (_) => '')),
+      };
+
+      // Encode table data
+      final encodedTable = base64Encode(utf8.encode(jsonEncode(tableData)));
+      final tableUrl = 'table://$encodedTable';
+      final embed = BlockEmbed.image(tableUrl);
+
+      // Insert the embed block into the document
+      _controller!.replaceText(safeIndex, 0, embed);
+
+      // Add a newline for spacing
+      _controller!.replaceText(safeIndex + 1, 0, '\n');
+
+      // Move cursor after the embed
+      _controller!.updateSelection(
+        TextSelection.collapsed(offset: safeIndex + 2),
+      );
+
+      // Trigger a rebuild after a delay
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted) {
+          setState(() {});
+        }
+      });
+
+      // Request focus back to the editor
+      Future.delayed(const Duration(milliseconds: 400), () {
+        if (mounted && _focusNode.canRequestFocus) {
+          _focusNode.requestFocus();
+        }
+      });
+
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Table inserted!'),
+            backgroundColor: AppColors.primary,
+            duration: Duration(seconds: 1),
+          ),
+        );
+      }
+    } catch (e, stackTrace) {
+      debugPrint('Error inserting table: $e');
+      debugPrint('Stack trace: $stackTrace');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to insert table'),
+            backgroundColor: AppColors.error,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
+
   Widget _embedBuilder(BuildContext context, EmbedNode node) {
     final embed = node.value;
 
@@ -365,9 +552,8 @@ class _ConceptExplorationScreenState extends State<ConceptExplorationScreen> {
     if (embed.type == 'image') {
       final imageUrl = embed.data['source'] as String?;
 
-      // Check if this is actually a math equation
+      // Check if this is a math equation
       if (imageUrl != null && imageUrl.startsWith('math://')) {
-
         try {
           // Extract and decode the LaTeX
           final encodedLatex = imageUrl.substring(7); // Remove 'math://' prefix
@@ -394,6 +580,49 @@ class _ConceptExplorationScreenState extends State<ConceptExplorationScreen> {
             ),
           );
         } catch (e) {
+          return const Icon(Icons.error, color: Colors.red);
+        }
+      }
+
+      // Check if this is a table
+      if (imageUrl != null && imageUrl.startsWith('table://')) {
+        try {
+          // Extract and decode the table data
+          final encodedTable = imageUrl.substring(8); // Remove 'table://' prefix
+          final tableJson = utf8.decode(base64Decode(encodedTable));
+          final tableData = jsonDecode(tableJson) as Map<String, dynamic>;
+
+          final rows = tableData['rows'] as int;
+          final cols = tableData['cols'] as int;
+          final cells = (tableData['cells'] as List)
+              .map((row) => (row as List).map((cell) => cell.toString()).toList())
+              .toList();
+
+          // Render editable table
+          return _EditableTable(
+            rows: rows,
+            cols: cols,
+            initialCells: cells,
+            onCellChanged: (rowIndex, colIndex, newValue) {
+              // Update the cell data
+              cells[rowIndex][colIndex] = newValue;
+
+              // Update the document with new table data
+              final updatedTableData = {
+                'rows': rows,
+                'cols': cols,
+                'cells': cells,
+              };
+
+              final newEncodedTable = base64Encode(utf8.encode(jsonEncode(updatedTableData)));
+              final newTableUrl = 'table://$newEncodedTable';
+
+              // Find and replace the old embed with the updated one
+              _updateTableEmbed(imageUrl, newTableUrl);
+            },
+          );
+        } catch (e) {
+          debugPrint('Error rendering table: $e');
           return const Icon(Icons.error, color: Colors.red);
         }
       }
@@ -793,6 +1022,7 @@ class _ConceptExplorationScreenState extends State<ConceptExplorationScreen> {
             child: ConceptExplorationToolbar(
               onCamera: _openCamera,
               onInsertMath: _insertMathEquation,
+              onInsertTable: _insertTable,
             ),
           ),
         ],
@@ -926,6 +1156,122 @@ class _ConceptExplorationScreenState extends State<ConceptExplorationScreen> {
             // If CONCEPT EXPLORATION is selected, stay on current page
           },
         ),
+      ),
+    );
+  }
+}
+
+/// Editable table widget that allows users to tap and edit cells
+class _EditableTable extends StatefulWidget {
+  final int rows;
+  final int cols;
+  final List<List<String>> initialCells;
+  final Function(int rowIndex, int colIndex, String newValue) onCellChanged;
+
+  const _EditableTable({
+    required this.rows,
+    required this.cols,
+    required this.initialCells,
+    required this.onCellChanged,
+  });
+
+  @override
+  State<_EditableTable> createState() => _EditableTableState();
+}
+
+class _EditableTableState extends State<_EditableTable> {
+  late List<List<FleatherController>> _controllers;
+  late List<List<FocusNode>> _focusNodes;
+
+  @override
+  void initState() {
+    super.initState();
+    // Create Fleather controllers for each cell
+    _controllers = List.generate(
+      widget.rows,
+      (row) => List.generate(
+        widget.cols,
+        (col) {
+          // Try to parse existing cell data as Fleather JSON, or create empty doc
+          try {
+            final cellData = widget.initialCells[row][col];
+            if (cellData.isNotEmpty) {
+              final doc = ParchmentDocument.fromJson(jsonDecode(cellData));
+              return FleatherController(document: doc);
+            }
+          } catch (e) {
+            // If not valid JSON, treat as plain text
+            final cellData = widget.initialCells[row][col];
+            if (cellData.isNotEmpty) {
+              final doc = ParchmentDocument()..insert(0, cellData);
+              return FleatherController(document: doc);
+            }
+          }
+          return FleatherController();
+        },
+      ),
+    );
+
+    _focusNodes = List.generate(
+      widget.rows,
+      (row) => List.generate(widget.cols, (col) => FocusNode()),
+    );
+
+    // Listen to document changes
+    for (var row = 0; row < widget.rows; row++) {
+      for (var col = 0; col < widget.cols; col++) {
+        final r = row;
+        final c = col;
+        _controllers[r][c].document.changes.listen((_) {
+          // Save the document as JSON when it changes
+          final json = jsonEncode(_controllers[r][c].document);
+          widget.onCellChanged(r, c, json);
+        });
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    // Dispose all controllers and focus nodes
+    for (var row in _controllers) {
+      for (var controller in row) {
+        controller.dispose();
+      }
+    }
+    for (var row in _focusNodes) {
+      for (var node in row) {
+        node.dispose();
+      }
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12.0),
+      child: Table(
+        border: TableBorder.all(
+          color: Colors.grey[400]!,
+          width: 1.0,
+        ),
+        defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+        children: List.generate(widget.rows, (rowIndex) {
+          return TableRow(
+            children: List.generate(widget.cols, (colIndex) {
+              return Container(
+                constraints: const BoxConstraints(minHeight: 40),
+                padding: const EdgeInsets.all(4.0),
+                child: FleatherEditor(
+                  controller: _controllers[rowIndex][colIndex],
+                  focusNode: _focusNodes[rowIndex][colIndex],
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                ),
+              );
+            }),
+          );
+        }),
       ),
     );
   }

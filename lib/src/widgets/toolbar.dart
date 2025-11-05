@@ -2,15 +2,17 @@ import 'package:flutter/material.dart';
 import '../styling/app_colors.dart';
 
 /// A toolbar for the Concept Exploration page that allows users to build their own modules.
-/// Features include inserting textboxes, resizing elements, camera/photo upload, and math equations.
+/// Features include inserting textboxes, resizing elements, camera/photo upload, math equations, and tables.
 class ConceptExplorationToolbar extends StatelessWidget {
   final VoidCallback? onCamera;
   final VoidCallback? onInsertMath;
+  final VoidCallback? onInsertTable;
 
   const ConceptExplorationToolbar({
     super.key,
     this.onCamera,
     this.onInsertMath,
+    this.onInsertTable,
   });
 
   @override
@@ -46,6 +48,10 @@ class ConceptExplorationToolbar extends StatelessWidget {
               _ToolbarButton(
                 icon: Icons.functions,
                 onPressed: onInsertMath,
+              ),
+              _ToolbarButton(
+                icon: Icons.table_chart,
+                onPressed: onInsertTable,
               ),
             ],
           ),

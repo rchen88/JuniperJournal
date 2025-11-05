@@ -890,51 +890,6 @@ class _RoundedChoicePill extends StatelessWidget {
   }
 }
 
-class _StatusPill extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final VoidCallback? onTap;
-
-  const _StatusPill({
-    required this.label,
-    required this.icon,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Material(
-        color: AppColors.accent.withValues(alpha: 64),
-        borderRadius: BorderRadius.circular(22),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(22),
-          onTap: onTap,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  label,
-                  style: const TextStyle(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.3,
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Icon(icon, size: 18, color: AppColors.primary),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 class _AddCircleButton extends StatelessWidget {
   final VoidCallback onTap;
   const _AddCircleButton({required this.onTap});
