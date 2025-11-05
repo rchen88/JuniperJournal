@@ -3,7 +3,9 @@ import 'package:flutter/cupertino.dart';
 import 'package:intl/intl.dart';
 import 'package:fleather/fleather.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:flutter_math_fork/flutter_math.dart';
 import 'dart:convert';
+import 'dart:math' as math;
 import '../../styling/app_colors.dart';
 import '../../backend/db/repositories/learning_module_repo.dart';
 import '../../backend/storage/storage_service.dart';
@@ -64,6 +66,17 @@ import '3d_learning.dart';
 /// ```
 ///
 /// ---------------------------------------------------------------------------
+
+/// Custom embed for math equations
+class MathEmbed extends BlockEmbed {
+  MathEmbed(String latex) : super('math:$latex');
+
+  static MathEmbed fromJson(String data) {
+    return MathEmbed(data);
+  }
+
+  String get latex => type.substring(5); // Remove 'math:' prefix
+}
 
 class ConceptExplorationScreen extends StatefulWidget {
   final Map<String, dynamic> module;
@@ -345,80 +358,241 @@ class _ConceptExplorationScreenState extends State<ConceptExplorationScreen> {
     );
   }
 
-  /// Custom embed builder to render images in the Fleather editor
   Widget _embedBuilder(BuildContext context, EmbedNode node) {
     final embed = node.value;
 
-    // Handle image embeds
+    // Handle images (which might be math equations in disguise)
     if (embed.type == 'image') {
       final imageUrl = embed.data['source'] as String?;
 
-      if (imageUrl == null || imageUrl.isEmpty) {
-        return const SizedBox.shrink();
+      // Check if this is actually a math equation
+      if (imageUrl != null && imageUrl.startsWith('math://')) {
+
+        try {
+          // Extract and decode the LaTeX
+          final encodedLatex = imageUrl.substring(7); // Remove 'math://' prefix
+          final latex = utf8.decode(base64Decode(encodedLatex));
+
+          // Render LaTeX using flutter_math_fork
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0),
+            child: Math.tex(
+              latex,
+              textStyle: const TextStyle(fontSize: 18),
+              mathStyle: MathStyle.display,
+              onErrorFallback: (FlutterMathException exception) {
+                // Fallback to showing the raw LaTeX if rendering fails
+                return Text(
+                  latex,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontFamily: 'Courier',
+                    color: Colors.red,
+                  ),
+                );
+              },
+            ),
+          );
+        } catch (e) {
+          return const Icon(Icons.error, color: Colors.red);
+        }
       }
 
+      // Regular image
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 8.0),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: Image.network(
-            imageUrl,
-            fit: BoxFit.contain,
-            loadingBuilder: (context, child, loadingProgress) {
-              if (loadingProgress == null) return child;
-
-              return Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: CircularProgressIndicator(
-                    value: loadingProgress.expectedTotalBytes != null
-                        ? loadingProgress.cumulativeBytesLoaded /
-                          loadingProgress.expectedTotalBytes!
-                        : null,
-                  ),
-                ),
-              );
-            },
-            errorBuilder: (context, error, stackTrace) {
-              debugPrint('Error loading image: $error');
-              return Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.broken_image, size: 48, color: Colors.grey),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Failed to load image',
-                      style: TextStyle(color: Colors.grey[600]),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
+        child: Image.network(
+          imageUrl ?? '',
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) =>
+              const Icon(Icons.broken_image, color: Colors.grey),
         ),
       );
     }
 
-    // Return empty widget for unknown embed types
     return const SizedBox.shrink();
   }
 
-  void _insertMathEquation() {
-    if (_controller == null) return;
-    // Insert placeholder for math equation
-    final index = _controller!.selection.baseOffset;
-    _controller!.replaceText(index, 0, '[Math Equation] ');
+  /// Shows a dialog to input a LaTeX math equation
+  Future<void> _insertMathEquation() async {
+    
+    if (_controller == null) {
+      debugPrint('Controller is null, returning');
+      return;
+    }
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Math equation feature coming soon!')),
+    // Save the current cursor position BEFORE opening the dialog
+    final savedSelection = _controller!.selection;
+    final savedIndex = savedSelection.isValid && savedSelection.extentOffset >= 0
+        ? savedSelection.extentOffset
+        : _controller!.document.length - 1;
+    
+    final TextEditingController latexController = TextEditingController();
+    
+    final result = await showDialog<String>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Insert Math Equation'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Enter LaTeX equation:',
+                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: latexController,
+                  autofocus: true,
+                  decoration: const InputDecoration(
+                    hintText: r'E = mc^2',
+                    border: OutlineInputBorder(),
+                    contentPadding: EdgeInsets.all(12),
+                  ),
+                  maxLines: 3,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  'Examples:',
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey[700],
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  r'• E = mc^2' '\n'
+                  r'• \frac{a}{b}' '\n'
+                  r'• x = \frac{-b \pm \sqrt{b^2-4ac}}{2a}' '\n'
+                  r'• \int_0^1 x^2 dx',
+                  style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final latex = latexController.text.trim();
+                if (latex.isNotEmpty) {
+                  Navigator.of(context).pop(latex);
+                } else {
+                  debugPrint('LaTeX is empty, not popping');
+                }
+              },
+              child: const Text('Insert'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (result != null && result.isNotEmpty) {
+
+      if (!mounted) {
+        debugPrint('Widget not mounted after dialog, aborting');
+        return;
+      }
+
+      if (_controller == null) {
+        debugPrint('Controller is null after dialog, aborting');
+        return;
+      }
+
+
+      // Insert directly - no callbacks needed
+      _insertMathIntoDocument(result, savedIndex);
+
+    } else {
+      debugPrint('Result was null or empty, not inserting');
+    }
+
+  }
+
+  /// Remove the MathEmbed class definition and use this instead:
+
+  /// Inserts a math equation into the Fleather document at the specified index
+  void _insertMathIntoDocument(String latex, int insertIndex) {
+    if (_controller == null || !mounted) {
+      debugPrint('Controller null or not mounted, returning');
+      return;
+    }
+
+    try {
+      final docLength = _controller!.document.length;
+
+      // If document is empty or nearly empty, add a space first
+      if (docLength <= 1) {
+        _controller!.replaceText(0, 0, '\n');
+      }
+
+      // Recalculate index after potentially adding content
+      final maxIndex = _controller!.document.length - 1;
+      final safeIndex = math.max(0, math.min(insertIndex, maxIndex));
+
+      // Create an image embed but use a special URL format to indicate it's math
+      final encodedLatex = base64Encode(utf8.encode(latex));
+      final mathUrl = 'math://$encodedLatex';
+      final embed = BlockEmbed.image(mathUrl);
+
+      // Insert the embed block into the document
+      _controller!.replaceText(safeIndex, 0, embed);
+
+      // Add a newline for spacing
+      _controller!.replaceText(safeIndex + 1, 0, '\n');
+
+      // Move cursor after the embed
+      _controller!.updateSelection(
+        TextSelection.collapsed(offset: safeIndex + 2),
       );
+
+      // Trigger a rebuild after a delay to ensure dialog is fully closed
+      Future.delayed(const Duration(milliseconds: 300), () {
+        if (mounted) {
+          setState(() {});
+        }
+      });
+
+      // Request focus back to the editor after the rebuild
+      Future.delayed(const Duration(milliseconds: 400), () {
+        if (mounted && _focusNode.canRequestFocus) {
+          _focusNode.requestFocus();
+        }
+      });
+
+      // Show success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Math equation inserted!'),
+            backgroundColor: AppColors.primary,
+            duration: Duration(seconds: 1),
+          ),
+        );
+      }
+
+    } catch (e, stackTrace) {
+      debugPrint('!!! ERROR in _insertMathIntoDocument: $e');
+      debugPrint('Stack trace: $stackTrace');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to insert equation'),
+            backgroundColor: AppColors.error,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
     }
   }
 
@@ -611,7 +785,7 @@ class _ConceptExplorationScreenState extends State<ConceptExplorationScreen> {
             ),
           ),
 
-          // Floating toolbar at bottom - outside SafeArea
+          // Floating toolbar at bottom
           Positioned(
             left: 0,
             right: 0,
