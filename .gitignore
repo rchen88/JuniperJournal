@@ -49,5 +49,8 @@ app.*.map.json
 .env
 *.env
 .env.*
+<<<<<<< HEAD
 
 .env.example
+=======
+>>>>>>> 1532517 (chore: ignore env files)
