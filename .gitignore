@@ -44,3 +44,13 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Env files
+.env
+*.env
+.env.*
+<<<<<<< HEAD
+
+.env.example
+=======
+>>>>>>> 1532517 (chore: ignore env files)

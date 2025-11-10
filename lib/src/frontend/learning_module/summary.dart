@@ -5,26 +5,27 @@ import 'package:juniper_journal/src/styling/app_colors.dart';
 import 'package:juniper_journal/src/backend/db/repositories/learning_module_repo.dart';
 import 'package:intl/intl.dart';
 
-class AnchoringPhenomenon extends StatefulWidget {
+class Summary extends StatefulWidget {
   final Map<String, dynamic>? existingModule;
 
-  const AnchoringPhenomenon({super.key, this.existingModule});
+  const Summary({super.key, this.existingModule});
 
   @override
-  State<AnchoringPhenomenon> createState() =>
-      _AnchoringPhenomenonScreenState();
+  State<Summary> createState() => _SummaryScreenState();
 }
 
-class _AnchoringPhenomenonScreenState extends State<AnchoringPhenomenon> {
+class _SummaryScreenState extends State<Summary> {
   final List<TextEditingController> _controllers = [TextEditingController()];
   final _formKey = GlobalKey<FormState>();
-  String _selectedNavigation = 'ANCHORING PHENOMENON';
+
+  // this screen is SUMMARY now
+  String _selectedNavigation = 'SUMMARY';
   String _selectedQuestionType = 'WHY';
 
   @override
   void initState() {
     super.initState();
-    _loadExistingData(); // <-- still fetch from Supabase
+    _loadExistingData(); // fetch from Supabase, but only read
   }
 
   @override
@@ -35,7 +36,7 @@ class _AnchoringPhenomenonScreenState extends State<AnchoringPhenomenon> {
     super.dispose();
   }
 
-  // KEEP: fetch from Supabase so we can prefill
+  // KEEP: read from Supabase so we prefill
   void _loadExistingData() async {
     final module = widget.existingModule;
     if (module != null && module['id'] != null) {
@@ -46,18 +47,18 @@ class _AnchoringPhenomenonScreenState extends State<AnchoringPhenomenon> {
 
       if (freshModuleData != null) {
         setState(() {
-          // question type
+          // Load question type
           if (freshModuleData['creator_action'] != null) {
             _selectedQuestionType = freshModuleData['creator_action'];
           }
 
-          // inquiry text list
+          // Load inquiry list
           if (freshModuleData['inquiry'] != null &&
               freshModuleData['inquiry'] is List) {
             final inquiryList = List<String>.from(freshModuleData['inquiry']);
             if (inquiryList.isNotEmpty) {
               _controllers.clear();
-              for (String text in inquiryList) {
+              for (final text in inquiryList) {
                 _controllers.add(TextEditingController(text: text));
               }
             }
@@ -68,20 +69,20 @@ class _AnchoringPhenomenonScreenState extends State<AnchoringPhenomenon> {
   }
 
   String _formatDate(String? createdAt) {
-    if (createdAt == null) return 'Date not available';
+    if (createdAt == null) {
+      return DateFormat('EEEE, MMMM d').format(DateTime.now());
+    }
 
     try {
       final dateTime = DateTime.parse(createdAt).toLocal();
-      final formatter = DateFormat('EEEE, MMMM d');
-      return formatter.format(dateTime);
+      return DateFormat('EEEE, MMMM d').format(dateTime);
     } catch (e) {
-      return 'Date error';
+      return 'Date';
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // make this safe if existingModule was null
     final widgetModule = widget.existingModule ?? {};
     final moduleName = widgetModule['module_name'] ?? 'Module Name';
     final formattedDate = _formatDate(widgetModule['created_at']);
@@ -99,8 +100,10 @@ class _AnchoringPhenomenonScreenState extends State<AnchoringPhenomenon> {
                 Row(
                   children: [
                     IconButton(
-                      icon: const Icon(CupertinoIcons.back,
-                          color: AppColors.iconPrimary),
+                      icon: const Icon(
+                        CupertinoIcons.back,
+                        color: AppColors.iconPrimary,
+                      ),
                       onPressed: () => Navigator.of(context).pop(),
                       tooltip: 'Back',
                     ),
@@ -128,23 +131,21 @@ class _AnchoringPhenomenonScreenState extends State<AnchoringPhenomenon> {
                         ],
                       ),
                     ),
-                    const SizedBox(width: 8),
                   ],
                 ),
                 const SizedBox(height: 16),
 
-                // Navigation and question type dropdowns
+                // Summary + question type
                 Wrap(
                   spacing: 10,
                   runSpacing: 8,
                   children: [
-                    _buildNavigationDropdown(),
-                    _buildQuestionTypeDropdown(),
+                    _buildNavigationDropdown()
                   ],
                 ),
                 const SizedBox(height: 16),
 
-                // Dynamic text inputs
+                // Dynamic text fields
                 ..._controllers.asMap().entries.map((entry) {
                   final index = entry.key;
                   final controller = entry.value;
@@ -159,41 +160,51 @@ class _AnchoringPhenomenonScreenState extends State<AnchoringPhenomenon> {
                             maxLines: 6,
                             decoration: InputDecoration(
                               hintText: index == 0
-                                  ? 'Explain the inquiry...'
-                                  : 'Additional explanation...',
+                                  ? 'Write the summary...'
+                                  : 'Additional summary detail...',
                               hintStyle:
                                   const TextStyle(color: AppColors.hintText),
                               contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 14),
+                                horizontal: 16,
+                                vertical: 14,
+                              ),
                               enabledBorder: OutlineInputBorder(
                                 borderSide: const BorderSide(
-                                    color: AppColors.primary, width: 1),
+                                  color: AppColors.primary,
+                                  width: 1,
+                                ),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderSide: const BorderSide(
-                                    color: AppColors.primary, width: 1.5),
+                                  color: AppColors.primary,
+                                  width: 1.5,
+                                ),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               errorBorder: OutlineInputBorder(
                                 borderSide: const BorderSide(
-                                    color: AppColors.error, width: 1.5),
+                                  color: AppColors.error,
+                                  width: 1.5,
+                                ),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               focusedErrorBorder: OutlineInputBorder(
                                 borderSide: const BorderSide(
-                                    color: AppColors.error, width: 1.5),
+                                  color: AppColors.error,
+                                  width: 1.5,
+                                ),
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              filled: false,
                             ),
                             validator: index == 0
                                 ? (value) {
                                     final hasContent = _controllers.any(
-                                        (ctrl) =>
-                                            ctrl.text.trim().isNotEmpty);
+                                      (ctrl) =>
+                                          ctrl.text.trim().isNotEmpty,
+                                    );
                                     if (!hasContent) {
-                                      return 'At least one explanation must be completed';
+                                      return 'At least one summary must be completed';
                                     }
                                     return null;
                                   }
@@ -219,8 +230,11 @@ class _AnchoringPhenomenonScreenState extends State<AnchoringPhenomenon> {
                                 shape: BoxShape.circle,
                               ),
                               child: const Center(
-                                child: Icon(CupertinoIcons.minus,
-                                    size: 20, color: Colors.red),
+                                child: Icon(
+                                  CupertinoIcons.minus,
+                                  size: 20,
+                                  color: Colors.red,
+                                ),
                               ),
                             ),
                           ),
@@ -230,35 +244,10 @@ class _AnchoringPhenomenonScreenState extends State<AnchoringPhenomenon> {
                   );
                 }),
 
-                // Add button
-                Row(
-                  children: [
-                    InkWell(
-                      borderRadius: BorderRadius.circular(18),
-                      onTap: () {
-                        setState(() {
-                          _controllers.add(TextEditingController());
-                        });
-                      },
-                      child: Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          border: Border.all(color: AppColors.borderLight),
-                          color: AppColors.white,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Center(
-                          child: Icon(CupertinoIcons.add,
-                              size: 20, color: AppColors.iconPrimary),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
+                // Add another summary
+                
 
-                // Complete button
+                // Complete: DON'T update Supabase, just navigate
                 SizedBox(
                   width: double.infinity,
                   height: 52,
@@ -276,20 +265,17 @@ class _AnchoringPhenomenonScreenState extends State<AnchoringPhenomenon> {
                     ),
                     onPressed: () {
                       if (_formKey.currentState!.validate()) {
-                        // collect local data
                         final allText = _controllers
-                            .map((controller) => controller.text.trim())
-                            .where((text) => text.isNotEmpty)
+                            .map((c) => c.text.trim())
+                            .where((t) => t.isNotEmpty)
                             .toList();
 
-                        // create an updated module object to pass forward
                         final updatedModule = {
                           ...widgetModule,
                           'creator_action': _selectedQuestionType,
                           'inquiry': allText,
                         };
 
-                        // JUST NAVIGATE – no repo.update*
                         Navigator.of(context).push(
                           MaterialPageRoute(
                             builder: (context) => LearningObjectiveScreen(
@@ -299,7 +285,7 @@ class _AnchoringPhenomenonScreenState extends State<AnchoringPhenomenon> {
                         );
                       }
                     },
-                    child: const Text('Complete'),
+                    child: const Text('Generate Summary Report'),
                   ),
                 ),
               ],
@@ -347,9 +333,9 @@ class _AnchoringPhenomenonScreenState extends State<AnchoringPhenomenon> {
               ),
             ),
             DropdownMenuItem(
-              value: 'ANCHORING PHENOMENON',
+              value: 'SUMMARY',
               child: Text(
-                'ANCHORING PHENOMENON',
+                'SUMMARY',
                 style: TextStyle(
                   color: Colors.green,
                   fontSize: 11,
@@ -363,97 +349,15 @@ class _AnchoringPhenomenonScreenState extends State<AnchoringPhenomenon> {
             if (value == null) return;
             if (value == 'TITLE') {
               Navigator.of(context).pop();
+            } else {
+              setState(() {
+                _selectedNavigation = value;
+              });
             }
-            setState(() {
-              _selectedNavigation = value;
-            });
           },
         ),
       ),
     );
   }
 
-  Widget _buildQuestionTypeDropdown() {
-    return Container(
-      height: 28,
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      decoration: BoxDecoration(
-        color: AppColors.lightBlue,
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: _selectedQuestionType,
-          icon: const Icon(
-            Icons.keyboard_arrow_down,
-            size: 16,
-            color: AppColors.blue,
-          ),
-          style: const TextStyle(
-            color: AppColors.blue,
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.5,
-          ),
-          dropdownColor: AppColors.lightBlue,
-          items: const [
-            DropdownMenuItem(
-              value: 'WHY',
-              child: Text(
-                'WHY',
-                style: TextStyle(
-                  color: AppColors.blue,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-            DropdownMenuItem(
-              value: 'HOW',
-              child: Text(
-                'HOW',
-                style: TextStyle(
-                  color: AppColors.blue,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-            DropdownMenuItem(
-              value: 'WHAT',
-              child: Text(
-                'WHAT',
-                style: TextStyle(
-                  color: AppColors.blue,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-            DropdownMenuItem(
-              value: 'WHEN',
-              child: Text(
-                'WHEN',
-                style: TextStyle(
-                  color: AppColors.blue,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-          ],
-          onChanged: (value) {
-            if (value == null) return;
-            setState(() {
-              _selectedQuestionType = value;
-            });
-          },
-        ),
-      ),
-    );
-  }
 }
