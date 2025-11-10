@@ -15,6 +15,7 @@ import 'anchoring_phenomenon.dart';
 import 'learning_objective.dart';
 import '3d_learning.dart';
 import 'concept_exploration.dart';
+import 'assessment.dart';
 
 /// Custom embed for math equations
 class MathEmbed extends BlockEmbed {
@@ -832,17 +833,14 @@ class _ActivityScreen extends State<ActivityScreen> {
                           if (value == 'save') {
                             await _saveDocument();
                           } else if (value == 'save_continue') {
-                            final messenger = ScaffoldMessenger.of(context);
+                            final navigator = Navigator.of(context);
                             await _saveDocument();
-                            if (mounted) {
-                              messenger.showSnackBar(
-                                const SnackBar(
-                                  content: Text('Moving to next section...'),
-                                  backgroundColor: AppColors.primary,
-                                  duration: Duration(seconds: 2),
+                            navigator.push(
+                                MaterialPageRoute(
+                                  builder: (context) => AssessmentScreen(
+                                  ),
                                 ),
                               );
-                            }
                           }
                         },
                         itemBuilder: (BuildContext context) => [
