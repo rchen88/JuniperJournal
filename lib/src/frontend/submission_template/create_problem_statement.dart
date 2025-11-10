@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../styling/app_colors.dart';
-import 'create_timeline.dart';
+import 'submissions_timeline.dart';
 
 class CreateProblemStatementScreen extends StatefulWidget {
   final String projectName;
@@ -50,34 +50,41 @@ class _CreateProblemStatementScreenState
         centerTitle: true,
       ),
       body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Show tags dynamically
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: widget.tags.map((tag) {
-                return Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFDCF7E4),
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  child: Text(
-                    tag,
-                    style: const TextStyle(
-                      color: Color(0xFF5DB075),
-                      fontSize: 10,
-                      fontFamily: 'Inter',
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                );
-              }).toList(),
+  padding: const EdgeInsets.all(16),
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Text(
+        widget.projectName,
+        style: const TextStyle(
+          fontSize: 20,
+          fontWeight: FontWeight.bold,
+          color: AppColors.textPrimary,
+        ),
+      ),
+      const SizedBox(height: 8),
+      Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: widget.tags.map((tag) {
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: const Color(0xFFDCF7E4),
+              borderRadius: BorderRadius.circular(24),
             ),
+            child: Text(
+              tag,
+              style: const TextStyle(
+                color: AppColors.primary,
+                fontSize: 10,
+                fontFamily: 'Inter',
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          );
+        }).toList(),
+      ),
             const SizedBox(height: 24),
 
             // Problem statement input
@@ -94,26 +101,27 @@ class _CreateProblemStatementScreenState
             ),
             const Spacer(),
 
-            // Next button
+            // Next button - This is already correct
             SizedBox(
               width: double.infinity,
               height: 48,
               child: ElevatedButton(
                 onPressed: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => ProjectTimelineScreen(
-                        projectName: widget.projectName,
-                        projectDate: "Saturday, May 24",
-                        tags: widget.tags,
-                      ),
-                    ),
-                  );
+                 Navigator.push(
+  context,
+  MaterialPageRoute(
+    builder: (context) => InteractiveTimelinePage(
+      projectName: widget.projectName,
+      tags: widget.tags,
+    ),
+  ),
+);
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF5DB075),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 child: const Text(
                   'Next',
