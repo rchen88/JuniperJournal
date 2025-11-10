@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../styling/app_colors.dart';
 
 class ProjectTimelineScreen extends StatelessWidget {
-  final int projectId;    
+  final String projectId;    
   final String projectName;
   final String projectDate;
   final List<String> tags;

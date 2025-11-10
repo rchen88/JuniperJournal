@@ -283,4 +283,48 @@ class LearningModuleRepo {
       return false;
     }
   }
+
+  Future<bool> updateConceptExploration({
+    required String id,
+    required String conceptExplorationJson,
+  }) async {
+    try {
+      debugPrint('Updating concept exploration for module id: $id');
+
+      await _client
+          .from(table)
+          .update({
+            'concept_exploration': conceptExplorationJson,
+          })
+          .eq('id', id);
+
+      debugPrint('Concept exploration updated successfully');
+      return true;
+    } catch (e) {
+      debugPrint('Error updating concept exploration: $e');
+      return false;
+    }
+  }
+
+  Future<bool> updateActivity({
+    required String id,
+    required String activityJson,
+  }) async {
+    try {
+      debugPrint('Updating activity for module id: $id');
+
+      await _client
+          .from(table)
+          .update({
+            'activity': activityJson,
+          })
+          .eq('id', id);
+
+      debugPrint('Activity updated successfully');
+      return true;
+    } catch (e) {
+      debugPrint('Error updating activity: $e');
+      return false;
+    }
+  }
 }
