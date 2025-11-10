@@ -5,61 +5,53 @@ import 'package:juniper_journal/src/styling/app_colors.dart';
 import 'package:juniper_journal/src/backend/db/repositories/learning_module_repo.dart';
 import 'package:intl/intl.dart';
 
-class AnchoringPhenomenon extends StatefulWidget {
+class CallToAction extends StatefulWidget {
   final Map<String, dynamic>? existingModule;
 
-  const AnchoringPhenomenon({super.key, this.existingModule});
+  const CallToAction({super.key, this.existingModule});
 
   @override
-  State<AnchoringPhenomenon> createState() =>
-      _AnchoringPhenomenonScreenState();
+  State<CallToAction> createState() => _CallToActionScreenState();
 }
 
-class _AnchoringPhenomenonScreenState extends State<AnchoringPhenomenon> {
+class _CallToActionScreenState extends State<CallToAction> {
   final List<TextEditingController> _controllers = [TextEditingController()];
   final _formKey = GlobalKey<FormState>();
-  String _selectedNavigation = 'ANCHORING PHENOMENON';
+
+  String _selectedNavigation = 'CALL TO ACTION';
   String _selectedQuestionType = 'WHY';
 
   @override
   void initState() {
     super.initState();
-    _loadExistingData(); // <-- still fetch from Supabase
+    _loadExistingData(); // read from supabase
   }
 
   @override
   void dispose() {
-    for (var controller in _controllers) {
-      controller.dispose();
+    for (var c in _controllers) {
+      c.dispose();
     }
     super.dispose();
   }
 
-  // KEEP: fetch from Supabase so we can prefill
   void _loadExistingData() async {
     final module = widget.existingModule;
     if (module != null && module['id'] != null) {
       final repo = LearningModuleRepo();
+      final fresh = await repo.getModule(module['id'].toString());
 
-      // pull latest data from backend
-      final freshModuleData = await repo.getModule(module['id'].toString());
-
-      if (freshModuleData != null) {
+      if (fresh != null) {
         setState(() {
-          // question type
-          if (freshModuleData['creator_action'] != null) {
-            _selectedQuestionType = freshModuleData['creator_action'];
+          if (fresh['creator_action'] != null) {
+            _selectedQuestionType = fresh['creator_action'];
           }
-
-          // inquiry text list
-          if (freshModuleData['inquiry'] != null &&
-              freshModuleData['inquiry'] is List) {
-            final inquiryList = List<String>.from(freshModuleData['inquiry']);
-            if (inquiryList.isNotEmpty) {
-              _controllers.clear();
-              for (String text in inquiryList) {
-                _controllers.add(TextEditingController(text: text));
-              }
+          if (fresh['inquiry'] != null && fresh['inquiry'] is List) {
+            final list = List<String>.from(fresh['inquiry']);
+            if (list.isNotEmpty) {
+              _controllers
+                ..clear()
+                ..addAll(list.map((t) => TextEditingController(text: t)));
             }
           }
         });
@@ -68,20 +60,19 @@ class _AnchoringPhenomenonScreenState extends State<AnchoringPhenomenon> {
   }
 
   String _formatDate(String? createdAt) {
-    if (createdAt == null) return 'Date not available';
-
+    if (createdAt == null) {
+      return DateFormat('EEEE, MMMM d').format(DateTime.now());
+    }
     try {
-      final dateTime = DateTime.parse(createdAt).toLocal();
-      final formatter = DateFormat('EEEE, MMMM d');
-      return formatter.format(dateTime);
-    } catch (e) {
-      return 'Date error';
+      return DateFormat('EEEE, MMMM d')
+          .format(DateTime.parse(createdAt).toLocal());
+    } catch (_) {
+      return 'Date';
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // make this safe if existingModule was null
     final widgetModule = widget.existingModule ?? {};
     final moduleName = widgetModule['module_name'] ?? 'Module Name';
     final formattedDate = _formatDate(widgetModule['created_at']);
@@ -95,14 +86,13 @@ class _AnchoringPhenomenonScreenState extends State<AnchoringPhenomenon> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Top bar
+                // header
                 Row(
                   children: [
                     IconButton(
                       icon: const Icon(CupertinoIcons.back,
                           color: AppColors.iconPrimary),
                       onPressed: () => Navigator.of(context).pop(),
-                      tooltip: 'Back',
                     ),
                     const SizedBox(width: 4),
                     Expanded(
@@ -128,23 +118,21 @@ class _AnchoringPhenomenonScreenState extends State<AnchoringPhenomenon> {
                         ],
                       ),
                     ),
-                    const SizedBox(width: 8),
                   ],
                 ),
                 const SizedBox(height: 16),
 
-                // Navigation and question type dropdowns
+                // chips
                 Wrap(
                   spacing: 10,
                   runSpacing: 8,
                   children: [
-                    _buildNavigationDropdown(),
-                    _buildQuestionTypeDropdown(),
+                    _buildNavigationDropdown()
                   ],
                 ),
                 const SizedBox(height: 16),
 
-                // Dynamic text inputs
+                // dynamic text areas
                 ..._controllers.asMap().entries.map((entry) {
                   final index = entry.key;
                   final controller = entry.value;
@@ -159,41 +147,50 @@ class _AnchoringPhenomenonScreenState extends State<AnchoringPhenomenon> {
                             maxLines: 6,
                             decoration: InputDecoration(
                               hintText: index == 0
-                                  ? 'Explain the inquiry...'
-                                  : 'Additional explanation...',
+                                  ? 'End the module with a clear next step that guides the user on what to do or explore...'
+                                  : 'Additional detail...',
                               hintStyle:
                                   const TextStyle(color: AppColors.hintText),
                               contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 14),
+                                horizontal: 16,
+                                vertical: 14,
+                              ),
                               enabledBorder: OutlineInputBorder(
                                 borderSide: const BorderSide(
-                                    color: AppColors.primary, width: 1),
+                                  color: AppColors.primary,
+                                  width: 1,
+                                ),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               focusedBorder: OutlineInputBorder(
                                 borderSide: const BorderSide(
-                                    color: AppColors.primary, width: 1.5),
+                                  color: AppColors.primary,
+                                  width: 1.5,
+                                ),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               errorBorder: OutlineInputBorder(
                                 borderSide: const BorderSide(
-                                    color: AppColors.error, width: 1.5),
+                                  color: AppColors.error,
+                                  width: 1.5,
+                                ),
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               focusedErrorBorder: OutlineInputBorder(
                                 borderSide: const BorderSide(
-                                    color: AppColors.error, width: 1.5),
+                                  color: AppColors.error,
+                                  width: 1.5),
                                 borderRadius: BorderRadius.circular(12),
                               ),
-                              filled: false,
                             ),
                             validator: index == 0
                                 ? (value) {
                                     final hasContent = _controllers.any(
-                                        (ctrl) =>
-                                            ctrl.text.trim().isNotEmpty);
+                                      (ctrl) =>
+                                          ctrl.text.trim().isNotEmpty,
+                                    );
                                     if (!hasContent) {
-                                      return 'At least one explanation must be completed';
+                                      return 'At least one call to action must be completed';
                                     }
                                     return null;
                                   }
@@ -219,8 +216,11 @@ class _AnchoringPhenomenonScreenState extends State<AnchoringPhenomenon> {
                                 shape: BoxShape.circle,
                               ),
                               child: const Center(
-                                child: Icon(CupertinoIcons.minus,
-                                    size: 20, color: Colors.red),
+                                child: Icon(
+                                  CupertinoIcons.minus,
+                                  size: 20,
+                                  color: Colors.red,
+                                ),
                               ),
                             ),
                           ),
@@ -230,35 +230,39 @@ class _AnchoringPhenomenonScreenState extends State<AnchoringPhenomenon> {
                   );
                 }),
 
-                // Add button
-                Row(
-                  children: [
-                    InkWell(
-                      borderRadius: BorderRadius.circular(18),
-                      onTap: () {
-                        setState(() {
-                          _controllers.add(TextEditingController());
-                        });
-                      },
-                      child: Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          border: Border.all(color: AppColors.borderLight),
-                          color: AppColors.white,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Center(
-                          child: Icon(CupertinoIcons.add,
-                              size: 20, color: AppColors.iconPrimary),
+                // 👇 your “Link a Project…” row goes here
+                const SizedBox(height: 6),
+                InkWell(
+                  onTap: () {
+                    // TODO: open project picker or dialog
+                  },
+                  borderRadius: BorderRadius.circular(12),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // use your asset name here
+                      // make sure you add it to pubspec.yaml
+                      Image.asset(
+                        'assets/link_project.png',
+                        height: 28,
+                      ),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'Link a Project...',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
 
-                // Complete button
+                
+
+                // complete
                 SizedBox(
                   width: double.infinity,
                   height: 52,
@@ -269,32 +273,24 @@ class _AnchoringPhenomenonScreenState extends State<AnchoringPhenomenon> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      textStyle: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
                     ),
                     onPressed: () {
                       if (_formKey.currentState!.validate()) {
-                        // collect local data
                         final allText = _controllers
-                            .map((controller) => controller.text.trim())
-                            .where((text) => text.isNotEmpty)
+                            .map((c) => c.text.trim())
+                            .where((t) => t.isNotEmpty)
                             .toList();
 
-                        // create an updated module object to pass forward
                         final updatedModule = {
                           ...widgetModule,
                           'creator_action': _selectedQuestionType,
                           'inquiry': allText,
                         };
 
-                        // JUST NAVIGATE – no repo.update*
                         Navigator.of(context).push(
                           MaterialPageRoute(
-                            builder: (context) => LearningObjectiveScreen(
-                              module: updatedModule,
-                            ),
+                            builder: (context) =>
+                                LearningObjectiveScreen(module: updatedModule),
                           ),
                         );
                       }
@@ -321,11 +317,8 @@ class _AnchoringPhenomenonScreenState extends State<AnchoringPhenomenon> {
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
           value: _selectedNavigation,
-          icon: const Icon(
-            Icons.keyboard_arrow_down,
-            size: 16,
-            color: Colors.green,
-          ),
+          icon: const Icon(Icons.keyboard_arrow_down,
+              size: 16, color: Colors.green),
           style: const TextStyle(
             color: Colors.green,
             fontSize: 11,
@@ -336,124 +329,27 @@ class _AnchoringPhenomenonScreenState extends State<AnchoringPhenomenon> {
           items: const [
             DropdownMenuItem(
               value: 'TITLE',
-              child: Text(
-                'TITLE',
-                style: TextStyle(
-                  color: Colors.green,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                ),
-              ),
+              child: Text('TITLE'),
             ),
             DropdownMenuItem(
-              value: 'ANCHORING PHENOMENON',
-              child: Text(
-                'ANCHORING PHENOMENON',
-                style: TextStyle(
-                  color: Colors.green,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                ),
-              ),
+              value: 'CALL TO ACTION',
+              child: Text('CALL TO ACTION'),
             ),
           ],
-          onChanged: (value) {
-            if (value == null) return;
-            if (value == 'TITLE') {
+          onChanged: (val) {
+            if (val == null) return;
+            if (val == 'TITLE') {
               Navigator.of(context).pop();
+            } else {
+              setState(() {
+                _selectedNavigation = val;
+              });
             }
-            setState(() {
-              _selectedNavigation = value;
-            });
           },
         ),
       ),
     );
   }
 
-  Widget _buildQuestionTypeDropdown() {
-    return Container(
-      height: 28,
-      padding: const EdgeInsets.symmetric(horizontal: 4),
-      decoration: BoxDecoration(
-        color: AppColors.lightBlue,
-        borderRadius: BorderRadius.circular(24),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: _selectedQuestionType,
-          icon: const Icon(
-            Icons.keyboard_arrow_down,
-            size: 16,
-            color: AppColors.blue,
-          ),
-          style: const TextStyle(
-            color: AppColors.blue,
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.5,
-          ),
-          dropdownColor: AppColors.lightBlue,
-          items: const [
-            DropdownMenuItem(
-              value: 'WHY',
-              child: Text(
-                'WHY',
-                style: TextStyle(
-                  color: AppColors.blue,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-            DropdownMenuItem(
-              value: 'HOW',
-              child: Text(
-                'HOW',
-                style: TextStyle(
-                  color: AppColors.blue,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-            DropdownMenuItem(
-              value: 'WHAT',
-              child: Text(
-                'WHAT',
-                style: TextStyle(
-                  color: AppColors.blue,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-            DropdownMenuItem(
-              value: 'WHEN',
-              child: Text(
-                'WHEN',
-                style: TextStyle(
-                  color: AppColors.blue,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-          ],
-          onChanged: (value) {
-            if (value == null) return;
-            setState(() {
-              _selectedQuestionType = value;
-            });
-          },
-        ),
-      ),
-    );
-  }
+  
 }
