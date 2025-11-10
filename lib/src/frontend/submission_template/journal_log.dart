@@ -1,72 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
-import 'package:intl/intl.dart';
 import 'package:fleather/fleather.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_math_fork/flutter_math.dart';
 import 'dart:convert';
 import 'dart:math' as math;
 import '../../styling/app_colors.dart';
-import '../../backend/db/repositories/learning_module_repo.dart';
 import '../../backend/storage/storage_service.dart';
 import '../../widgets/toolbar.dart';
-import 'create_lm_template.dart';
-import 'anchoring_phenomenon.dart';
-import 'learning_objective.dart';
-import '3d_learning.dart';
-import 'activity.dart';
-
-/// ---------------------------------------------------------------------------
-/// CLASS: ConceptExploration
-///
-/// PURPOSE:
-/// The `ConceptExploration` model represents an interactive, multimedia-driven
-/// learning section designed to build foundational understanding of a concept
-/// through engaging and accessible experiences. It helps students connect
-/// prior knowledge with new ideas by integrating rich text, visuals, and
-/// interactive media elements in one structured model.
-///
-/// This class supports the creator’s ability to:
-/// - Configure 1–5 short written content blocks (with optional visuals/calculations)
-/// - Embed videos, animations, or interactive diagrams
-/// - Define glossary terms with clickable pop-up definitions
-/// - Create quick polls or surveys to gauge prior knowledge
-/// - Add note-taking and reflection prompts (e.g., “What surprised you?”)
-///
-/// It also defines how users interact with the content:
-/// - Reading and exploring multimedia concept blocks
-/// - Clicking glossary terms for definitions or examples
-/// - Responding to embedded polls and surveys
-/// - Entering notes and reflections for comprehension tracking
-///
-/// USAGE OF FLEATHER:
-/// This model uses the [Fleather](https://pub.dev/packages/fleather) package
-/// to handle creator-written and user-editable rich text content. Fleather
-/// provides a Quill-compatible WYSIWYG editor that supports:
-/// - Inline text formatting (bold, italics, lists, headings)
-/// - Embedded media (images, videos)
-/// - Real-time editing and persistence of rich text fields
-///
-/// Within the `ConceptExploration` workflow, Fleather is typically used for:
-/// - Authoring the short content blocks and explanatory text sections
-/// - Allowing users to take in-app notes and reflections directly within
-///   a rich text editor, maintaining formatting and embedded visuals.
-///
-/// EXAMPLE:
-/// ```dart
-/// final concept = ConceptExploration(
-///   title: "The Greenhouse Effect",
-///   contentBlocks: [
-///     FleatherDocument.fromJson(json1),
-///     FleatherDocument.fromJson(json2),
-///   ],
-///   videos: [VideoEmbed(url: "https://example.com/video.mp4")],
-///   glossary: {"Infrared Radiation": "A type of heat energy emitted by objects"},
-///   poll: QuickPoll(question: "Have you heard of the greenhouse effect before?"),
-/// );
-/// ```
-///
-/// ---------------------------------------------------------------------------
+import 'create_submission_template.dart';
+import 'create_problem_statement.dart';
+import 'submissions_timeline.dart';
+import 'materials_cost.dart';
 
 /// Custom embed for math equations
 class MathEmbed extends BlockEmbed {
@@ -79,18 +24,22 @@ class MathEmbed extends BlockEmbed {
   String get latex => type.substring(5); // Remove 'math:' prefix
 }
 
-class ConceptExplorationScreen extends StatefulWidget {
-  final Map<String, dynamic> module;
+class JournalLogScreen extends StatefulWidget {
+  final String projectName;
+  final List<String> tags;
 
-  const ConceptExplorationScreen({super.key, required this.module});
+  const JournalLogScreen({
+    super.key,
+    required this.projectName,
+    required this.tags,
+  });
 
   @override
-  State<ConceptExplorationScreen> createState() => _ConceptExplorationScreenState();
+  State<JournalLogScreen> createState() => _JournalLogScreenState();
 }
 
-class _ConceptExplorationScreenState extends State<ConceptExplorationScreen> {
-  Map<String, dynamic>? _freshModuleData;
-  final String _currentSection = 'CONCEPT EXPLORATION';
+class _JournalLogScreenState extends State<JournalLogScreen> {
+  final String _currentSection = 'JOURNAL LOG';
 
   FleatherController? _controller;
   final FocusNode _focusNode = FocusNode();
@@ -107,80 +56,35 @@ class _ConceptExplorationScreenState extends State<ConceptExplorationScreen> {
 
   @override
   void dispose() {
-    // Auto-save before disposing
-    _saveDocument();
     _controller?.dispose();
     _focusNode.dispose();
     super.dispose();
   }
 
-  /// Loads the document from database if it exists, otherwise creates empty document
+  /// Loads the document - creates empty document for now
   Future<void> _loadDocument() async {
-    try {
-      if (widget.module['id'] != null) {
-        final repo = LearningModuleRepo();
-        final freshData = await repo.getModule(widget.module['id'].toString());
-
-        if (freshData != null) {
-          _freshModuleData = freshData;
-
-          // Check if concept_exploration data exists
-          final conceptExplorationData = freshData['concept_exploration'];
-
-          if (conceptExplorationData != null && conceptExplorationData is String) {
-            // Decode JSON string and load document
-            final decodedJson = jsonDecode(conceptExplorationData);
-            final doc = ParchmentDocument.fromJson(decodedJson);
-            setState(() {
-              _controller = FleatherController(document: doc);
-              _isLoading = false;
-            });
-          } else {
-            // Create empty document
-            setState(() {
-              _controller = FleatherController();
-              _isLoading = false;
-            });
-          }
-        } else {
-          // Create empty document if module not found
-          setState(() {
-            _controller = FleatherController();
-            _isLoading = false;
-          });
-        }
-      }
-    } catch (e) {
-      debugPrint('Error loading document: $e');
-      // Create empty document on error
-      setState(() {
-        _controller = FleatherController();
-        _isLoading = false;
-      });
-    }
+    setState(() {
+      _controller = FleatherController();
+      _isLoading = false;
+    });
   }
 
-  /// Saves the current document to the database as JSON
+  /// Saves the current document
   Future<void> _saveDocument() async {
-    if (_controller == null || widget.module['id'] == null) return;
+    if (_controller == null) return;
 
     try {
       // Serialize document to JSON string
-      // Parchment documents can be easily serialized to JSON by passing to jsonEncode directly
       final documentJson = jsonEncode(_controller!.document);
 
-      // Save to database
-      final repo = LearningModuleRepo();
-      final success = await repo.updateConceptExploration(
-        id: widget.module['id'].toString(),
-        conceptExplorationJson: documentJson,
-      );
+      // TODO: Implement actual save to database or local storage
+      debugPrint('Journal log saved: ${documentJson.length} characters');
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(success ? 'Document saved successfully!' : 'Failed to save document'),
-            backgroundColor: success ? AppColors.primary : AppColors.error,
+          const SnackBar(
+            content: Text('Journal log saved successfully!'),
+            backgroundColor: AppColors.primary,
           ),
         );
       }
@@ -189,7 +93,7 @@ class _ConceptExplorationScreenState extends State<ConceptExplorationScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Error saving document'),
+            content: Text('Error saving journal log'),
             backgroundColor: AppColors.error,
           ),
         );
@@ -197,45 +101,6 @@ class _ConceptExplorationScreenState extends State<ConceptExplorationScreen> {
     }
   }
 
-  String _formatDate(String? createdAt) {
-    if (createdAt == null) return 'Date not available';
-
-    try {
-      final dateTime = DateTime.parse(createdAt).toLocal();
-      final formatter = DateFormat('EEEE, MMMM d');
-      return formatter.format(dateTime);
-    } catch (e) {
-      return 'Date error';
-    }
-  }
-
-  List<String> _getPerformanceExpectations() {
-    final moduleData = _freshModuleData ?? widget.module;
-    final perfExpectations = moduleData['performance_expectation'];
-
-    if (perfExpectations == null) return [];
-
-    if (perfExpectations is List) {
-      return List<String>.from(perfExpectations);
-    } else if (perfExpectations is String && perfExpectations.isNotEmpty) {
-      if (perfExpectations.startsWith('[') && perfExpectations.endsWith(']')) {
-        try {
-          final cleanString = perfExpectations.substring(1, perfExpectations.length - 1);
-          return cleanString
-              .split(',')
-              .map((s) => s.trim().replaceAll('"', '').replaceAll("'", ''))
-              .where((s) => s.isNotEmpty)
-              .toList();
-        } catch (e) {
-          return [perfExpectations];
-        }
-      } else {
-        return [perfExpectations];
-      }
-    }
-
-    return [];
-  }
 
   /// Shows a dialog to let the user choose between camera or gallery
   Future<void> _openCamera() async {
@@ -295,7 +160,7 @@ class _ConceptExplorationScreenState extends State<ConceptExplorationScreen> {
       // Upload to Supabase Storage
       final imageUrl = await _storageService.uploadImage(
         image,
-        folder: 'concept-exploration',
+        folder: 'journal-log',
       );
 
       if (imageUrl == null) {
@@ -828,9 +693,8 @@ class _ConceptExplorationScreenState extends State<ConceptExplorationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final moduleName = widget.module['module_name'] ?? 'Module Name';
-    final formattedDate = _formatDate(widget.module['created_at']);
-    final performanceExpectations = _getPerformanceExpectations();
+    final projectName = widget.projectName;
+    final tags = widget.tags;
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -853,26 +717,13 @@ class _ConceptExplorationScreenState extends State<ConceptExplorationScreen> {
                       ),
                       const SizedBox(width: 4),
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              moduleName,
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.darkText,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              formattedDate,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: AppColors.lightGrey,
-                              ),
-                            ),
-                          ],
+                        child: Text(
+                          projectName,
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.darkText,
+                          ),
                         ),
                       ),
                       // Save button with options
@@ -884,14 +735,23 @@ class _ConceptExplorationScreenState extends State<ConceptExplorationScreen> {
                           if (value == 'save') {
                             await _saveDocument();
                           } else if (value == 'save_continue') {
+                            final messenger = ScaffoldMessenger.of(context);
                             final navigator = Navigator.of(context);
                             await _saveDocument();
                             if (mounted) {
-                              // Navigate to Activity screen
+                              messenger.showSnackBar(
+                                const SnackBar(
+                                  content: Text('Moving to next section...'),
+                                  backgroundColor: AppColors.primary,
+                                  duration: Duration(seconds: 1),
+                                ),
+                              );
+                              // Navigate to Materials Cost screen
                               navigator.push(
                                 MaterialPageRoute(
-                                  builder: (context) => ActivityScreen(
-                                    module: widget.module,
+                                  builder: (context) => MaterialsCostPage(
+                                    projectName: widget.projectName,
+                                    tags: widget.tags,
                                   ),
                                 ),
                               );
@@ -944,28 +804,25 @@ class _ConceptExplorationScreenState extends State<ConceptExplorationScreen> {
                           // Only show tags when not collapsed
                           if (!_isHeaderCollapsed) ...[
                             const SizedBox(height: 12),
-                            // Performance expectation tags
-                            if (performanceExpectations.isNotEmpty)
+                            // Project tags
+                            if (tags.isNotEmpty)
                               Wrap(
                                 spacing: 8,
                                 runSpacing: 8,
-                                children: performanceExpectations.map((tag) {
+                                children: tags.map((tag) {
                                   return Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                     decoration: BoxDecoration(
-                                      color: AppColors.tagBackground,
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: AppColors.tagBorder, width: 1),
+                                      color: const Color(0xFFDCF7E4),
+                                      borderRadius: BorderRadius.circular(24),
                                     ),
                                     child: Text(
                                       tag,
-                                      textAlign: TextAlign.center,
                                       style: const TextStyle(
-                                        color: AppColors.tagText,
+                                        color: AppColors.primary,
                                         fontSize: 10,
                                         fontFamily: 'Inter',
                                         fontWeight: FontWeight.w600,
-                                        letterSpacing: 0.5,
                                       ),
                                     ),
                                   );
@@ -1057,9 +914,9 @@ class _ConceptExplorationScreenState extends State<ConceptExplorationScreen> {
           dropdownColor: Colors.green[50],
           items: const [
             DropdownMenuItem(
-              value: 'TITLE',
+              value: 'PROJECT NAME',
               child: Text(
-                'TITLE',
+                'PROJECT NAME',
                 style: TextStyle(
                   color: Colors.green,
                   fontSize: 11,
@@ -1069,9 +926,9 @@ class _ConceptExplorationScreenState extends State<ConceptExplorationScreen> {
               ),
             ),
             DropdownMenuItem(
-              value: 'ANCHORING PHENOMENON',
+              value: 'PROBLEM STATEMENT',
               child: Text(
-                'ANCHORING PHENOMENON',
+                'PROBLEM STATEMENT',
                 style: TextStyle(
                   color: Colors.green,
                   fontSize: 11,
@@ -1081,9 +938,9 @@ class _ConceptExplorationScreenState extends State<ConceptExplorationScreen> {
               ),
             ),
             DropdownMenuItem(
-              value: 'OBJECTIVE',
+              value: 'TIMELINE',
               child: Text(
-                'OBJECTIVE',
+                'TIMELINE',
                 style: TextStyle(
                   color: Colors.green,
                   fontSize: 11,
@@ -1093,9 +950,9 @@ class _ConceptExplorationScreenState extends State<ConceptExplorationScreen> {
               ),
             ),
             DropdownMenuItem(
-              value: 'LEARNING',
+              value: 'MATERIALS COST',
               child: Text(
-                'LEARNING',
+                'MATERIALS COST',
                 style: TextStyle(
                   color: Colors.green,
                   fontSize: 11,
@@ -1105,21 +962,9 @@ class _ConceptExplorationScreenState extends State<ConceptExplorationScreen> {
               ),
             ),
             DropdownMenuItem(
-              value: 'CONCEPT EXPLORATION',
+              value: 'JOURNAL LOG',
               child: Text(
-                'CONCEPT EXPLORATION',
-                style: TextStyle(
-                  color: Colors.green,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-            DropdownMenuItem(
-              value: 'ACTIVITY',
-              child: Text(
-                'ACTIVITY',
+                'JOURNAL LOG',
                 style: TextStyle(
                   color: Colors.green,
                   fontSize: 11,
@@ -1130,48 +975,41 @@ class _ConceptExplorationScreenState extends State<ConceptExplorationScreen> {
             ),
           ],
           onChanged: (value) {
-            if (value == 'TITLE') {
+            if (value == 'PROJECT NAME') {
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (context) => CreateTemplateScreen(
-                    existingModule: widget.module,
+                  builder: (context) => CreateSubmissionScreen(),
+                ),
+              );
+            } else if (value == 'PROBLEM STATEMENT') {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => CreateProblemStatementScreen(
+                    projectName: widget.projectName,
+                    tags: widget.tags,
                   ),
                 ),
               );
-            } else if (value == 'ANCHORING PHENOMENON') {
+            } else if (value == 'TIMELINE') {
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (context) => AnchoringPhenomenon(
-                    existingModule: widget.module,
+                  builder: (context) => InteractiveTimelinePage(
+                    projectName: widget.projectName,
+                    tags: widget.tags,
                   ),
                 ),
               );
-            } else if (value == 'OBJECTIVE') {
+            } else if (value == 'MATERIALS COST') {
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (context) => LearningObjectiveScreen(
-                    module: widget.module,
-                  ),
-                ),
-              );
-            } else if (value == 'LEARNING') {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => ThreeDLearning(
-                    module: widget.module,
-                  ),
-                ),
-              );
-            } else if (value == 'ACTIVITY') {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => ActivityScreen(
-                    module: widget.module,
+                  builder: (context) => MaterialsCostPage(
+                    projectName: widget.projectName,
+                    tags: widget.tags,
                   ),
                 ),
               );
             }
-            // If CONCEPT EXPLORATION is selected, stay on current page
+            // If JOURNAL LOG is selected, stay on current page
           },
         ),
       ),
