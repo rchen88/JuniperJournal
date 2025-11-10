@@ -4,7 +4,7 @@ import 'create_timeline.dart';
 import 'package:juniper_journal/src/backend/db/repositories/projects_repo.dart';
 
 class CreateProblemStatementScreen extends StatefulWidget {
-  final int projectId; 
+  final String projectId; 
   final String projectName;
   final List<String> tags;
 

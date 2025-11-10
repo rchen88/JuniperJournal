@@ -29,7 +29,7 @@ class ProjectsRepo {
   }
 
   Future<bool> updateProblemStatement({
-    required int id,
+    required String id,
     required String problemStatement,
   }) async {
     try {

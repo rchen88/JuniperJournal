@@ -174,7 +174,7 @@ class _CreateSubmissionScreenState extends State<CreateSubmissionScreen> {
                             return;
                           }
 
-                          final int projectId = row['id'] as int;
+                          final String projectId = row['id'] as String;
 
                           Navigator.of(context).push(
                             MaterialPageRoute(
