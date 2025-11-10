@@ -18,6 +18,10 @@ dependencies:
   intl: ^0.19.0
   table_calendar: ^3.1.1
 
+  intl: ^0.20.2
+  image_picker: ^1.0.7
+  fleather: ^1.26.0
+  flutter_math_fork: ^0.7.2
 
 dev_dependencies:
   flutter_test:
