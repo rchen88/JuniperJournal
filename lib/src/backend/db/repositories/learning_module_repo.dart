@@ -283,4 +283,26 @@ class LearningModuleRepo {
       return false;
     }
   }
+
+  Future<bool> updateConceptExploration({
+    required String id,
+    required String conceptExplorationJson,
+  }) async {
+    try {
+      debugPrint('Updating concept exploration for module id: $id');
+
+      await _client
+          .from(table)
+          .update({
+            'concept_exploration': conceptExplorationJson,
+          })
+          .eq('id', id);
+
+      debugPrint('Concept exploration updated successfully');
+      return true;
+    } catch (e) {
+      debugPrint('Error updating concept exploration: $e');
+      return false;
+    }
+  }
 }
