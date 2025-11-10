@@ -305,4 +305,26 @@ class LearningModuleRepo {
       return false;
     }
   }
+
+  Future<bool> updateActivity({
+    required String id,
+    required String activityJson,
+  }) async {
+    try {
+      debugPrint('Updating activity for module id: $id');
+
+      await _client
+          .from(table)
+          .update({
+            'activity': activityJson,
+          })
+          .eq('id', id);
+
+      debugPrint('Activity updated successfully');
+      return true;
+    } catch (e) {
+      debugPrint('Error updating activity: $e');
+      return false;
+    }
+  }
 }

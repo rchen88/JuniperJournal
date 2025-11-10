@@ -14,59 +14,7 @@ import 'create_lm_template.dart';
 import 'anchoring_phenomenon.dart';
 import 'learning_objective.dart';
 import '3d_learning.dart';
-import 'activity.dart';
-
-/// ---------------------------------------------------------------------------
-/// CLASS: ConceptExploration
-///
-/// PURPOSE:
-/// The `ConceptExploration` model represents an interactive, multimedia-driven
-/// learning section designed to build foundational understanding of a concept
-/// through engaging and accessible experiences. It helps students connect
-/// prior knowledge with new ideas by integrating rich text, visuals, and
-/// interactive media elements in one structured model.
-///
-/// This class supports the creator’s ability to:
-/// - Configure 1–5 short written content blocks (with optional visuals/calculations)
-/// - Embed videos, animations, or interactive diagrams
-/// - Define glossary terms with clickable pop-up definitions
-/// - Create quick polls or surveys to gauge prior knowledge
-/// - Add note-taking and reflection prompts (e.g., “What surprised you?”)
-///
-/// It also defines how users interact with the content:
-/// - Reading and exploring multimedia concept blocks
-/// - Clicking glossary terms for definitions or examples
-/// - Responding to embedded polls and surveys
-/// - Entering notes and reflections for comprehension tracking
-///
-/// USAGE OF FLEATHER:
-/// This model uses the [Fleather](https://pub.dev/packages/fleather) package
-/// to handle creator-written and user-editable rich text content. Fleather
-/// provides a Quill-compatible WYSIWYG editor that supports:
-/// - Inline text formatting (bold, italics, lists, headings)
-/// - Embedded media (images, videos)
-/// - Real-time editing and persistence of rich text fields
-///
-/// Within the `ConceptExploration` workflow, Fleather is typically used for:
-/// - Authoring the short content blocks and explanatory text sections
-/// - Allowing users to take in-app notes and reflections directly within
-///   a rich text editor, maintaining formatting and embedded visuals.
-///
-/// EXAMPLE:
-/// ```dart
-/// final concept = ConceptExploration(
-///   title: "The Greenhouse Effect",
-///   contentBlocks: [
-///     FleatherDocument.fromJson(json1),
-///     FleatherDocument.fromJson(json2),
-///   ],
-///   videos: [VideoEmbed(url: "https://example.com/video.mp4")],
-///   glossary: {"Infrared Radiation": "A type of heat energy emitted by objects"},
-///   poll: QuickPoll(question: "Have you heard of the greenhouse effect before?"),
-/// );
-/// ```
-///
-/// ---------------------------------------------------------------------------
+import 'concept_exploration.dart';
 
 /// Custom embed for math equations
 class MathEmbed extends BlockEmbed {
@@ -79,18 +27,18 @@ class MathEmbed extends BlockEmbed {
   String get latex => type.substring(5); // Remove 'math:' prefix
 }
 
-class ConceptExplorationScreen extends StatefulWidget {
+class ActivityScreen extends StatefulWidget {
   final Map<String, dynamic> module;
 
-  const ConceptExplorationScreen({super.key, required this.module});
+  const ActivityScreen({super.key, required this.module});
 
   @override
-  State<ConceptExplorationScreen> createState() => _ConceptExplorationScreenState();
+  State<ActivityScreen> createState() => _ActivityScreen();
 }
 
-class _ConceptExplorationScreenState extends State<ConceptExplorationScreen> {
+class _ActivityScreen extends State<ActivityScreen> {
   Map<String, dynamic>? _freshModuleData;
-  final String _currentSection = 'CONCEPT EXPLORATION';
+  final String _currentSection = 'ACTIVITY';
 
   FleatherController? _controller;
   final FocusNode _focusNode = FocusNode();
@@ -124,12 +72,12 @@ class _ConceptExplorationScreenState extends State<ConceptExplorationScreen> {
         if (freshData != null) {
           _freshModuleData = freshData;
 
-          // Check if concept_exploration data exists
-          final conceptExplorationData = freshData['concept_exploration'];
+          // Check if activity data exists
+          final activityData = freshData['activity'];
 
-          if (conceptExplorationData != null && conceptExplorationData is String) {
+          if (activityData != null && activityData is String) {
             // Decode JSON string and load document
-            final decodedJson = jsonDecode(conceptExplorationData);
+            final decodedJson = jsonDecode(activityData);
             final doc = ParchmentDocument.fromJson(decodedJson);
             setState(() {
               _controller = FleatherController(document: doc);
@@ -171,9 +119,9 @@ class _ConceptExplorationScreenState extends State<ConceptExplorationScreen> {
 
       // Save to database
       final repo = LearningModuleRepo();
-      final success = await repo.updateConceptExploration(
+      final success = await repo.updateActivity(
         id: widget.module['id'].toString(),
-        conceptExplorationJson: documentJson,
+        activityJson: documentJson,
       );
 
       if (mounted) {
@@ -295,7 +243,7 @@ class _ConceptExplorationScreenState extends State<ConceptExplorationScreen> {
       // Upload to Supabase Storage
       final imageUrl = await _storageService.uploadImage(
         image,
-        folder: 'concept-exploration',
+        folder: 'activity',
       );
 
       if (imageUrl == null) {
@@ -885,22 +833,13 @@ class _ConceptExplorationScreenState extends State<ConceptExplorationScreen> {
                             await _saveDocument();
                           } else if (value == 'save_continue') {
                             final messenger = ScaffoldMessenger.of(context);
-                            final navigator = Navigator.of(context);
                             await _saveDocument();
                             if (mounted) {
                               messenger.showSnackBar(
                                 const SnackBar(
                                   content: Text('Moving to next section...'),
                                   backgroundColor: AppColors.primary,
-                                  duration: Duration(seconds: 1),
-                                ),
-                              );
-                              // Navigate to Activity screen
-                              navigator.push(
-                                MaterialPageRoute(
-                                  builder: (context) => ActivityScreen(
-                                    module: widget.module,
-                                  ),
+                                  duration: Duration(seconds: 2),
                                 ),
                               );
                             }
@@ -1170,16 +1109,16 @@ class _ConceptExplorationScreenState extends State<ConceptExplorationScreen> {
                   ),
                 ),
               );
-            } else if (value == 'ACTIVITY') {
+            } else if (value == 'CONCEPT EXPLORATION') {
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (context) => ActivityScreen(
+                  builder: (context) => ConceptExplorationScreen(
                     module: widget.module,
                   ),
                 ),
               );
             }
-            // If CONCEPT EXPLORATION is selected, stay on current page
+            // If ACTIVITY is selected, stay on current page
           },
         ),
       ),
