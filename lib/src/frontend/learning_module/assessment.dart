@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:juniper_journal/main.dart';
 
 class Assessment extends StatefulWidget {
   const Assessment({super.key});
@@ -64,23 +65,31 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
         elevation: 0,
         backgroundColor: Colors.white,
         foregroundColor: Colors.black87,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, size: 18),
-          onPressed: () => Navigator.maybePop(context),
-        ),
+        automaticallyImplyLeading: false,
         title: const Text(
           'Basics of Climate Change',
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.black87),
         ),
-        actions: const [
+        actions: [
           Padding(
-            padding: EdgeInsets.only(right: 16.0),
+            padding: const EdgeInsets.only(right: 16.0),
             child: Center(
-              child: Text(
-                'Done',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF6FA57A),
+              child: GestureDetector(
+                onTap: () {
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const MyHomePage(title: 'Juniper Journal'),
+                    ),
+                    (route) => false,
+                  );
+                },
+                child: const Text(
+                  'Done',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF6FA57A),
+                  ),
                 ),
               ),
             ),
