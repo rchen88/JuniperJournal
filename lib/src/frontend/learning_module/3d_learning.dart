@@ -3,7 +3,6 @@ import '../../styling/app_colors.dart';
 import 'package:intl/intl.dart';
 import 'create_lm_template.dart';
 import 'anchoring_phenomenon.dart';
-import 'learning_objective.dart';
 import 'concept_exploration.dart';
 import '../../backend/db/repositories/learning_module_repo.dart';
 
