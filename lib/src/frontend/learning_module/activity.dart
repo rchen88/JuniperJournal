@@ -838,6 +838,7 @@ class _ActivityScreen extends State<ActivityScreen> {
                             navigator.push(
                                 MaterialPageRoute(
                                   builder: (context) => AssessmentScreen(
+                                    module: _freshModuleData ?? widget.module,
                                   ),
                                 ),
                               );
