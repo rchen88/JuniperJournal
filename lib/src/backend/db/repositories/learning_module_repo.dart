@@ -327,4 +327,26 @@ class LearningModuleRepo {
       return false;
     }
   }
+
+  Future<bool> updateAssessment({
+    required String id,
+    required Map<String, dynamic> assessmentData,
+  }) async {
+    try {
+      debugPrint('Updating assessment for module id: $id');
+
+      await _client
+          .from(table)
+          .update({
+            'assessment': assessmentData,
+          })
+          .eq('id', id);
+
+      debugPrint('Assessment updated successfully');
+      return true;
+    } catch (e) {
+      debugPrint('Error updating assessment: $e');
+      return false;
+    }
+  }
 }

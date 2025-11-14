@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:juniper_journal/main.dart';
+import 'package:juniper_journal/src/backend/db/repositories/learning_module_repo.dart';
 
 class Assessment extends StatefulWidget {
-  const Assessment({super.key});
+  final Map<String, dynamic> module;
+
+  const Assessment({super.key, required this.module});
 
   @override
   State<Assessment> createState() => _CreateAssessmentScreen();
@@ -11,7 +14,7 @@ class Assessment extends StatefulWidget {
 class _CreateAssessmentScreen extends State<Assessment> {
   @override
   Widget build(BuildContext context) {
-    return const AssessmentScreen();
+    return AssessmentScreen(module: widget.module);
   }
 }
 
@@ -20,7 +23,9 @@ class _CreateAssessmentScreen extends State<Assessment> {
 // -----------------------------
 
 class AssessmentScreen extends StatefulWidget {
-  const AssessmentScreen({super.key});
+  final Map<String, dynamic> module;
+
+  const AssessmentScreen({super.key, required this.module});
 
   @override
   State<AssessmentScreen> createState() => _AssessmentScreenState();
@@ -31,8 +36,92 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
 
   @override
   void dispose() {
-    for (final q in _questions) q.dispose();
+    for (final q in _questions) {
+      q.dispose();
+    }
     super.dispose();
+  }
+
+  /// Serializes the entire assessment to JSON format for Supabase storage
+  Map<String, dynamic> _serializeAssessment() {
+    return {
+      'title': 'Basics of Climate Change',
+      'tags': ['ASSESSMENT', 'ANALYZE: ENVIRONMENTAL SUSTAINABILITY'],
+      'questions': _questions.asMap().entries.map((entry) {
+        return _serializeQuestion(entry.value, entry.key);
+      }).toList(),
+    };
+  }
+
+  /// Serializes a single question to JSON
+  Map<String, dynamic> _serializeQuestion(QuestionModel model, int index) {
+    final baseData = {
+      'order': index,
+      'questionText': model.questionCtrl.text,
+      'questionType': model.type.toString().split('.').last,
+    };
+
+    // Add type-specific data
+    switch (model.type) {
+      case QuestionType.multipleChoice:
+      case QuestionType.checkboxes:
+      case QuestionType.dropdown:
+        baseData['options'] = model.options.map((ctrl) => ctrl.text).toList();
+        baseData['correctAnswers'] = model.correctAnswers;
+        break;
+      case QuestionType.linearScale:
+        baseData['scaleMin'] = model.scaleMin;
+        baseData['scaleMax'] = model.scaleMax;
+        break;
+      case QuestionType.mcGrid:
+      case QuestionType.cbGrid:
+        baseData['gridRows'] = model.gridRows.map((ctrl) => ctrl.text).toList();
+        baseData['gridColumns'] = model.gridCols.map((ctrl) => ctrl.text).toList();
+        break;
+      default:
+        // shortAnswer, paragraph, fileUpload, date, time don't need extra data
+        break;
+    }
+
+    return baseData;
+  }
+
+  /// Saves the assessment to Supabase
+  Future<void> _saveAssessment() async {
+    try {
+      final assessmentData = _serializeAssessment();
+      final moduleId = widget.module['id'] as String;
+      final repo = LearningModuleRepo();
+
+      final success = await repo.updateAssessment(
+        id: moduleId,
+        assessmentData: assessmentData,
+      );
+
+      if (mounted) {
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Assessment saved successfully!'),
+              backgroundColor: Color(0xFF6FA57A),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to save assessment'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error saving assessment: $e')),
+        );
+      }
+    }
   }
 
   void _addQuestion({int? insertAfter}) {
@@ -75,14 +164,20 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
             padding: const EdgeInsets.only(right: 16.0),
             child: Center(
               child: GestureDetector(
-                onTap: () {
-                  Navigator.pushAndRemoveUntil(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const MyHomePage(title: 'Juniper Journal'),
-                    ),
-                    (route) => false,
-                  );
+                onTap: () async {
+                  // Save the assessment first
+                  await _saveAssessment();
+
+                  // Then navigate to home
+                  if (context.mounted) {
+                    Navigator.pushAndRemoveUntil(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const MyHomePage(title: 'Juniper Journal'),
+                      ),
+                      (route) => false,
+                    );
+                  }
                 },
                 child: const Text(
                   'Done',
@@ -224,6 +319,7 @@ class QuestionModel {
 
   // Options-based
   final List<TextEditingController> options;
+  List<bool> correctAnswers; // tracks which options are correct
 
   // Grid-based
   final List<TextEditingController> gridRows;
@@ -242,6 +338,7 @@ class QuestionModel {
   QuestionModel()
       : type = QuestionType.multipleChoice,
         options = [TextEditingController(text: 'Option 1')],
+        correctAnswers = [false],
         gridRows = [TextEditingController(text: 'Row 1')],
         gridCols = [
           TextEditingController(text: 'Very good'),
@@ -254,6 +351,7 @@ class QuestionModel {
   // Create a fresh model with the SAME TYPE (for duplicating format)
   QuestionModel.forType(this.type)
       : options = [TextEditingController(text: 'Option 1')],
+        correctAnswers = [false],
         gridRows = [TextEditingController(text: 'Row 1')],
         gridCols = [
           TextEditingController(text: 'Col 1'),
@@ -265,9 +363,15 @@ class QuestionModel {
 
   void dispose() {
     questionCtrl.dispose();
-    for (final c in options) c.dispose();
-    for (final c in gridRows) c.dispose();
-    for (final c in gridCols) c.dispose();
+    for (final c in options) {
+      c.dispose();
+    }
+    for (final c in gridRows) {
+      c.dispose();
+    }
+    for (final c in gridCols) {
+      c.dispose();
+    }
   }
 }
 
@@ -294,10 +398,6 @@ class QuestionCard extends StatefulWidget {
 }
 
 class _QuestionCardState extends State<QuestionCard> {
-  static const _stripGrey = Color(0xFFF4F6F8);
-  static const _borderGrey = Color(0xFFE2E6EA);
-  static const _iconGrey = Color(0xFF70757A);
-
   @override
   Widget build(BuildContext context) {
     final m = widget.model;
@@ -338,31 +438,31 @@ class _QuestionCardState extends State<QuestionCard> {
                             fontWeight: FontWeight.w700, color: Colors.black87)),
                   ),
                   const SizedBox(width: 8),
-                  Expanded(
-                    child: TextField(
-                      controller: m.questionCtrl,
-                      decoration: InputDecoration(
-                        hintText: 'Question text',
-                        filled: true,
-                        fillColor: Colors.white,
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 10),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(color: Colors.black12),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
                   _typePill(m),
-                  const SizedBox(width: 6),
+                  const Spacer(),
                   IconButton(
                     tooltip: 'Remove question',
                     onPressed: widget.onRemove,
                     icon: const Icon(Icons.delete_outline),
                   ),
                 ]),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: m.questionCtrl,
+                  minLines: 1,
+                  maxLines: 3,
+                  decoration: InputDecoration(
+                    hintText: 'Question text',
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 12),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Colors.black12),
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 16),
                 _answerArea(m),
                 const SizedBox(height: 12),
@@ -469,9 +569,16 @@ class _QuestionCardState extends State<QuestionCard> {
   /// Options list with per-row "+" (insert new below), remove, and bottom "Add Option".
   Widget _optionsList(QuestionModel m,
       {required IconData choiceIcon, bool showTrailingPlus = true}) {
+    // Ensure correctAnswers list is initialized and in sync with options list
+    if (m.correctAnswers.length != m.options.length) {
+      m.correctAnswers = List.generate(m.options.length, (i) =>
+        i < m.correctAnswers.length ? m.correctAnswers[i] : false);
+    }
+
     final children = <Widget>[];
 
     for (int i = 0; i < m.options.length; i++) {
+
       children.add(Row(children: [
         Icon(choiceIcon, color: Colors.black54),
         const SizedBox(width: 10),
@@ -486,12 +593,33 @@ class _QuestionCardState extends State<QuestionCard> {
           ),
         ),
         const SizedBox(width: 10),
+        // Star icon to mark correct answer
+        IconButton(
+          tooltip: m.correctAnswers[i] ? 'Marked as correct' : 'Mark as correct',
+          icon: Icon(
+            m.correctAnswers[i] ? Icons.star : Icons.star_border,
+            color: m.correctAnswers[i] ? const Color(0xFFFFB800) : Colors.black38,
+          ),
+          onPressed: () => setState(() {
+            // For multiple choice, only one answer can be correct
+            if (m.type == QuestionType.multipleChoice) {
+              // Unmark all others and mark only this one
+              for (int j = 0; j < m.correctAnswers.length; j++) {
+                m.correctAnswers[j] = (j == i);
+              }
+            } else {
+              // For checkboxes and dropdown, allow multiple correct answers
+              m.correctAnswers[i] = !m.correctAnswers[i];
+            }
+          }),
+        ),
         if (showTrailingPlus)
           IconButton(
             tooltip: 'Add option',
             icon: const Icon(Icons.add_box_outlined, color: Colors.black54),
             onPressed: () => setState(() {
               m.options.insert(i + 1, TextEditingController());
+              m.correctAnswers.insert(i + 1, false);
             }),
           ),
         if (m.options.length > 1) ...[
@@ -499,7 +627,12 @@ class _QuestionCardState extends State<QuestionCard> {
           IconButton(
             tooltip: 'Remove option',
             icon: const Icon(Icons.close, size: 18),
-            onPressed: () => setState(() => m.options.removeAt(i)),
+            onPressed: () => setState(() {
+              m.options.removeAt(i);
+              if (i < m.correctAnswers.length) {
+                m.correctAnswers.removeAt(i);
+              }
+            }),
           ),
         ]
       ]));
@@ -515,8 +648,10 @@ class _QuestionCardState extends State<QuestionCard> {
         Icon(choiceIcon, color: Colors.black26),
         const SizedBox(width: 10),
         TextButton.icon(
-          onPressed: () =>
-              setState(() => m.options.add(TextEditingController())),
+          onPressed: () => setState(() {
+            m.options.add(TextEditingController());
+            m.correctAnswers.add(false);
+          }),
           icon: const Icon(Icons.add, color: Color(0xFF6FA57A)),
           label: const Text('Add Option',
               style: TextStyle(color: Color(0xFF6FA57A))),
@@ -604,9 +739,9 @@ class _QuestionCardState extends State<QuestionCard> {
 
   // ===== Google Forms–style GRID (Multiple choice grid & Checkbox grid) =====
   Widget _gridLikeGoogleForms(QuestionModel m, {required bool radio}) {
-    const _stripGrey = Color(0xFFF4F6F8);
-    const _borderGrey = Color(0xFFE2E6EA);
-    const _iconGrey = Color(0xFF70757A);
+    const stripGrey = Color(0xFFF4F6F8);
+    const borderGrey = Color(0xFFE2E6EA);
+    const iconGrey = Color(0xFF70757A);
 
     // Editor (rows & columns with add/delete) + Pretty Preview
     return Column(
@@ -652,7 +787,7 @@ class _QuestionCardState extends State<QuestionCard> {
         Container(
           decoration: BoxDecoration(
             color: Colors.white,
-            border: Border.all(color: _borderGrey),
+            border: Border.all(color: borderGrey),
             borderRadius: BorderRadius.circular(12),
           ),
           clipBehavior: Clip.antiAlias,
@@ -660,13 +795,13 @@ class _QuestionCardState extends State<QuestionCard> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _gridHeaderBar(m.gridCols),
-              const Divider(height: 1, color: _borderGrey),
+              Divider(height: 1, color: borderGrey),
               ...List.generate(m.gridRows.length, (rIndex) {
                 final isAlt = rIndex.isEven; // subtle striping
                 return Column(
                   children: [
                     Container(
-                      color: isAlt ? _stripGrey : Colors.white,
+                      color: isAlt ? stripGrey : Colors.white,
                       padding:
                           const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                       child: Row(
@@ -692,7 +827,7 @@ class _QuestionCardState extends State<QuestionCard> {
                                       ? Icons.radio_button_unchecked
                                       : Icons.check_box_outline_blank,
                                   size: 26,
-                                  color: _iconGrey,
+                                  color: iconGrey,
                                 ),
                               ),
                             );
@@ -701,7 +836,7 @@ class _QuestionCardState extends State<QuestionCard> {
                       ),
                     ),
                     if (rIndex != m.gridRows.length - 1)
-                      const Divider(height: 1, color: _borderGrey),
+                      Divider(height: 1, color: borderGrey),
                   ],
                 );
               }),
