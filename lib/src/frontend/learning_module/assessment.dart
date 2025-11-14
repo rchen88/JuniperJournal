@@ -67,6 +67,7 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
       case QuestionType.checkboxes:
       case QuestionType.dropdown:
         baseData['options'] = model.options.map((ctrl) => ctrl.text).toList();
+        baseData['correctAnswers'] = model.correctAnswers;
         break;
       case QuestionType.linearScale:
         baseData['scaleMin'] = model.scaleMin;
@@ -318,6 +319,7 @@ class QuestionModel {
 
   // Options-based
   final List<TextEditingController> options;
+  List<bool> correctAnswers; // tracks which options are correct
 
   // Grid-based
   final List<TextEditingController> gridRows;
@@ -336,6 +338,7 @@ class QuestionModel {
   QuestionModel()
       : type = QuestionType.multipleChoice,
         options = [TextEditingController(text: 'Option 1')],
+        correctAnswers = [false],
         gridRows = [TextEditingController(text: 'Row 1')],
         gridCols = [
           TextEditingController(text: 'Very good'),
@@ -348,6 +351,7 @@ class QuestionModel {
   // Create a fresh model with the SAME TYPE (for duplicating format)
   QuestionModel.forType(this.type)
       : options = [TextEditingController(text: 'Option 1')],
+        correctAnswers = [false],
         gridRows = [TextEditingController(text: 'Row 1')],
         gridCols = [
           TextEditingController(text: 'Col 1'),
@@ -434,33 +438,31 @@ class _QuestionCardState extends State<QuestionCard> {
                             fontWeight: FontWeight.w700, color: Colors.black87)),
                   ),
                   const SizedBox(width: 8),
-                  Expanded(
-                    child: TextField(
-                      controller: m.questionCtrl,
-                      minLines: 1,
-                      maxLines: 3,
-                      decoration: InputDecoration(
-                        hintText: 'Question text',
-                        filled: true,
-                        fillColor: Colors.white,
-                        contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 12),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(color: Colors.black12),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
                   _typePill(m),
-                  const SizedBox(width: 6),
+                  const Spacer(),
                   IconButton(
                     tooltip: 'Remove question',
                     onPressed: widget.onRemove,
                     icon: const Icon(Icons.delete_outline),
                   ),
                 ]),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: m.questionCtrl,
+                  minLines: 1,
+                  maxLines: 3,
+                  decoration: InputDecoration(
+                    hintText: 'Question text',
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 12),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: const BorderSide(color: Colors.black12),
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 16),
                 _answerArea(m),
                 const SizedBox(height: 12),
@@ -567,9 +569,16 @@ class _QuestionCardState extends State<QuestionCard> {
   /// Options list with per-row "+" (insert new below), remove, and bottom "Add Option".
   Widget _optionsList(QuestionModel m,
       {required IconData choiceIcon, bool showTrailingPlus = true}) {
+    // Ensure correctAnswers list is initialized and in sync with options list
+    if (m.correctAnswers.length != m.options.length) {
+      m.correctAnswers = List.generate(m.options.length, (i) =>
+        i < m.correctAnswers.length ? m.correctAnswers[i] : false);
+    }
+
     final children = <Widget>[];
 
     for (int i = 0; i < m.options.length; i++) {
+
       children.add(Row(children: [
         Icon(choiceIcon, color: Colors.black54),
         const SizedBox(width: 10),
@@ -584,12 +593,33 @@ class _QuestionCardState extends State<QuestionCard> {
           ),
         ),
         const SizedBox(width: 10),
+        // Star icon to mark correct answer
+        IconButton(
+          tooltip: m.correctAnswers[i] ? 'Marked as correct' : 'Mark as correct',
+          icon: Icon(
+            m.correctAnswers[i] ? Icons.star : Icons.star_border,
+            color: m.correctAnswers[i] ? const Color(0xFFFFB800) : Colors.black38,
+          ),
+          onPressed: () => setState(() {
+            // For multiple choice, only one answer can be correct
+            if (m.type == QuestionType.multipleChoice) {
+              // Unmark all others and mark only this one
+              for (int j = 0; j < m.correctAnswers.length; j++) {
+                m.correctAnswers[j] = (j == i);
+              }
+            } else {
+              // For checkboxes and dropdown, allow multiple correct answers
+              m.correctAnswers[i] = !m.correctAnswers[i];
+            }
+          }),
+        ),
         if (showTrailingPlus)
           IconButton(
             tooltip: 'Add option',
             icon: const Icon(Icons.add_box_outlined, color: Colors.black54),
             onPressed: () => setState(() {
               m.options.insert(i + 1, TextEditingController());
+              m.correctAnswers.insert(i + 1, false);
             }),
           ),
         if (m.options.length > 1) ...[
@@ -597,7 +627,12 @@ class _QuestionCardState extends State<QuestionCard> {
           IconButton(
             tooltip: 'Remove option',
             icon: const Icon(Icons.close, size: 18),
-            onPressed: () => setState(() => m.options.removeAt(i)),
+            onPressed: () => setState(() {
+              m.options.removeAt(i);
+              if (i < m.correctAnswers.length) {
+                m.correctAnswers.removeAt(i);
+              }
+            }),
           ),
         ]
       ]));
@@ -613,8 +648,10 @@ class _QuestionCardState extends State<QuestionCard> {
         Icon(choiceIcon, color: Colors.black26),
         const SizedBox(width: 10),
         TextButton.icon(
-          onPressed: () =>
-              setState(() => m.options.add(TextEditingController())),
+          onPressed: () => setState(() {
+            m.options.add(TextEditingController());
+            m.correctAnswers.add(false);
+          }),
           icon: const Icon(Icons.add, color: Color(0xFF6FA57A)),
           label: const Text('Add Option',
               style: TextStyle(color: Color(0xFF6FA57A))),
