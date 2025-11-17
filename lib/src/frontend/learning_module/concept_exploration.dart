@@ -884,17 +884,9 @@ class _ConceptExplorationScreenState extends State<ConceptExplorationScreen> {
                           if (value == 'save') {
                             await _saveDocument();
                           } else if (value == 'save_continue') {
-                            final messenger = ScaffoldMessenger.of(context);
                             final navigator = Navigator.of(context);
                             await _saveDocument();
                             if (mounted) {
-                              messenger.showSnackBar(
-                                const SnackBar(
-                                  content: Text('Moving to next section...'),
-                                  backgroundColor: AppColors.primary,
-                                  duration: Duration(seconds: 1),
-                                ),
-                              );
                               // Navigate to Activity screen
                               navigator.push(
                                 MaterialPageRoute(
