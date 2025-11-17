@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
 import '../../styling/app_colors.dart';
-import 'materials_cost.dart';
+import 'journal_log.dart';
 
 class InteractiveTimelinePage extends StatefulWidget {
   final String projectName;
@@ -118,7 +118,7 @@ class _InteractiveTimelinePageState extends State<InteractiveTimelinePage> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => MaterialsCostPage(
+                  builder: (context) => JournalLogScreen(
                     projectName: widget.projectName,
                     tags: widget.tags,
                   ),

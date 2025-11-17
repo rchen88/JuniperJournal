@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../styling/app_colors.dart';
 import 'create_problem_statement.dart';
-import 'create_timeline.dart';
 import 'package:juniper_journal/src/backend/db/repositories/projects_repo.dart';
 import 'package:juniper_journal/src/frontend/submission_template/create_problem_statement.dart';
 

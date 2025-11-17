@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../styling/app_colors.dart';
-import 'create_timeline.dart';
 import 'package:juniper_journal/src/backend/db/repositories/projects_repo.dart';
 
 class CreateProblemStatementScreen extends StatefulWidget {
@@ -128,7 +127,7 @@ class _CreateProblemStatementScreenState
                     return;
                   }
 
-                  Navigator.of(context).push(
+                 /* Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (_) => ProjectTimelineScreen(
                         projectId: widget.projectId,          // keep carrying it forward
@@ -137,7 +136,7 @@ class _CreateProblemStatementScreenState
                         tags: widget.tags,
                       ),
                     ),
-                  );
+                  );*/
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF5DB075),
