@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../styling/app_colors.dart';
+import 'submission_metrics.dart';
 import 'dart:math';
 
 class MaterialsCostPage extends StatefulWidget {
@@ -119,13 +120,36 @@ class _MaterialsCostPageState extends State<MaterialsCostPage> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        backgroundColor: AppColors.primary,
-        title: Text(
-          widget.projectName,
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+  backgroundColor: AppColors.primary,
+  title: Text(
+    widget.projectName,
+    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+  ),
+  centerTitle: true,
+  actions: [
+    TextButton(
+      onPressed: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => MetricsPage(
+              projectName: widget.projectName,
+              tags: widget.tags,
+            ),
+          ),
+        );
+      },
+      child: const Text(
+        'Done',
+        style: TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w600,
+          fontSize: 16,
         ),
-        centerTitle: true,
       ),
+    ),
+  ],
+),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -301,6 +325,7 @@ class _MaterialsCostPageState extends State<MaterialsCostPage> {
                 ),
               ),
             ),
+            const SizedBox(height: 16),
           ],
         ),
       ),
