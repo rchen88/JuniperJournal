@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../styling/app_colors.dart';
 import 'create_problem_statement.dart';
-import 'package:juniper_journal/src/backend/db/repositories/projects_repo.dart';
-import 'package:juniper_journal/src/frontend/submission_template/create_problem_statement.dart';
-
 
 class CreateSubmissionScreen extends StatefulWidget {
   const CreateSubmissionScreen({super.key});
@@ -13,7 +10,6 @@ class CreateSubmissionScreen extends StatefulWidget {
 }
 
 class _CreateSubmissionScreenState extends State<CreateSubmissionScreen> {
-  bool _saving = false;
   final _formKey = GlobalKey<FormState>();
   final _projectNameController = TextEditingController();
   final List<String> _availableTags = [
@@ -60,7 +56,7 @@ class _CreateSubmissionScreenState extends State<CreateSubmissionScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Project Name:',
+                'Project Name',
                 style: TextStyle(
                   color: Colors.black,
                   fontSize: 10,
@@ -152,42 +148,18 @@ class _CreateSubmissionScreenState extends State<CreateSubmissionScreen> {
                 width: double.infinity,
                 height: 48,
                 child: ElevatedButton(
-                  onPressed: () async {
-                        if (!_formKey.currentState!.validate()) return;
-
-                        setState(() => _saving = true);
-                        final messenger = ScaffoldMessenger.of(context);
-
-                        try {
-                          final repo = ProjectsRepo();
-                          final row = await repo.createProject(
-                            projectName: _projectNameController.text.trim(),
-                            problemStatement: '',                      // <-- create draft
-                            tags: List<String>.from(_selectedTags),
-                          );
-
-                          if (row == null) {
-                            messenger.showSnackBar(
-                              const SnackBar(content: Text('Failed to create project.')),
-                            );
-                            return;
-                          }
-
-                          final String projectId = row['id'] as String;
-
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => CreateProblemStatementScreen(
-                                projectId: projectId,               
-                                projectName: _projectNameController.text,
-                                tags: _selectedTags,
-                              ),
-                            ),
-                          );
-                        } finally {
-                          if (mounted) setState(() => _saving = false);
-                        }
-                      },
+                  onPressed: () {
+                    if (_formKey.currentState!.validate()) {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (context) => CreateProblemStatementScreen(
+                            projectName: _projectNameController.text,
+                            tags: _selectedTags,
+                          ),
+                        ),
+                      );
+                    }
+                  },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF5DB075),
                     shape: RoundedRectangleBorder(
