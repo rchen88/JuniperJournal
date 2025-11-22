@@ -11,11 +11,10 @@ class AnchoringPhenomenon extends StatefulWidget {
   const AnchoringPhenomenon({super.key, this.existingModule});
 
   @override
-  State<AnchoringPhenomenon> createState() =>
-      _AnchoringPhenomenonScreenState();
+  State<AnchoringPhenomenon> createState() => _CreateAnchoringPhenomenonScreenState();
 }
 
-class _AnchoringPhenomenonScreenState extends State<AnchoringPhenomenon> {
+class _CreateAnchoringPhenomenonScreenState extends State<AnchoringPhenomenon> {
   final List<TextEditingController> _controllers = [TextEditingController()];
   final _formKey = GlobalKey<FormState>();
   String _selectedNavigation = 'ANCHORING PHENOMENON';
@@ -24,7 +23,7 @@ class _AnchoringPhenomenonScreenState extends State<AnchoringPhenomenon> {
   @override
   void initState() {
     super.initState();
-    _loadExistingData(); // <-- still fetch from Supabase
+    _loadExistingData();
   }
 
   @override
@@ -35,30 +34,30 @@ class _AnchoringPhenomenonScreenState extends State<AnchoringPhenomenon> {
     super.dispose();
   }
 
-  // KEEP: fetch from Supabase so we can prefill
   void _loadExistingData() async {
     final module = widget.existingModule;
     if (module != null && module['id'] != null) {
       final repo = LearningModuleRepo();
 
-      // pull latest data from backend
+      // If a user navigates backwards, want to laod in existing data that has already been saved
       final freshModuleData = await repo.getModule(module['id'].toString());
 
       if (freshModuleData != null) {
         setState(() {
-          // question type
+          // Load creator_action (question type)
           if (freshModuleData['creator_action'] != null) {
             _selectedQuestionType = freshModuleData['creator_action'];
           }
 
-          // inquiry text list
-          if (freshModuleData['inquiry'] != null &&
-              freshModuleData['inquiry'] is List) {
+          // Load inquiry (array of text)
+          if (freshModuleData['inquiry'] != null && freshModuleData['inquiry'] is List) {
             final inquiryList = List<String>.from(freshModuleData['inquiry']);
             if (inquiryList.isNotEmpty) {
+              // Clear the default controller and add controllers for existing data
               _controllers.clear();
               for (String text in inquiryList) {
-                _controllers.add(TextEditingController(text: text));
+                final controller = TextEditingController(text: text);
+                _controllers.add(controller);
               }
             }
           }
@@ -81,8 +80,7 @@ class _AnchoringPhenomenonScreenState extends State<AnchoringPhenomenon> {
 
   @override
   Widget build(BuildContext context) {
-    // make this safe if existingModule was null
-    final widgetModule = widget.existingModule ?? {};
+    final widgetModule = widget.existingModule!;
     final moduleName = widgetModule['module_name'] ?? 'Module Name';
     final formattedDate = _formatDate(widgetModule['created_at']);
 
@@ -93,216 +91,219 @@ class _AnchoringPhenomenonScreenState extends State<AnchoringPhenomenon> {
           child: Form(
             key: _formKey,
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Top bar
-                Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(CupertinoIcons.back,
-                          color: AppColors.iconPrimary),
-                      onPressed: () => Navigator.of(context).pop(),
-                      tooltip: 'Back',
-                    ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            moduleName,
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.darkText,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            formattedDate,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: AppColors.lightGrey,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-                // Navigation and question type dropdowns
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 8,
-                  children: [
-                    _buildNavigationDropdown(),
-                    _buildQuestionTypeDropdown(),
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-                // Dynamic text inputs
-                ..._controllers.asMap().entries.map((entry) {
-                  final index = entry.key;
-                  final controller = entry.value;
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Top bar
+              Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(CupertinoIcons.back, color: AppColors.iconPrimary),
+                    onPressed: () => Navigator.of(context).pop(),
+                    tooltip: 'Back',
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: controller,
-                            maxLines: 6,
-                            decoration: InputDecoration(
-                              hintText: index == 0
-                                  ? 'Explain the inquiry...'
-                                  : 'Additional explanation...',
-                              hintStyle:
-                                  const TextStyle(color: AppColors.hintText),
-                              contentPadding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 14),
-                              enabledBorder: OutlineInputBorder(
-                                borderSide: const BorderSide(
-                                    color: AppColors.primary, width: 1),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderSide: const BorderSide(
-                                    color: AppColors.primary, width: 1.5),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              errorBorder: OutlineInputBorder(
-                                borderSide: const BorderSide(
-                                    color: AppColors.error, width: 1.5),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              focusedErrorBorder: OutlineInputBorder(
-                                borderSide: const BorderSide(
-                                    color: AppColors.error, width: 1.5),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              filled: false,
-                            ),
-                            validator: index == 0
-                                ? (value) {
-                                    final hasContent = _controllers.any(
-                                        (ctrl) =>
-                                            ctrl.text.trim().isNotEmpty);
-                                    if (!hasContent) {
-                                      return 'At least one explanation must be completed';
-                                    }
-                                    return null;
-                                  }
-                                : null,
+                        Text(
+                          moduleName,
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.darkText,
                           ),
                         ),
-                        if (_controllers.length > 1) ...[
-                          const SizedBox(width: 8),
-                          InkWell(
-                            borderRadius: BorderRadius.circular(18),
-                            onTap: () {
-                              setState(() {
-                                controller.dispose();
-                                _controllers.removeAt(index);
-                              });
-                            },
-                            child: Container(
-                              width: 36,
-                              height: 36,
-                              decoration: BoxDecoration(
-                                border: Border.all(color: AppColors.error),
-                                color: AppColors.white,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Center(
-                                child: Icon(CupertinoIcons.minus,
-                                    size: 20, color: Colors.red),
-                              ),
-                            ),
+                        const SizedBox(height: 2),
+                        Text(
+                          formattedDate,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.lightGrey,
                           ),
-                        ],
+                        ),
                       ],
                     ),
-                  );
-                }),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+              ),
+              const SizedBox(height: 16),
 
-                // Add button
-                Row(
-                  children: [
-                    InkWell(
-                      borderRadius: BorderRadius.circular(18),
-                      onTap: () {
-                        setState(() {
-                          _controllers.add(TextEditingController());
-                        });
-                      },
-                      child: Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          border: Border.all(color: AppColors.borderLight),
-                          color: AppColors.white,
-                          shape: BoxShape.circle,
+              // Navigation and question type dropdowns
+              Wrap(
+                spacing: 10,
+                runSpacing: 8,
+                children: [
+                  _buildNavigationDropdown(),
+                  _buildQuestionTypeDropdown(),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Dynamic text inputs
+              ..._controllers.asMap().entries.map((entry) {
+                final index = entry.key;
+                final controller = entry.value;
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: controller,
+                          maxLines: 6,
+                          decoration: InputDecoration(
+                            hintText: index == 0
+                                ? 'Explain the inquiry...'
+                                : 'Additional explanation...',
+                            hintStyle: const TextStyle(color: AppColors.hintText),
+                            contentPadding:
+                                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                            enabledBorder: OutlineInputBorder(
+                              borderSide: const BorderSide(color: AppColors.primary, width: 1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            errorBorder: OutlineInputBorder(
+                              borderSide: const BorderSide(color: AppColors.error, width: 1.5),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            focusedErrorBorder: OutlineInputBorder(
+                              borderSide: const BorderSide(color: AppColors.error, width: 1.5),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            filled: false,
+                          ),
+                          validator: index == 0 ? (value) {
+                            // Only validate the first text field - require at least one explanation
+                            final hasContent = _controllers.any((ctrl) => ctrl.text.trim().isNotEmpty);
+                            if (!hasContent) {
+                              return 'At least one explanation must be completed';
+                            }
+                            return null;
+                          } : null,
                         ),
-                        child: const Center(
-                          child: Icon(CupertinoIcons.add,
-                              size: 20, color: AppColors.iconPrimary),
+                      ),
+                      if (_controllers.length > 1) ...[
+                        const SizedBox(width: 8),
+                        InkWell(
+                          borderRadius: BorderRadius.circular(18),
+                          onTap: () {
+                            setState(() {
+                              controller.dispose();
+                              _controllers.removeAt(index);
+                            });
+                          },
+                          child: Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              border: Border.all(color: AppColors.error),
+                              color: AppColors.white,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Center(
+                              child: Icon(CupertinoIcons.minus, size: 20, color: Colors.red),
+                            ),
+                          ),
                         ),
+                      ],
+                    ],
+                  ),
+                );
+              }),
+
+              // Add button
+              Row(
+                children: [
+                  InkWell(
+                    borderRadius: BorderRadius.circular(18),
+                    onTap: () {
+                      setState(() {
+                        _controllers.add(TextEditingController());
+                      });
+                    },
+                    child: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: AppColors.borderLight),
+                        color: AppColors.white,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Center(
+                        child: Icon(CupertinoIcons.add, size: 20, color: AppColors.iconPrimary),
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 24),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
 
-                // Complete button
-                SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: FilledButton(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: AppColors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      textStyle: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                      ),
+              // Complete button
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: AppColors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    onPressed: () {
-                      if (_formKey.currentState!.validate()) {
-                        // collect local data
-                        final allText = _controllers
-                            .map((controller) => controller.text.trim())
-                            .where((text) => text.isNotEmpty)
-                            .toList();
+                    textStyle: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  onPressed: () async {
+                    if (_formKey.currentState!.validate()) {
+                      final messenger = ScaffoldMessenger.of(context);
+                      final repo = LearningModuleRepo();
+                      final moduleId = widgetModule['id'].toString();
+                      final navigator = Navigator.of(context);
 
-                        // create an updated module object to pass forward
-                        final updatedModule = {
-                          ...widgetModule,
-                          'creator_action': _selectedQuestionType,
-                          'inquiry': allText,
-                        };
+                      // Get all non-empty text from controllers
+                      final allText = _controllers
+                          .map((controller) => controller.text.trim())
+                          .where((text) => text.isNotEmpty)
+                          .toList();
 
-                        // JUST NAVIGATE – no repo.update*
-                        Navigator.of(context).push(
+                      // Save to database
+                      final success = await repo.updateAnchoringPhenomenon(
+                        id: moduleId,
+                        creatorAction: _selectedQuestionType,
+                        inquiry: allText,
+                      );
+
+                      if (success) {
+                        // Navigate to next screen
+                        navigator.push(
                           MaterialPageRoute(
                             builder: (context) => LearningObjectiveScreen(
-                              module: updatedModule,
+                              module: widgetModule,
                             ),
                           ),
                         );
+                      } else {
+                        messenger.showSnackBar(
+                          const SnackBar(
+                            content: Text('Failed to save anchoring phenomenon'),
+                            backgroundColor: AppColors.error,
+                          ),
+                        );
                       }
-                    },
-                    child: const Text('Complete'),
-                  ),
+                    }
+                  },
+                  child: const Text('Complete'),
                 ),
-              ],
+              ),
+            ],
             ),
           ),
         ),
@@ -360,12 +361,13 @@ class _AnchoringPhenomenonScreenState extends State<AnchoringPhenomenon> {
             ),
           ],
           onChanged: (value) {
-            if (value == null) return;
             if (value == 'TITLE') {
+              // Go back to title (parent of AP)
               Navigator.of(context).pop();
             }
+            // If ANCHORING PHENOMENON is selected, stay on current page
             setState(() {
-              _selectedNavigation = value;
+              _selectedNavigation = value!;
             });
           },
         ),
@@ -447,9 +449,8 @@ class _AnchoringPhenomenonScreenState extends State<AnchoringPhenomenon> {
             ),
           ],
           onChanged: (value) {
-            if (value == null) return;
             setState(() {
-              _selectedQuestionType = value;
+              _selectedQuestionType = value!;
             });
           },
         ),
