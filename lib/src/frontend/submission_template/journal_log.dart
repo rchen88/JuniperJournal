@@ -95,21 +95,10 @@ class _JournalLogScreenState extends State<JournalLogScreen> {
       // Serialize document to JSON string
       final documentJson = jsonEncode(_controller!.document);
 
-      final success = await _projectsRepo.updateJournalLog(
+      await _projectsRepo.updateJournalLog(
         id: widget.projectId,
         journalLogJson: documentJson,
       );
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(success
-                ? 'Journal log saved successfully!'
-                : 'Failed to save journal log'),
-            backgroundColor: success ? AppColors.primary : AppColors.error,
-          ),
-        );
-      }
     } catch (e) {
       debugPrint('Error saving document: $e');
       if (mounted) {
@@ -764,6 +753,7 @@ class _JournalLogScreenState extends State<JournalLogScreen> {
                               navigator.push(
                                 MaterialPageRoute(
                                   builder: (context) => MaterialsCostPage(
+                                    projectId: widget.projectId,
                                     projectName: widget.projectName,
                                     tags: widget.tags,
                                   ),
@@ -1019,6 +1009,7 @@ class _JournalLogScreenState extends State<JournalLogScreen> {
               Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (context) => MaterialsCostPage(
+                    projectId: widget.projectId,
                     projectName: widget.projectName,
                     tags: widget.tags,
                   ),

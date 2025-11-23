@@ -115,4 +115,38 @@ class ProjectsRepo {
       return null;
     }
   }
+
+  Future<bool> updateMaterialsCost({
+    required String id,
+    required List<Map<String, dynamic>> materials,
+  }) async {
+    try {
+      await _client
+          .from(table)
+          .update({'materials_cost': materials})
+          .eq('id', id);
+      return true;
+    } catch (e, st) {
+      debugPrint('updateMaterialsCost error: $e\n$st');
+      return false;
+    }
+  }
+
+  Future<List<Map<String, dynamic>>?> getMaterialsCost(String id) async {
+    try {
+      final result = await _client
+          .from(table)
+          .select('materials_cost')
+          .eq('id', id)
+          .single();
+      final materials = result['materials_cost'];
+      if (materials == null) return [];
+      return (materials as List)
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+    } catch (e, st) {
+      debugPrint('getMaterialsCost error: $e\n$st');
+      return null;
+    }
+  }
 }
