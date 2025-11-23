@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import '../../styling/app_colors.dart';
+import '../../backend/db/repositories/projects_repo.dart';
 import 'submissions_timeline.dart';
 
 class CreateProblemStatementScreen extends StatefulWidget {
+  final String projectId;
   final String projectName;
   final List<String> tags;
 
   const CreateProblemStatementScreen({
     super.key,
+    required this.projectId,
     required this.projectName,
     required this.tags,
   });
@@ -20,6 +23,8 @@ class CreateProblemStatementScreen extends StatefulWidget {
 class _CreateProblemStatementScreenState
     extends State<CreateProblemStatementScreen> {
   final _problemController = TextEditingController();
+  final _projectsRepo = ProjectsRepo();
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -101,36 +106,66 @@ class _CreateProblemStatementScreenState
             ),
             const Spacer(),
 
-            // Next button - This is already correct
+            // Next button - updates problem statement in Supabase
             SizedBox(
               width: double.infinity,
               height: 48,
               child: ElevatedButton(
-                onPressed: () {
-                 Navigator.push(
-  context,
-  MaterialPageRoute(
-    builder: (context) => InteractiveTimelinePage(
-      projectName: widget.projectName,
-      tags: widget.tags,
-    ),
-  ),
-);
-                },
+                onPressed: _isLoading
+                    ? null
+                    : () async {
+                        setState(() => _isLoading = true);
+
+                        final success = await _projectsRepo.updateProblemStatement(
+                          id: widget.projectId,
+                          problemStatement: _problemController.text.trim(),
+                        );
+
+                        if (!mounted) return;
+                        setState(() => _isLoading = false);
+
+                        if (success) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => InteractiveTimelinePage(
+                                projectId: widget.projectId,
+                                projectName: widget.projectName,
+                                tags: widget.tags,
+                              ),
+                            ),
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Failed to save problem statement. Please try again.'),
+                            ),
+                          );
+                        }
+                      },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF5DB075),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: const Text(
-                  'Next',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontFamily: 'Inter',
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
+                child: _isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : const Text(
+                        'Next',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontFamily: 'Inter',
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
               ),
             ),
           ],
