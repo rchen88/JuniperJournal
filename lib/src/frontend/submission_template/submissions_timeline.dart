@@ -128,17 +128,25 @@ class _InteractiveTimelinePageState extends State<InteractiveTimelinePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.primary,
-        title: Text(
-          widget.projectName,
-          style: const TextStyle(
-            color: AppColors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
+      appBar: PreferredSize(
+  preferredSize: const Size.fromHeight(60),
+  child: Container(
+    color: Colors.white,
+    padding: const EdgeInsets.only(top: 12), 
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        Container(
+          height: 44,
+          decoration: const BoxDecoration(
+            border: Border(
+              bottom: BorderSide(color: Color(0xFFE5E5EA), width: 0.6),
+            ),
           ),
-        ),
-        centerTitle: true,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const SizedBox(width: 60),
 
         actions: [
           TextButton(
@@ -152,19 +160,38 @@ class _InteractiveTimelinePageState extends State<InteractiveTimelinePage> {
                     tags: widget.tags,
                   ),
                 ),
-              );
-            },
-            child: const Text(
-              'Done',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-                fontSize: 16,
               ),
-            ),
+
+              // DONE BUTTON
+              TextButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => MaterialsCostPage(
+                        projectName: widget.projectName,
+                        tags: widget.tags,
+                      ),
+                    ),
+                  );
+                },
+                child: const Text(
+                  "Done",
+                  style: TextStyle(
+                    color: Color(0xFF5DB075),
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    fontFamily: 'Inter',
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
+    ),
+  ),
+),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(

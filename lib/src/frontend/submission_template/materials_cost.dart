@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../styling/app_colors.dart';
 import '../../backend/db/repositories/projects_repo.dart';
+import 'submission_metrics.dart';
 import 'dart:math';
 
 class MaterialsCostPage extends StatefulWidget {
@@ -122,7 +123,6 @@ class _MaterialsCostPageState extends State<MaterialsCostPage> {
 
   double get _totalCost => _materials.fold(0.0, (sum, item) => sum + item["cost"]);
 
-  // Green = < $20, Yellow = $20–99.99, Red = $100+
   Color get _totalColor {
     if (_totalCost < 19.99) return const Color(0xFF5DB075); // Green (Low)
     if (_totalCost < 100) return const Color(0xFFFFC93D); // Yellow (Medium)
@@ -135,7 +135,6 @@ class _MaterialsCostPageState extends State<MaterialsCostPage> {
     return "High cost project";
   }
 
-  // ✅ Fix for individual item indicators too
   Color _getIndicatorColor(double cost) {
     if (cost < 19.99) return const Color(0xFF5DB075); // Green
     if (cost < 100) return const Color(0xFFFFC93D); // Yellow
@@ -146,14 +145,72 @@ class _MaterialsCostPageState extends State<MaterialsCostPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.primary,
-        title: Text(
-          widget.projectName,
-          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+      appBar: PreferredSize(
+  preferredSize: const Size.fromHeight(60),
+  child: Container(
+    color: Colors.white,
+    padding: const EdgeInsets.only(top: 12),
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        Container(
+          height: 44,
+          decoration: const BoxDecoration(
+            border: Border(
+              bottom: BorderSide(color: Color(0xFFE5E5EA), width: 0.6),
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const SizedBox(width: 60),
+
+              // TITLE
+              Expanded(
+                child: Center(
+                  child: Text(
+                    widget.projectName,
+                    style: const TextStyle(
+                      color: Color(0xFF1F2024),
+                      fontSize: 16,
+                      fontFamily: 'Inter',
+                      fontWeight: FontWeight.w700,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
+
+              // DONE BUTTON 
+              TextButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => MetricsPage(
+                        projectName: widget.projectName,
+                        tags: widget.tags,
+                      ),
+                    ),
+                  );
+                },
+                child: const Text(
+                  "Done",
+                  style: TextStyle(
+                    color: Color(0xFF5DB075),
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    fontFamily: 'Inter',
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
-        centerTitle: true,
-      ),
+      ],
+    ),
+  ),
+),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -329,6 +386,7 @@ class _MaterialsCostPageState extends State<MaterialsCostPage> {
                 ),
               ),
             ),
+            const SizedBox(height: 16),
           ],
         ),
       ),

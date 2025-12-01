@@ -25,6 +25,23 @@ class _CreateProblemStatementScreenState
   final _problemController = TextEditingController();
   final _projectsRepo = ProjectsRepo();
   bool _isLoading = false;
+  final TextEditingController _problemController = TextEditingController();
+
+  final List<String> difficultyLevels = [
+    "Basic",
+    "Intermediate",
+    "Advanced",
+  ];
+
+  final List<String> subjectDomains = [
+    "Environment & Sustainability",
+    "Engineering & Design",
+    "Energy & Systems",
+    "Community & The Built Environment",
+  ];
+
+  String? _selectedDifficulty;
+  String? _selectedDomain;
 
   @override
   void dispose() {
@@ -36,80 +53,177 @@ class _CreateProblemStatementScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: const Text(
-          'Problem Statement',
-          style: TextStyle(
-            color: Colors.black,
-            fontSize: 14,
-            fontFamily: 'Inter',
-            fontWeight: FontWeight.w700,
+
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(60),
+        child: Container(
+          color: Colors.white,
+          padding: const EdgeInsets.only(top: 12),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Container(
+                height: 44,
+                decoration: const BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(color: Color(0xFFE5E5EA), width: 0.6),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.arrow_back_ios,
+                          size: 18, color: Colors.black),
+                      onPressed: () => Navigator.pop(context),
+                    ),
+                    const Spacer(),
+                    const Text(
+                      "Problem Statement",
+                      style: TextStyle(
+                        color: Color(0xFF1F2024),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const Spacer(),
+                    const SizedBox(width: 48),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
-        centerTitle: true,
       ),
-      body: Padding(
-  padding: const EdgeInsets.all(16),
-  child: Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(
-        widget.projectName,
-        style: const TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.bold,
-          color: AppColors.textPrimary,
-        ),
-      ),
-      const SizedBox(height: 8),
-      Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: widget.tags.map((tag) {
-          return Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: const Color(0xFFDCF7E4),
-              borderRadius: BorderRadius.circular(24),
-            ),
-            child: Text(
-              tag,
+
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              widget.projectName,
               style: const TextStyle(
-                color: AppColors.primary,
-                fontSize: 10,
-                fontFamily: 'Inter',
-                fontWeight: FontWeight.w600,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textPrimary,
               ),
             ),
-          );
-        }).toList(),
-      ),
-            const SizedBox(height: 24),
 
-            // Problem statement input
+            const SizedBox(height: 8),
+
+            Wrap(
+              spacing: 8,
+              children: widget.tags.map((tag) {
+                return Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFDCF7E4),
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  child: Text(
+                    tag,
+                    style: const TextStyle(
+                      color: AppColors.primary,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+
+            const SizedBox(height: 28),
+
+            const Text(
+              "Write Problem Statement",
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 12),
+
             TextFormField(
               controller: _problemController,
               maxLines: 5,
               decoration: InputDecoration(
-                hintText: 'Write your problem statement...',
+                hintText: "Describe the challenge your project aims to address...",
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.all(14),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFF5DB075)),
                 ),
               ),
             ),
-            const Spacer(),
 
-            // Next button - updates problem statement in Supabase
+            const SizedBox(height: 32),
+
+            const Text(
+              "Subject Domain",
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+
+            const SizedBox(height: 8),
+
+            DropdownButtonFormField<String>(
+              value: _selectedDomain,
+              isExpanded: true,
+              decoration: _dropdownDecoration(),
+              items: subjectDomains
+                  .map(
+                    (domain) => DropdownMenuItem<String>(
+                      value: domain,
+                      child: Text(domain),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (val) {
+                setState(() {
+                  _selectedDomain = val;
+                });
+              },
+            ),
+
+            const SizedBox(height: 32),
+
+            const Text(
+              "Difficulty Level",
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            DropdownButtonFormField<String>(
+              value: _selectedDifficulty,
+              isExpanded: true,
+              decoration: _dropdownDecoration(),
+              items: difficultyLevels
+                  .map(
+                    (level) => DropdownMenuItem<String>(
+                      value: level,
+                      child: Text(level),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (val) {
+                setState(() {
+                  _selectedDifficulty = val;
+                });
+              },
+            ),
+
+            const SizedBox(height: 40),
+
             SizedBox(
               width: double.infinity,
-              height: 48,
+              height: 50,
               child: ElevatedButton(
                 onPressed: _isLoading
                     ? null
@@ -144,32 +258,46 @@ class _CreateProblemStatementScreenState
                         }
                       },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF5DB075),
+                  backgroundColor: AppColors.primary,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                child: _isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      )
-                    : const Text(
-                        'Next',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontFamily: 'Inter',
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+                child: const Text(
+                  "Next",
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16,
+                  ),
+                ),
               ),
             ),
+
+            const SizedBox(height: 20),
           ],
         ),
+      ),
+    );
+  }
+
+  InputDecoration _dropdownDecoration() {
+    return InputDecoration(
+      filled: true,
+      fillColor: AppColors.inputBackground,
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(25),
+        borderSide: const BorderSide(color: AppColors.inputBorder),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(25),
+        borderSide: const BorderSide(color: AppColors.inputBorder),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(25),
+        borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
       ),
     );
   }
