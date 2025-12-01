@@ -23,7 +23,8 @@ class Summary extends StatefulWidget {
 
 class _SummaryScreenState extends State<Summary> {
   String _selectedNavigation = 'SUMMARY';
-  String _selectedQuestionType = 'WHY';
+  String _generatedSummary = '';
+  Map<String, dynamic>? _moduleData;
 
   Map<String, dynamic>? _moduleData;
 

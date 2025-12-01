@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import '../../styling/app_colors.dart';
+import '../../backend/db/repositories/projects_repo.dart';
 import 'submission_metrics.dart';
 import 'dart:math';
 
 class MaterialsCostPage extends StatefulWidget {
+  final String projectId;
   final String projectName;
   final List<String> tags;
 
   const MaterialsCostPage({
     super.key,
+    required this.projectId,
     required this.projectName,
     required this.tags,
   });
@@ -19,6 +22,30 @@ class MaterialsCostPage extends StatefulWidget {
 
 class _MaterialsCostPageState extends State<MaterialsCostPage> {
   final List<Map<String, dynamic>> _materials = [];
+  final _projectsRepo = ProjectsRepo();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMaterials();
+  }
+
+  Future<void> _loadMaterials() async {
+    final materials = await _projectsRepo.getMaterialsCost(widget.projectId);
+    if (materials != null && mounted) {
+      setState(() {
+        _materials.clear();
+        _materials.addAll(materials);
+      });
+    }
+  }
+
+  Future<void> _saveMaterials() async {
+    await _projectsRepo.updateMaterialsCost(
+      id: widget.projectId,
+      materials: _materials,
+    );
+  }
 
   void _addMaterialDialog() {
     final nameController = TextEditingController();
@@ -50,7 +77,7 @@ class _MaterialsCostPageState extends State<MaterialsCostPage> {
               backgroundColor: AppColors.buttonPrimary,
               foregroundColor: AppColors.buttonText,
             ),
-            onPressed: () {
+            onPressed: () async {
               final name = nameController.text.trim();
               final cost = double.tryParse(costController.text.trim()) ?? 0.0;
               if (name.isEmpty || cost <= 0) {
@@ -66,6 +93,7 @@ class _MaterialsCostPageState extends State<MaterialsCostPage> {
                   "cost": cost,
                 });
               });
+              await _saveMaterials();
               Navigator.pop(context);
             },
             child: const Text("Add"),

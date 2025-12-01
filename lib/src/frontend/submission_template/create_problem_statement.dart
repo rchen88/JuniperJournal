@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import '../../styling/app_colors.dart';
+import '../../backend/db/repositories/projects_repo.dart';
 import 'submissions_timeline.dart';
 
 class CreateProblemStatementScreen extends StatefulWidget {
+  final String projectId;
   final String projectName;
   final List<String> tags;
 
   const CreateProblemStatementScreen({
     super.key,
+    required this.projectId,
     required this.projectName,
     required this.tags,
   });
@@ -19,6 +22,9 @@ class CreateProblemStatementScreen extends StatefulWidget {
 
 class _CreateProblemStatementScreenState
     extends State<CreateProblemStatementScreen> {
+  final _problemController = TextEditingController();
+  final _projectsRepo = ProjectsRepo();
+  bool _isLoading = false;
   final TextEditingController _problemController = TextEditingController();
 
   final List<String> difficultyLevels = [
@@ -219,27 +225,38 @@ class _CreateProblemStatementScreenState
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
-                onPressed: () {
-                  if (_selectedDomain == null ||
-                      _selectedDifficulty == null ||
-                      _problemController.text.trim().isEmpty) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                          content: Text("Please complete all fields.")),
-                    );
-                    return;
-                  }
+                onPressed: _isLoading
+                    ? null
+                    : () async {
+                        setState(() => _isLoading = true);
 
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => InteractiveTimelinePage(
-                        projectName: widget.projectName,
-                        tags: widget.tags,
-                      ),
-                    ),
-                  );
-                },
+                        final success = await _projectsRepo.updateProblemStatement(
+                          id: widget.projectId,
+                          problemStatement: _problemController.text.trim(),
+                        );
+
+                        if (!mounted) return;
+                        setState(() => _isLoading = false);
+
+                        if (success) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => InteractiveTimelinePage(
+                                projectId: widget.projectId,
+                                projectName: widget.projectName,
+                                tags: widget.tags,
+                              ),
+                            ),
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Failed to save problem statement. Please try again.'),
+                            ),
+                          );
+                        }
+                      },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   shape: RoundedRectangleBorder(

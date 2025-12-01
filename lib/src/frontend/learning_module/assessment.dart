@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:juniper_journal/main.dart';
 import 'package:juniper_journal/src/backend/db/repositories/learning_module_repo.dart';
+import 'package:juniper_journal/src/frontend/learning_module/summary.dart';
 
 import './summary.dart';
 
@@ -171,13 +172,14 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
                   // Save the assessment first
                   await _saveAssessment();
 
-                  // Then navigate to home
+                  // Then navigate to Summary
                   if (context.mounted) {
-                    Navigator.push(
-                      context,
+                    Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (context) => Summary(module: widget.module),
-                      )
+                        builder: (context) => Summary(
+                          existingModule: widget.module,
+                        ),
+                      ),
                     );
                   }
                 },

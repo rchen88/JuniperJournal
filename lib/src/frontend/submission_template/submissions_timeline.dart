@@ -2,14 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
 import '../../styling/app_colors.dart';
+import '../../backend/db/repositories/projects_repo.dart';
 import 'journal_log.dart';
 
 class InteractiveTimelinePage extends StatefulWidget {
+  final String projectId;
   final String projectName;
   final List<String> tags;
 
   const InteractiveTimelinePage({
     super.key,
+    required this.projectId,
     required this.projectName,
     required this.tags,
   });
@@ -22,6 +25,30 @@ class _InteractiveTimelinePageState extends State<InteractiveTimelinePage> {
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
   final List<Map<String, String>> _timeline = [];
+  final _projectsRepo = ProjectsRepo();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTimeline();
+  }
+
+  Future<void> _loadTimeline() async {
+    final timeline = await _projectsRepo.getTimeline(widget.projectId);
+    if (timeline != null && mounted) {
+      setState(() {
+        _timeline.clear();
+        _timeline.addAll(timeline);
+      });
+    }
+  }
+
+  Future<void> _saveTimeline() async {
+    await _projectsRepo.updateTimeline(
+      id: widget.projectId,
+      timeline: _timeline,
+    );
+  }
 
   void _addEventDialog() {
     final eventController = TextEditingController();
@@ -55,7 +82,7 @@ class _InteractiveTimelinePageState extends State<InteractiveTimelinePage> {
               backgroundColor: AppColors.buttonPrimary,
               foregroundColor: AppColors.buttonText,
             ),
-            onPressed: () {
+            onPressed: () async {
               if (eventController.text.trim().isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Event name is required')),
@@ -70,6 +97,7 @@ class _InteractiveTimelinePageState extends State<InteractiveTimelinePage> {
                   'location': locationController.text,
                 });
               });
+              await _saveTimeline();
               Navigator.pop(context);
             },
             child: const Text('Add'),
@@ -127,6 +155,7 @@ class _InteractiveTimelinePageState extends State<InteractiveTimelinePage> {
                 context,
                 MaterialPageRoute(
                   builder: (context) => JournalLogScreen(
+                    projectId: widget.projectId,
                     projectName: widget.projectName,
                     tags: widget.tags,
                   ),

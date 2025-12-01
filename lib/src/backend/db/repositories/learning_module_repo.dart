@@ -350,33 +350,49 @@ class LearningModuleRepo {
     }
   }
 
+  Future<bool> updateSummary({
+    required String id,
+    required String summary,
+  }) async {
+    try {
+      debugPrint('Updating summary for module id: $id');
 
-Future<bool> updateCallToAction({
-  required String id,
-  required List<String> callToAction,
-  String? projectUrl,
-}) async {
-  debugPrint('Updating call to action for module id: $id');
-  debugPrint('Call to action: $callToAction');
-  debugPrint('Project URL: $projectUrl');
+      await _client
+          .from(table)
+          .update({
+            'summary': summary,
+          })
+          .eq('id', id);
 
-  // Filter out empty strings
-  final filteredCTA =
-      callToAction.where((text) => text.trim().isNotEmpty).toList();
+      debugPrint('Summary updated successfully');
+      return true;
+    } catch (e) {
+      debugPrint('Error updating summary: $e');
+      return false;
+    }
+  }
 
-  // This assumes `call_to_action` is type text[] in Supabase
-  final response = await _client
-      .from(table)
-      .update({
-        'call_to_action': filteredCTA,
-        'project_url': projectUrl,
-      })
-      .eq('id', id);
+  Future<bool> updateCallToAction({
+    required String id,
+    required String callToAction,
+  }) async {
+    try {
+      debugPrint('Updating call to action for module id: $id');
 
-  debugPrint('Supabase response for call_to_action: $response');
+      await _client
+          .from(table)
+          .update({
+            'call_to_action': callToAction,
+          })
+          .eq('id', id);
 
-  // If no exception was thrown, consider it success for now
-  return true;
+      debugPrint('Call to action updated successfully');
+      return true;
+    } catch (e) {
+      debugPrint('Error updating call to action: $e');
+      return false;
+    }
+  }
 }
 
 }

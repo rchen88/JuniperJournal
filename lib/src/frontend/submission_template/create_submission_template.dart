@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../styling/app_colors.dart';
+import '../../backend/db/repositories/projects_repo.dart';
 import 'create_problem_statement.dart';
 
 class CreateSubmissionScreen extends StatefulWidget {
@@ -12,6 +13,8 @@ class CreateSubmissionScreen extends StatefulWidget {
 class _CreateSubmissionScreenState extends State<CreateSubmissionScreen> {
   final _formKey = GlobalKey<FormState>();
   final _projectNameController = TextEditingController();
+  final _projectsRepo = ProjectsRepo();
+  bool _isLoading = false;
   final List<String> _availableTags = [
     'EDUCATIONAL IMPACT',
     'WATER',
@@ -148,18 +151,41 @@ class _CreateSubmissionScreenState extends State<CreateSubmissionScreen> {
                 width: double.infinity,
                 height: 48,
                 child: ElevatedButton(
-                  onPressed: () {
-                    if (_formKey.currentState!.validate()) {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (context) => CreateProblemStatementScreen(
-                            projectName: _projectNameController.text,
-                            tags: _selectedTags,
-                          ),
-                        ),
-                      );
-                    }
-                  },
+                  onPressed: _isLoading
+                      ? null
+                      : () async {
+                          if (_formKey.currentState!.validate()) {
+                            setState(() => _isLoading = true);
+
+                            final result = await _projectsRepo.createProject(
+                              projectName: _projectNameController.text.trim(),
+                              problemStatement: '',
+                              tags: List<String>.from(_selectedTags),
+                            );
+
+                            if (!mounted) return;
+                            setState(() => _isLoading = false);
+
+                            if (result != null) {
+                              final projectId = result['id'].toString();
+                              Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (context) => CreateProblemStatementScreen(
+                                    projectId: projectId,
+                                    projectName: _projectNameController.text,
+                                    tags: _selectedTags,
+                                  ),
+                                ),
+                              );
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Failed to create project. Please try again.'),
+                                ),
+                              );
+                            }
+                          }
+                        },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF5DB075),
                     shape: RoundedRectangleBorder(
@@ -167,15 +193,24 @@ class _CreateSubmissionScreenState extends State<CreateSubmissionScreen> {
                     ),
                     elevation: 0,
                   ),
-                  child: const Text(
-                    'Create',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontFamily: 'Inter',
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : const Text(
+                          'Create',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontFamily: 'Inter',
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                 ),
               ),
             ],
