@@ -168,11 +168,11 @@ class _SignupScreenState extends State<SignupScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       // Replace with your Google icon asset
-                      Image.asset(
-                        'assets/images/google_logo.png',
-                        height: 22,
-                        width: 22,
-                      ),
+                      // Image.asset(
+                      //   'assets/images/google_logo.png',
+                      //   height: 22,
+                      //   width: 22,
+                      // ),
                       const SizedBox(width: 10),
                       const Text(
                         'Sign up with Google',

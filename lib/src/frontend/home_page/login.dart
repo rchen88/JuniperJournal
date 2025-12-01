@@ -202,11 +202,11 @@ class _LoginScreenState extends State<LoginScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       // Replace with your own Google logo asset
-                      Image.asset(
-                        'assets/images/google_logo.png',
-                        height: 22,
-                        width: 22,
-                      ),
+                      // Image.asset(
+                      //   'assets/images/google_logo.png',
+                      //   height: 22,
+                      //   width: 22,
+                      // ),
                       const SizedBox(width: 10),
                       const Text(
                         'Login with Google',
