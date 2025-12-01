@@ -17,9 +17,7 @@ class MetricsPage extends StatefulWidget {
 
 class _MetricsPageState extends State<MetricsPage> {
 
-  // -------------------------------------------------------------------
-  // METRIC OPTIONS + THRESHOLDS (From Appendix B)
-  // -------------------------------------------------------------------
+  // METRIC OPTIONS + THRESHOLDS
   final List<Map<String, dynamic>> metricOptions = [
     {
       "name": "Educational",
@@ -61,44 +59,35 @@ class _MetricsPageState extends State<MetricsPage> {
 
   Map<String, dynamic>? selectedMetric;
 
-  // User inputs
+  // User inputs (only baseline + post)
   final baselineCtrl = TextEditingController();
   final postCtrl = TextEditingController();
-  final scaleCtrl = TextEditingController(text: "1");
-  final durationCtrl = TextEditingController(text: "1");
+
+  // Fixed default values
+  final double scale = 1;
+  final double duration = 1;
 
   // Calculated values
   double? impactValue;
   String impactLabel = "LOW IMPACT";
   Color impactColor = Colors.green;
 
-  // -------------------------------------------------------------------
-  // Automatically recalc whenever the user types
-  // -------------------------------------------------------------------
   @override
   void initState() {
     super.initState();
-
     baselineCtrl.addListener(calculateImpact);
     postCtrl.addListener(calculateImpact);
-    scaleCtrl.addListener(calculateImpact);
-    durationCtrl.addListener(calculateImpact);
   }
 
-  // -------------------------------------------------------------------
   // IMPACT CALCULATION
-  // -------------------------------------------------------------------
   void calculateImpact() {
     if (selectedMetric == null) return;
 
     double baseline = double.tryParse(baselineCtrl.text) ?? 0;
     double post = double.tryParse(postCtrl.text) ?? 0;
-    double scale = double.tryParse(scaleCtrl.text) ?? 1;
-    double duration = double.tryParse(durationCtrl.text) ?? 1;
 
-    // formula:
-    // Impact = (Baseline - Post).abs() × Scale × Duration
-    double value = (baseline - post).abs() * scale * duration;
+    // Impact = |Baseline - Post| × 1 × 1
+    double value = (baseline - post).abs();
 
     final thresholds = selectedMetric!["thresholds"];
     double low = thresholds["low"];
@@ -120,9 +109,7 @@ class _MetricsPageState extends State<MetricsPage> {
     });
   }
 
-  // -------------------------------------------------------------------
-  // INPUT FIELD BUILDER
-  // -------------------------------------------------------------------
+  // INPUT FIELD
   Widget buildInputRow(String label, TextEditingController ctrl, String unit) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -142,7 +129,7 @@ class _MetricsPageState extends State<MetricsPage> {
                 height: 44,
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 decoration: BoxDecoration(
-                  border: Border.all(color: const Color(0xFFE8EBEC)),
+                  border: Border.all(color: Color(0xFFE8EBEC)),
                   borderRadius: BorderRadius.circular(8),
                   color: Colors.white,
                 ),
@@ -161,7 +148,7 @@ class _MetricsPageState extends State<MetricsPage> {
               height: 44,
               padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
-                border: Border.all(color: const Color(0xFFE8EBEC)),
+                border: Border.all(color: Color(0xFFE8EBEC)),
                 borderRadius: BorderRadius.circular(8),
                 color: Colors.white,
               ),
@@ -180,13 +167,9 @@ class _MetricsPageState extends State<MetricsPage> {
     );
   }
 
-  // -------------------------------------------------------------------
   // IMPACT CIRCLE
-  // -------------------------------------------------------------------
   Widget buildImpactCircle(String label) {
-    if (impactValue == null) {
-      return const SizedBox(height: 180);
-    }
+    if (impactValue == null) return const SizedBox(height: 180);
 
     return Center(
       child: SizedBox(
@@ -200,7 +183,7 @@ class _MetricsPageState extends State<MetricsPage> {
               height: 200,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border: Border.all(color: const Color(0xFFE7E7E7), width: 3),
+                border: Border.all(color: Color(0xFFE7E7E7), width: 3),
               ),
             ),
             Container(
@@ -246,9 +229,6 @@ class _MetricsPageState extends State<MetricsPage> {
     );
   }
 
-  // -------------------------------------------------------------------
-  // MAIN UI
-  // -------------------------------------------------------------------
   @override
   Widget build(BuildContext context) {
     String? unit = selectedMetric?["unit"];
@@ -280,7 +260,7 @@ class _MetricsPageState extends State<MetricsPage> {
         child: ListView(
           children: [
 
-            // Tags from first page
+            // TAGS DISPLAY
             Wrap(
               spacing: 8,
               children: widget.tags.map((tag) {
@@ -334,19 +314,12 @@ class _MetricsPageState extends State<MetricsPage> {
                   const SizedBox(height: 20),
 
                   buildInputRow("Post", postCtrl, unit),
-                  const SizedBox(height: 20),
-
-                  buildInputRow("Scale", scaleCtrl, "×"),
-                  const SizedBox(height: 20),
-
-                  buildInputRow("Duration", durationCtrl, "yrs"),
                   const SizedBox(height: 30),
 
                   if (circleLabel != null) buildImpactCircle(circleLabel),
 
                   const SizedBox(height: 20),
 
-                  // Impact level
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                     decoration: BoxDecoration(
