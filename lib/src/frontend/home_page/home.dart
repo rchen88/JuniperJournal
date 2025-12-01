@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:juniper_journal/src/frontend/home_page/login.dart';
+import 'package:juniper_journal/src/frontend/home_page/signup.dart';
 import '../../styling/app_colors.dart';
 
 class JuniperAuthScreen extends StatelessWidget {
@@ -29,7 +31,7 @@ class JuniperAuthScreen extends StatelessWidget {
                 child: SizedBox(
                   height: 260,
                   child: Image.asset(
-                    'assets/images/juniper_journal_logo.png',
+                    'assets/juniper journal logo.png',
                     fit: BoxFit.contain,
                   ),
                 ),
@@ -45,14 +47,18 @@ class JuniperAuthScreen extends StatelessWidget {
                     _AuthButton(
                       label: 'Sign up',
                       onTap: () {
-                        // TODO: Navigate to sign up screen
+                        Navigator.of(context).push(
+                          MaterialPageRoute(builder: (context) => SignupScreen())
+                        );
                       },
                     ),
                     const SizedBox(height: 16),
                     _AuthButton(
                       label: 'Log in',
                       onTap: () {
-                        // TODO: Navigate to log in screen
+                        Navigator.of(context).push(
+                          MaterialPageRoute(builder: (context) => LoginScreen())
+                        );
                       },
                     ),
                   ],
