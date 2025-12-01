@@ -26,8 +26,6 @@ class _SummaryScreenState extends State<Summary> {
   String _generatedSummary = '';
   Map<String, dynamic>? _moduleData;
 
-  Map<String, dynamic>? _moduleData;
-
   String? _subjectDomain;
   String? _learningObjective;
   String? _dci;
@@ -35,8 +33,6 @@ class _SummaryScreenState extends State<Summary> {
   String? _ccc;
   String? _pes;
   String? _anchoringPhenomenon;
-
-  String? _generatedSummary;
 
   bool _isLoading = true;
   bool _hasGenerated = false;
@@ -80,10 +76,6 @@ class _SummaryScreenState extends State<Summary> {
 
     setState(() {
       _moduleData = merged;
-
-      _selectedQuestionType =
-          _stringFromListOrSingle(merged['creator_action']) ??
-              _selectedQuestionType;
 
       _subjectDomain = _stringFromListOrSingle(
             merged['subject_domain'] ?? merged['domains'],

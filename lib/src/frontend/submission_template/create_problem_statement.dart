@@ -25,7 +25,6 @@ class _CreateProblemStatementScreenState
   final _problemController = TextEditingController();
   final _projectsRepo = ProjectsRepo();
   bool _isLoading = false;
-  final TextEditingController _problemController = TextEditingController();
 
   final List<String> difficultyLevels = [
     "Basic",
