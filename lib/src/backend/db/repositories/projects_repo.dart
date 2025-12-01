@@ -116,6 +116,36 @@ class ProjectsRepo {
     }
   }
 
+  Future<bool> updateSolution({
+    required String id,
+    required String solutionJson,
+  }) async {
+    try {
+      await _client
+          .from(table)
+          .update({'solution': solutionJson})
+          .eq('id', id);
+      return true;
+    } catch (e, st) {
+      debugPrint('updateSolution error: $e\n$st');
+      return false;
+    }
+  }
+
+  Future<String?> getSolution(String id) async {
+    try {
+      final result = await _client
+          .from(table)
+          .select('solution')
+          .eq('id', id)
+          .single();
+      return result['solution'] as String?;
+    } catch (e, st) {
+      debugPrint('getSolution error: $e\n$st');
+      return null;
+    }
+  }
+
   Future<bool> updateMaterialsCost({
     required String id,
     required List<Map<String, dynamic>> materials,

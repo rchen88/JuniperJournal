@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import '../../styling/app_colors.dart';
+import 'solution.dart';
 
 class MetricsPage extends StatefulWidget {
+  final String projectId;
   final String projectName;
   final List<String> tags;
 
   const MetricsPage({
     super.key,
+    required this.projectId,
     required this.projectName,
     required this.tags,
   });
@@ -90,8 +93,8 @@ class _MetricsPageState extends State<MetricsPage> {
     double value = (baseline - post).abs();
 
     final thresholds = selectedMetric!["thresholds"];
-    double low = thresholds["low"];
-    double med = thresholds["medium"];
+    double low = (thresholds["low"] as num).toDouble();
+    double med = (thresholds["medium"] as num).toDouble();
 
     if (value > med) {
       impactLabel = "HIGH IMPACT";
@@ -242,7 +245,18 @@ class _MetricsPageState extends State<MetricsPage> {
         title: Text(widget.projectName),
         actions: [
           TextButton(
-            onPressed: () {},
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => SolutionScreen(
+                    projectId: widget.projectId,
+                    projectName: widget.projectName,
+                    tags: widget.tags,
+                  ),
+                ),
+              );
+            },
             child: const Text(
               "Done",
               style: TextStyle(
