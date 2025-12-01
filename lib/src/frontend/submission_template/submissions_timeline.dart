@@ -2,14 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
 import '../../styling/app_colors.dart';
-import 'journal_log.dart';
+import '../../backend/db/repositories/projects_repo.dart';
+import 'materials_cost.dart';
 
 class InteractiveTimelinePage extends StatefulWidget {
+  final String projectId;
   final String projectName;
   final List<String> tags;
 
   const InteractiveTimelinePage({
     super.key,
+    required this.projectId,
     required this.projectName,
     required this.tags,
   });
@@ -22,6 +25,30 @@ class _InteractiveTimelinePageState extends State<InteractiveTimelinePage> {
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
   final List<Map<String, String>> _timeline = [];
+  final _projectsRepo = ProjectsRepo();
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTimeline();
+  }
+
+  Future<void> _loadTimeline() async {
+    final timeline = await _projectsRepo.getTimeline(widget.projectId);
+    if (timeline != null && mounted) {
+      setState(() {
+        _timeline.clear();
+        _timeline.addAll(timeline);
+      });
+    }
+  }
+
+  Future<void> _saveTimeline() async {
+    await _projectsRepo.updateTimeline(
+      id: widget.projectId,
+      timeline: _timeline,
+    );
+  }
 
   void _addEventDialog() {
     final eventController = TextEditingController();
@@ -55,7 +82,7 @@ class _InteractiveTimelinePageState extends State<InteractiveTimelinePage> {
               backgroundColor: AppColors.buttonPrimary,
               foregroundColor: AppColors.buttonText,
             ),
-            onPressed: () {
+            onPressed: () async {
               if (eventController.text.trim().isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Event name is required')),
@@ -70,6 +97,7 @@ class _InteractiveTimelinePageState extends State<InteractiveTimelinePage> {
                   'location': locationController.text,
                 });
               });
+              await _saveTimeline();
               Navigator.pop(context);
             },
             child: const Text('Add'),
@@ -100,42 +128,73 @@ class _InteractiveTimelinePageState extends State<InteractiveTimelinePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        backgroundColor: AppColors.primary,
-        title: Text(
-          widget.projectName,
-          style: const TextStyle(
-            color: AppColors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 16,
-          ),
-        ),
-        centerTitle: true,
-
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => JournalLogScreen(
-                    projectName: widget.projectName,
-                    tags: widget.tags,
-                  ),
-                ),
-              );
-            },
-            child: const Text(
-              'Done',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-                fontSize: 16,
-              ),
+      appBar: PreferredSize(
+  preferredSize: const Size.fromHeight(60),
+  child: Container(
+    color: Colors.white,
+    padding: const EdgeInsets.only(top: 12), 
+    child: Column(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        Container(
+          height: 44,
+          decoration: const BoxDecoration(
+            border: Border(
+              bottom: BorderSide(color: Color(0xFFE5E5EA), width: 0.6),
             ),
           ),
-        ],
-      ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const SizedBox(width: 60),
+
+              // TITLE
+              Expanded(
+                child: Center(
+                  child: Text(
+                    widget.projectName,
+                    style: const TextStyle(
+                      color: Color(0xFF1F2024),
+                      fontSize: 16,
+                      fontFamily: 'Inter',
+                      fontWeight: FontWeight.w700,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
+
+              // DONE BUTTON
+              TextButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => MaterialsCostPage(
+                        projectId: widget.projectId,
+                        projectName: widget.projectName,
+                        tags: widget.tags,
+                      ),
+                    ),
+                  );
+                },
+                child: const Text(
+                  "Done",
+                  style: TextStyle(
+                    color: Color(0xFF5DB075),
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    fontFamily: 'Inter',
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  ),
+),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(

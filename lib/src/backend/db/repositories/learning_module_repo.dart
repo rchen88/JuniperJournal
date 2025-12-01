@@ -349,4 +349,48 @@ class LearningModuleRepo {
       return false;
     }
   }
+
+  Future<bool> updateSummary({
+    required String id,
+    required String summary,
+  }) async {
+    try {
+      debugPrint('Updating summary for module id: $id');
+
+      await _client
+          .from(table)
+          .update({
+            'summary': summary,
+          })
+          .eq('id', id);
+
+      debugPrint('Summary updated successfully');
+      return true;
+    } catch (e) {
+      debugPrint('Error updating summary: $e');
+      return false;
+    }
+  }
+
+  Future<bool> updateCallToAction({
+    required String id,
+    required String callToAction,
+  }) async {
+    try {
+      debugPrint('Updating call to action for module id: $id');
+
+      await _client
+          .from(table)
+          .update({
+            'call_to_action': callToAction,
+          })
+          .eq('id', id);
+
+      debugPrint('Call to action updated successfully');
+      return true;
+    } catch (e) {
+      debugPrint('Error updating call to action: $e');
+      return false;
+    }
+  }
 }

@@ -7,6 +7,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 import '../../styling/app_colors.dart';
 import '../../backend/storage/storage_service.dart';
+import '../../backend/db/repositories/projects_repo.dart';
 import '../../widgets/toolbar.dart';
 import 'create_submission_template.dart';
 import 'create_problem_statement.dart';
@@ -25,11 +26,13 @@ class MathEmbed extends BlockEmbed {
 }
 
 class JournalLogScreen extends StatefulWidget {
+  final String projectId;
   final String projectName;
   final List<String> tags;
 
   const JournalLogScreen({
     super.key,
+    required this.projectId,
     required this.projectName,
     required this.tags,
   });
@@ -45,6 +48,7 @@ class _JournalLogScreenState extends State<JournalLogScreen> {
   final FocusNode _focusNode = FocusNode();
   final ImagePicker _imagePicker = ImagePicker();
   final StorageService _storageService = StorageService();
+  final ProjectsRepo _projectsRepo = ProjectsRepo();
   bool _isLoading = true;
   bool _isHeaderCollapsed = false;
 
@@ -61,15 +65,29 @@ class _JournalLogScreenState extends State<JournalLogScreen> {
     super.dispose();
   }
 
-  /// Loads the document - creates empty document for now
+  /// Loads the document from Supabase
   Future<void> _loadDocument() async {
-    setState(() {
-      _controller = FleatherController();
-      _isLoading = false;
-    });
+    final journalLogJson = await _projectsRepo.getJournalLog(widget.projectId);
+
+    if (mounted) {
+      setState(() {
+        if (journalLogJson != null && journalLogJson.isNotEmpty) {
+          try {
+            final doc = ParchmentDocument.fromJson(jsonDecode(journalLogJson));
+            _controller = FleatherController(document: doc);
+          } catch (e) {
+            debugPrint('Error parsing journal log: $e');
+            _controller = FleatherController();
+          }
+        } else {
+          _controller = FleatherController();
+        }
+        _isLoading = false;
+      });
+    }
   }
 
-  /// Saves the current document
+  /// Saves the current document to Supabase
   Future<void> _saveDocument() async {
     if (_controller == null) return;
 
@@ -77,17 +95,10 @@ class _JournalLogScreenState extends State<JournalLogScreen> {
       // Serialize document to JSON string
       final documentJson = jsonEncode(_controller!.document);
 
-      // TODO: Implement actual save to database or local storage
-      debugPrint('Journal log saved: ${documentJson.length} characters');
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Journal log saved successfully!'),
-            backgroundColor: AppColors.primary,
-          ),
-        );
-      }
+      await _projectsRepo.updateJournalLog(
+        id: widget.projectId,
+        journalLogJson: documentJson,
+      );
     } catch (e) {
       debugPrint('Error saving document: $e');
       if (mounted) {
@@ -742,6 +753,7 @@ class _JournalLogScreenState extends State<JournalLogScreen> {
                               navigator.push(
                                 MaterialPageRoute(
                                   builder: (context) => MaterialsCostPage(
+                                    projectId: widget.projectId,
                                     projectName: widget.projectName,
                                     tags: widget.tags,
                                   ),
@@ -977,6 +989,7 @@ class _JournalLogScreenState extends State<JournalLogScreen> {
               Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (context) => CreateProblemStatementScreen(
+                    projectId: widget.projectId,
                     projectName: widget.projectName,
                     tags: widget.tags,
                   ),
@@ -986,6 +999,7 @@ class _JournalLogScreenState extends State<JournalLogScreen> {
               Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (context) => InteractiveTimelinePage(
+                    projectId: widget.projectId,
                     projectName: widget.projectName,
                     tags: widget.tags,
                   ),
@@ -995,6 +1009,7 @@ class _JournalLogScreenState extends State<JournalLogScreen> {
               Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (context) => MaterialsCostPage(
+                    projectId: widget.projectId,
                     projectName: widget.projectName,
                     tags: widget.tags,
                   ),
