@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:juniper_journal/main.dart';
 import '../../styling/app_colors.dart';
 import 'package:intl/intl.dart';
 import 'create_lm_template.dart';
 import 'anchoring_phenomenon.dart';
-import 'learning_objective.dart';
+import 'concept_exploration.dart';
 import '../../backend/db/repositories/learning_module_repo.dart';
 
 /*
@@ -133,6 +132,7 @@ class _ThreeDLearningState extends State<ThreeDLearning> {
         setState(() {
           _freshModuleData = freshData;
           _loadSubjectDomains(freshData);
+          _loadSEPAndCCC(freshData);
         });
       }
     }
@@ -183,6 +183,73 @@ class _ThreeDLearningState extends State<ThreeDLearning> {
       debugPrint('Error loading subject domains: $e');
       _dci.clear();
       _dci.add(null);
+    }
+  }
+
+  /// Loads saved SEP and CCC data from the database
+  void _loadSEPAndCCC(Map<String, dynamic> moduleData) {
+    try {
+      // Load SEP data
+      final sepData = moduleData['sep'];
+      if (sepData != null) {
+        List<String> sepList = [];
+
+        if (sepData is List) {
+          sepList = List<String>.from(sepData.where((item) => item != null));
+        } else if (sepData is String && sepData.isNotEmpty) {
+          if (sepData.startsWith('[') && sepData.endsWith(']')) {
+            try {
+              final cleanString = sepData.substring(1, sepData.length - 1);
+              sepList = cleanString
+                  .split(',')
+                  .map((s) => s.trim().replaceAll('"', '').replaceAll("'", ''))
+                  .where((s) => s.isNotEmpty)
+                  .toList();
+            } catch (e) {
+              sepList = [sepData];
+            }
+          } else {
+            sepList = [sepData];
+          }
+        }
+
+        if (sepList.isNotEmpty) {
+          _sep.clear();
+          _sep.addAll(sepList);
+        }
+      }
+
+      // Load CCC data
+      final cccData = moduleData['ccc'];
+      if (cccData != null) {
+        List<String> cccList = [];
+
+        if (cccData is List) {
+          cccList = List<String>.from(cccData.where((item) => item != null));
+        } else if (cccData is String && cccData.isNotEmpty) {
+          if (cccData.startsWith('[') && cccData.endsWith(']')) {
+            try {
+              final cleanString = cccData.substring(1, cccData.length - 1);
+              cccList = cleanString
+                  .split(',')
+                  .map((s) => s.trim().replaceAll('"', '').replaceAll("'", ''))
+                  .where((s) => s.isNotEmpty)
+                  .toList();
+            } catch (e) {
+              cccList = [cccData];
+            }
+          } else {
+            cccList = [cccData];
+          }
+        }
+
+        if (cccList.isNotEmpty) {
+          _ccc.clear();
+          _ccc.addAll(cccList);
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading SEP and CCC: $e');
     }
   }
 
@@ -648,13 +715,12 @@ class _ThreeDLearningState extends State<ThreeDLearning> {
                       );
 
                       if (dciSuccess && sepSuccess && cccSuccess) {
-                        messenger.showSnackBar(
-                          const SnackBar(content: Text('Module completed and saved successfully!')),
-                        );
-
                         navigator.push(
-                          MaterialPageRoute(builder: 
-                          (context) => MyHomePage(title: 'Juniper Journal'))
+                          MaterialPageRoute(
+                            builder: (context) => ConceptExplorationScreen(
+                              module: widget.module,
+                            ),
+                          ),
                         );
                       } else {
                         messenger.showSnackBar(
@@ -816,51 +882,6 @@ class _RoundedChoicePill extends StatelessWidget {
                 child: Icon(Icons.expand_more, color: AppColors.blue),
               ),
             ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _StatusPill extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final VoidCallback? onTap;
-
-  const _StatusPill({
-    required this.label,
-    required this.icon,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Align(
-      alignment: Alignment.centerLeft,
-      child: Material(
-        color: AppColors.accent.withValues(alpha: 64),
-        borderRadius: BorderRadius.circular(22),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(22),
-          onTap: onTap,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  label,
-                  style: const TextStyle(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.3,
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Icon(icon, size: 18, color: AppColors.primary),
-              ],
-            ),
           ),
         ),
       ),

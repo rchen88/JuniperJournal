@@ -31,4 +31,9 @@ class AppColors {
   static const Color darkText = Color(0xFF1F2024); // Dark text
   static const Color lightGrey = Color(0xFF868686); // Light grey text
   static const Color error = Colors.red;
+
+  // Tag colors
+  static const Color tagBackground = Color(0xFFD2E2DA); // Tag background color
+  static const Color tagBorder = Color(0xFF5DB075); // Tag border color
+  static const Color tagText = Color(0xFF5DB075); // Tag text color
 }

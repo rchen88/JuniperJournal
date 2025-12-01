@@ -314,10 +314,10 @@ class _CreateAnchoringPhenomenonScreenState extends State<AnchoringPhenomenon> {
   Widget _buildNavigationDropdown() {
     return Container(
       height: 28,
-      padding: const EdgeInsets.symmetric(horizontal: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
       decoration: BoxDecoration(
-        color: AppColors.primary,
-        borderRadius: BorderRadius.circular(24),
+        color: Colors.green[100],
+        borderRadius: BorderRadius.circular(20),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
@@ -325,22 +325,22 @@ class _CreateAnchoringPhenomenonScreenState extends State<AnchoringPhenomenon> {
           icon: const Icon(
             Icons.keyboard_arrow_down,
             size: 16,
-            color: AppColors.white,
+            color: Colors.green,
           ),
           style: const TextStyle(
-            color: AppColors.white,
+            color: Colors.green,
             fontSize: 11,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.5,
           ),
-          dropdownColor: AppColors.primary,
+          dropdownColor: Colors.green[50],
           items: const [
             DropdownMenuItem(
               value: 'TITLE',
               child: Text(
                 'TITLE',
                 style: TextStyle(
-                  color: AppColors.white,
+                  color: Colors.green,
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.5,
@@ -352,7 +352,7 @@ class _CreateAnchoringPhenomenonScreenState extends State<AnchoringPhenomenon> {
               child: Text(
                 'ANCHORING PHENOMENON',
                 style: TextStyle(
-                  color: AppColors.white,
+                  color: Colors.green,
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.5,

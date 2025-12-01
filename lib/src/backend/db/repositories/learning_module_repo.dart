@@ -283,4 +283,100 @@ class LearningModuleRepo {
       return false;
     }
   }
+
+  Future<bool> updateConceptExploration({
+    required String id,
+    required String conceptExplorationJson,
+  }) async {
+    try {
+      debugPrint('Updating concept exploration for module id: $id');
+
+      await _client
+          .from(table)
+          .update({
+            'concept_exploration': conceptExplorationJson,
+          })
+          .eq('id', id);
+
+      debugPrint('Concept exploration updated successfully');
+      return true;
+    } catch (e) {
+      debugPrint('Error updating concept exploration: $e');
+      return false;
+    }
+  }
+
+  Future<bool> updateActivity({
+    required String id,
+    required String activityJson,
+  }) async {
+    try {
+      debugPrint('Updating activity for module id: $id');
+
+      await _client
+          .from(table)
+          .update({
+            'activity': activityJson,
+          })
+          .eq('id', id);
+
+      debugPrint('Activity updated successfully');
+      return true;
+    } catch (e) {
+      debugPrint('Error updating activity: $e');
+      return false;
+    }
+  }
+
+  Future<bool> updateAssessment({
+    required String id,
+    required Map<String, dynamic> assessmentData,
+  }) async {
+    try {
+      debugPrint('Updating assessment for module id: $id');
+
+      await _client
+          .from(table)
+          .update({
+            'assessment': assessmentData,
+          })
+          .eq('id', id);
+
+      debugPrint('Assessment updated successfully');
+      return true;
+    } catch (e) {
+      debugPrint('Error updating assessment: $e');
+      return false;
+    }
+  }
+
+
+Future<bool> updateCallToAction({
+  required String id,
+  required List<String> callToAction,
+  String? projectUrl,
+}) async {
+  debugPrint('Updating call to action for module id: $id');
+  debugPrint('Call to action: $callToAction');
+  debugPrint('Project URL: $projectUrl');
+
+  // Filter out empty strings
+  final filteredCTA =
+      callToAction.where((text) => text.trim().isNotEmpty).toList();
+
+  // This assumes `call_to_action` is type text[] in Supabase
+  final response = await _client
+      .from(table)
+      .update({
+        'call_to_action': filteredCTA,
+        'project_url': projectUrl,
+      })
+      .eq('id', id);
+
+  debugPrint('Supabase response for call_to_action: $response');
+
+  // If no exception was thrown, consider it success for now
+  return true;
+}
+
 }

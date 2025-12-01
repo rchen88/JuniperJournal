@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
 import '../../styling/app_colors.dart';
-import 'materials_cost.dart';
+import 'journal_log.dart';
 
 class InteractiveTimelinePage extends StatefulWidget {
   final String projectName;
@@ -120,18 +120,15 @@ class _InteractiveTimelinePageState extends State<InteractiveTimelinePage> {
             children: [
               const SizedBox(width: 60),
 
-              // TITLE
-              Expanded(
-                child: Center(
-                  child: Text(
-                    widget.projectName,
-                    style: const TextStyle(
-                      color: Color(0xFF1F2024),
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      fontFamily: 'Inter',
-                    ),
-                    overflow: TextOverflow.ellipsis,
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => JournalLogScreen(
+                    projectName: widget.projectName,
+                    tags: widget.tags,
                   ),
                 ),
               ),
