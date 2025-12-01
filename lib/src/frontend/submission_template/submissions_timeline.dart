@@ -3,7 +3,7 @@ import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
 import '../../styling/app_colors.dart';
 import '../../backend/db/repositories/projects_repo.dart';
-import 'journal_log.dart';
+import 'materials_cost.dart';
 
 class InteractiveTimelinePage extends StatefulWidget {
   final String projectId;
@@ -148,16 +148,18 @@ class _InteractiveTimelinePageState extends State<InteractiveTimelinePage> {
             children: [
               const SizedBox(width: 60),
 
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => JournalLogScreen(
-                    projectId: widget.projectId,
-                    projectName: widget.projectName,
-                    tags: widget.tags,
+              // TITLE
+              Expanded(
+                child: Center(
+                  child: Text(
+                    widget.projectName,
+                    style: const TextStyle(
+                      color: Color(0xFF1F2024),
+                      fontSize: 16,
+                      fontFamily: 'Inter',
+                      fontWeight: FontWeight.w700,
+                    ),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ),
@@ -169,6 +171,7 @@ class _InteractiveTimelinePageState extends State<InteractiveTimelinePage> {
                     context,
                     MaterialPageRoute(
                       builder: (context) => MaterialsCostPage(
+                        projectId: widget.projectId,
                         projectName: widget.projectName,
                         tags: widget.tags,
                       ),

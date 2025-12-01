@@ -30,10 +30,6 @@ class _CallToActionScreenState extends State<CallToAction> {
 
   String _selectedNavigation = 'CALL TO ACTION';
 
-  // NEW: for the project URL
-  final TextEditingController _projectUrlCtrl = TextEditingController();
-  String? _projectUrl;
-
   @override
   void initState() {
     super.initState();
@@ -42,10 +38,7 @@ class _CallToActionScreenState extends State<CallToAction> {
 
   @override
   void dispose() {
-    for (var c in _controllers) {
-      c.dispose();
-    }
-    _projectUrlCtrl.dispose(); // NEW
+    _controller.dispose();
     super.dispose();
   }
 
@@ -57,27 +50,9 @@ class _CallToActionScreenState extends State<CallToAction> {
 
       if (!mounted) return;
 
-      if (fresh != null) {
+      if (fresh != null && fresh['call_to_action'] != null) {
         setState(() {
-          // if you still want to track this:
-          if (fresh['creator_action'] != null) {
-            _selectedQuestionType = fresh['creator_action'];
-          }
-
-          // CHANGED: load from call_to_action instead of inquiry
-          if (fresh['call_to_action'] != null &&
-              fresh['call_to_action'] is List) {
-            final list = List<String>.from(fresh['call_to_action']);
-            if (list.isNotEmpty) {
-              _controllers
-                ..clear()
-                ..addAll(list.map((t) => TextEditingController(text: t)));
-            }
-          }
-
-          // NEW: load project_url
-          _projectUrl = fresh['project_url'] as String?;
-          _projectUrlCtrl.text = _projectUrl ?? '';
+          _controller.text = fresh['call_to_action'].toString();
         });
       }
     }
@@ -169,23 +144,24 @@ class _CallToActionScreenState extends State<CallToAction> {
                       horizontal: 16,
                       vertical: 14,
                     ),
-                  );
-                }),
-
-                const SizedBox(height: 6),
-
-                // “Link a Project…” -> opens URL dialog
-                InkWell(
-                  onTap: () async {
-                    await _showProjectLinkDialog(context);
-                  },
-                  borderRadius: BorderRadius.circular(12),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Image.asset(
-                        'assets/link_project.png',
-                        height: 28,
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: const BorderSide(
+                        color: AppColors.primary,
+                        width: 1,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: const BorderSide(
+                        color: AppColors.primary,
+                        width: 1.5,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    errorBorder: OutlineInputBorder(
+                      borderSide: const BorderSide(
+                        color: AppColors.error,
+                        width: 1,
                       ),
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -204,20 +180,6 @@ class _CallToActionScreenState extends State<CallToAction> {
                     return null;
                   },
                 ),
-
-                // show current URL if present
-                if (_projectUrl != null &&
-                    _projectUrl!.trim().isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    _projectUrl!,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: AppColors.blue,
-                      decoration: TextDecoration.underline,
-                    ),
-                  ),
-                ],
 
                 const SizedBox(height: 16),
 
@@ -238,11 +200,6 @@ class _CallToActionScreenState extends State<CallToAction> {
     final messenger = ScaffoldMessenger.of(context);
 
     try {
-      final allText = _controllers
-          .map((c) => c.text.trim())
-          .where((t) => t.isNotEmpty)
-          .toList();
-
       final repo = LearningModuleRepo();
       final widgetModule = widget.existingModule ?? {};
       final moduleId = widgetModule['id']?.toString();
@@ -259,16 +216,10 @@ class _CallToActionScreenState extends State<CallToAction> {
 
       final ok = await repo.updateCallToAction(
         id: moduleId,
-        callToAction: allText,
-        projectUrl: _projectUrlCtrl.text.trim().isEmpty
-            ? null
-            : _projectUrlCtrl.text.trim(),
+        callToAction: _controller.text.trim(),
       );
 
       if (ok) {
-        
-        // If instead you want to go all the way back to the first page:
-        
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(
             builder: (context) => const MyHomePage(
@@ -277,7 +228,6 @@ class _CallToActionScreenState extends State<CallToAction> {
           ),
           (route) => false,
         );
-        
       } else {
         messenger.showSnackBar(
           const SnackBar(
@@ -287,7 +237,6 @@ class _CallToActionScreenState extends State<CallToAction> {
         );
       }
     } catch (e, st) {
-      // 🔴 This will show the REAL Supabase error
       debugPrint('Error saving call to action: $e');
       debugPrint('Stack trace: $st');
 
@@ -453,37 +402,4 @@ class _CallToActionScreenState extends State<CallToAction> {
 }
 
 
-  // NEW: dialog to add/edit project URL
-  Future<void> _showProjectLinkDialog(BuildContext context) async {
-    await showDialog<void>(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          title: const Text('Link a Project'),
-          content: TextField(
-            controller: _projectUrlCtrl,
-            decoration: const InputDecoration(
-              labelText: 'Project URL',
-              hintText: 'https://...',
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () {
-                setState(() {
-                  _projectUrl = _projectUrlCtrl.text.trim();
-                });
-                Navigator.of(ctx).pop();
-              },
-              child: const Text('Save'),
-            ),
-          ],
-        );
-      },
-    );
-  }
 }
