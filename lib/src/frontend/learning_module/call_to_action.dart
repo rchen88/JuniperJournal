@@ -1,9 +1,19 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:juniper_journal/src/frontend/learning_module/learning_objective.dart';
-import 'package:juniper_journal/src/styling/app_colors.dart';
-import 'package:juniper_journal/src/backend/db/repositories/learning_module_repo.dart';
 import 'package:intl/intl.dart';
+import 'package:juniper_journal/src/backend/db/repositories/learning_module_repo.dart';
+import 'package:juniper_journal/src/frontend/learning_module/learning_objective.dart';
+import 'package:juniper_journal/src/frontend/learning_module/summary.dart';
+import 'package:juniper_journal/src/styling/app_colors.dart';
+import 'package:juniper_journal/src/frontend/learning_module/create_lm_template.dart';
+import 'package:juniper_journal/src/frontend/learning_module/anchoring_phenomenon.dart';
+import 'package:juniper_journal/src/frontend/learning_module/3d_learning.dart';
+import 'package:juniper_journal/src/frontend/learning_module/concept_exploration.dart';
+import 'package:juniper_journal/src/frontend/learning_module/activity.dart';
+import 'package:juniper_journal/src/frontend/learning_module/assessment.dart';
+import 'package:juniper_journal/main.dart';
+
+
 
 class CallToAction extends StatefulWidget {
   final Map<String, dynamic>? existingModule;
@@ -21,6 +31,10 @@ class _CallToActionScreenState extends State<CallToAction> {
   String _selectedNavigation = 'CALL TO ACTION';
   String _selectedQuestionType = 'WHY';
 
+  // NEW: for the project URL
+  final TextEditingController _projectUrlCtrl = TextEditingController();
+  String? _projectUrl;
+
   @override
   void initState() {
     super.initState();
@@ -32,6 +46,7 @@ class _CallToActionScreenState extends State<CallToAction> {
     for (var c in _controllers) {
       c.dispose();
     }
+    _projectUrlCtrl.dispose(); // NEW
     super.dispose();
   }
 
@@ -41,19 +56,29 @@ class _CallToActionScreenState extends State<CallToAction> {
       final repo = LearningModuleRepo();
       final fresh = await repo.getModule(module['id'].toString());
 
+      if (!mounted) return;
+
       if (fresh != null) {
         setState(() {
+          // if you still want to track this:
           if (fresh['creator_action'] != null) {
             _selectedQuestionType = fresh['creator_action'];
           }
-          if (fresh['inquiry'] != null && fresh['inquiry'] is List) {
-            final list = List<String>.from(fresh['inquiry']);
+
+          // CHANGED: load from call_to_action instead of inquiry
+          if (fresh['call_to_action'] != null &&
+              fresh['call_to_action'] is List) {
+            final list = List<String>.from(fresh['call_to_action']);
             if (list.isNotEmpty) {
               _controllers
                 ..clear()
                 ..addAll(list.map((t) => TextEditingController(text: t)));
             }
           }
+
+          // NEW: load project_url
+          _projectUrl = fresh['project_url'] as String?;
+          _projectUrlCtrl.text = _projectUrl ?? '';
         });
       }
     }
@@ -90,8 +115,10 @@ class _CallToActionScreenState extends State<CallToAction> {
                 Row(
                   children: [
                     IconButton(
-                      icon: const Icon(CupertinoIcons.back,
-                          color: AppColors.iconPrimary),
+                      icon: const Icon(
+                        CupertinoIcons.back,
+                        color: AppColors.buttonPrimary,
+                      ),
                       onPressed: () => Navigator.of(context).pop(),
                     ),
                     const SizedBox(width: 4),
@@ -127,7 +154,7 @@ class _CallToActionScreenState extends State<CallToAction> {
                   spacing: 10,
                   runSpacing: 8,
                   children: [
-                    _buildNavigationDropdown()
+                    _buildNavigationDropdown(widgetModule),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -230,18 +257,17 @@ class _CallToActionScreenState extends State<CallToAction> {
                   );
                 }),
 
-                // 👇 your “Link a Project…” row goes here
                 const SizedBox(height: 6),
+
+                // “Link a Project…” -> opens URL dialog
                 InkWell(
-                  onTap: () {
-                    // TODO: open project picker or dialog
+                  onTap: () async {
+                    await _showProjectLinkDialog(context);
                   },
                   borderRadius: BorderRadius.circular(12),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // use your asset name here
-                      // make sure you add it to pubspec.yaml
                       Image.asset(
                         'assets/link_project.png',
                         height: 28,
@@ -258,9 +284,22 @@ class _CallToActionScreenState extends State<CallToAction> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 16),
 
-                
+                // show current URL if present
+                if (_projectUrl != null &&
+                    _projectUrl!.trim().isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    _projectUrl!,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: AppColors.blue,
+                      decoration: TextDecoration.underline,
+                    ),
+                  ),
+                ],
+
+                const SizedBox(height: 16),
 
                 // complete
                 SizedBox(
@@ -274,27 +313,75 @@ class _CallToActionScreenState extends State<CallToAction> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    onPressed: () {
-                      if (_formKey.currentState!.validate()) {
-                        final allText = _controllers
-                            .map((c) => c.text.trim())
-                            .where((t) => t.isNotEmpty)
-                            .toList();
+                    onPressed: () async {
+  if (_formKey.currentState!.validate()) {
+    final messenger = ScaffoldMessenger.of(context);
 
-                        final updatedModule = {
-                          ...widgetModule,
-                          'creator_action': _selectedQuestionType,
-                          'inquiry': allText,
-                        };
+    try {
+      final allText = _controllers
+          .map((c) => c.text.trim())
+          .where((t) => t.isNotEmpty)
+          .toList();
 
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                LearningObjectiveScreen(module: updatedModule),
-                          ),
-                        );
-                      }
-                    },
+      final repo = LearningModuleRepo();
+      final widgetModule = widget.existingModule ?? {};
+      final moduleId = widgetModule['id']?.toString();
+
+      if (moduleId == null || moduleId == 'null') {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Module ID missing – cannot save call to action'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+        return;
+      }
+
+      final ok = await repo.updateCallToAction(
+        id: moduleId,
+        callToAction: allText,
+        projectUrl: _projectUrlCtrl.text.trim().isEmpty
+            ? null
+            : _projectUrlCtrl.text.trim(),
+      );
+
+      if (ok) {
+        
+        // If instead you want to go all the way back to the first page:
+        
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(
+            builder: (context) => const MyHomePage(
+              title: 'Juniper Journal',
+            ),
+          ),
+          (route) => false,
+        );
+        
+      } else {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('Failed to save call to action'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } catch (e, st) {
+      // 🔴 This will show the REAL Supabase error
+      debugPrint('Error saving call to action: $e');
+      debugPrint('Stack trace: $st');
+
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('Error saving call to action: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+},
+
+
                     child: const Text('Complete'),
                   ),
                 ),
@@ -306,50 +393,177 @@ class _CallToActionScreenState extends State<CallToAction> {
     );
   }
 
-  Widget _buildNavigationDropdown() {
-    return Container(
-      height: 28,
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-      decoration: BoxDecoration(
-        color: Colors.green[100],
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: _selectedNavigation,
-          icon: const Icon(Icons.keyboard_arrow_down,
-              size: 16, color: Colors.green),
-          style: const TextStyle(
-            color: Colors.green,
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.5,
+ Widget _buildNavigationDropdown(Map<String, dynamic> module) {
+  return Container(
+    height: 28,
+    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+    decoration: BoxDecoration(
+      color: Colors.green[100],
+      borderRadius: BorderRadius.circular(20),
+    ),
+    child: DropdownButtonHideUnderline(
+      child: DropdownButton<String>(
+        value: _selectedNavigation,
+        icon: const Icon(
+          Icons.keyboard_arrow_down,
+          size: 20,
+          color: Colors.green,
+        ),
+        style: const TextStyle(
+          color: Colors.green,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.5,
+        ),
+        dropdownColor: Colors.green[50],
+        items: const [
+          DropdownMenuItem(
+            value: 'TITLE',
+            child: Text('TITLE'),
           ),
-          dropdownColor: Colors.green[50],
-          items: const [
-            DropdownMenuItem(
-              value: 'TITLE',
-              child: Text('TITLE'),
+          DropdownMenuItem(
+            value: 'ANCHORING PHENOMENON',
+            child: Text('ANCHORING PHENOMENON'),
+          ),
+          DropdownMenuItem(
+            value: 'OBJECTIVE',
+            child: Text('OBJECTIVE'),
+          ),
+          DropdownMenuItem(
+            value: 'LEARNING',
+            child: Text('LEARNING'),
+          ),
+          DropdownMenuItem(
+            value: 'CONCEPT EXPLORATION',
+            child: Text('CONCEPT EXPLORATION'),
+          ),
+          DropdownMenuItem(
+            value: 'ACTIVITY',
+            child: Text('ACTIVITY'),
+          ),
+          DropdownMenuItem(
+            value: 'CALL TO ACTION',   // 👈 exactly once
+            child: Text('CALL TO ACTION'),
+          ),
+          DropdownMenuItem(
+            value: 'ASSESSMENT',
+            child: Text('ASSESSMENT'),
+          ),
+          DropdownMenuItem(
+            value: 'SUMMARY',
+            child: Text('SUMMARY'),
+          ),
+        ],
+        onChanged: (value) {
+          if (value == null) return;
+
+          setState(() {
+            _selectedNavigation = value;
+          });
+
+          if (value == 'TITLE') {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => CreateTemplateScreen(
+                  existingModule: module,
+                ),
+              ),
+            );
+          } else if (value == 'ANCHORING PHENOMENON') {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => AnchoringPhenomenon(
+                  existingModule: module,
+                ),
+              ),
+            );
+          } else if (value == 'OBJECTIVE') {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => LearningObjectiveScreen(
+                  module: module,
+                ),
+              ),
+            );
+          } else if (value == 'LEARNING') {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => ThreeDLearning(
+                  module: module,
+                ),
+              ),
+            );
+          } else if (value == 'CONCEPT EXPLORATION') {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => ConceptExplorationScreen(
+                  module: module,
+                ),
+              ),
+            );
+          } else if (value == 'ACTIVITY') {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => ActivityScreen(
+                  module: module,
+                ),
+              ),
+            );
+          } else if (value == 'ASSESSMENT') {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => Assessment(
+                  module: module,
+                ),
+              ),
+            );
+          } else if (value == 'SUMMARY') {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => Summary(
+                  module: module,
+                ),
+              ),
+            );
+          }
+        },
+      ),
+    ),
+  );
+}
+
+
+  // NEW: dialog to add/edit project URL
+  Future<void> _showProjectLinkDialog(BuildContext context) async {
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Link a Project'),
+          content: TextField(
+            controller: _projectUrlCtrl,
+            decoration: const InputDecoration(
+              labelText: 'Project URL',
+              hintText: 'https://...',
             ),
-            DropdownMenuItem(
-              value: 'CALL TO ACTION',
-              child: Text('CALL TO ACTION'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                setState(() {
+                  _projectUrl = _projectUrlCtrl.text.trim();
+                });
+                Navigator.of(ctx).pop();
+              },
+              child: const Text('Save'),
             ),
           ],
-          onChanged: (val) {
-            if (val == null) return;
-            if (val == 'TITLE') {
-              Navigator.of(context).pop();
-            } else {
-              setState(() {
-                _selectedNavigation = val;
-              });
-            }
-          },
-        ),
-      ),
+        );
+      },
     );
   }
-
-  
 }

@@ -349,4 +349,34 @@ class LearningModuleRepo {
       return false;
     }
   }
+
+
+Future<bool> updateCallToAction({
+  required String id,
+  required List<String> callToAction,
+  String? projectUrl,
+}) async {
+  debugPrint('Updating call to action for module id: $id');
+  debugPrint('Call to action: $callToAction');
+  debugPrint('Project URL: $projectUrl');
+
+  // Filter out empty strings
+  final filteredCTA =
+      callToAction.where((text) => text.trim().isNotEmpty).toList();
+
+  // This assumes `call_to_action` is type text[] in Supabase
+  final response = await _client
+      .from(table)
+      .update({
+        'call_to_action': filteredCTA,
+        'project_url': projectUrl,
+      })
+      .eq('id', id);
+
+  debugPrint('Supabase response for call_to_action: $response');
+
+  // If no exception was thrown, consider it success for now
+  return true;
+}
+
 }
