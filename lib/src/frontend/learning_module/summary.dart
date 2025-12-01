@@ -241,7 +241,7 @@ By focusing on the anchoring phenomenon "$anch", this lesson encourages learners
                       ),
                     
                       const SizedBox(height: 10),
-                    if (_generatedSummary != null) ...[
+                      ...[
                       const Text(
                         'Standards Summary:',
                         style: TextStyle(
@@ -260,7 +260,7 @@ By focusing on the anchoring phenomenon "$anch", this lesson encourages learners
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
-                          _generatedSummary!,
+                          _generatedSummary,
                           style: const TextStyle(
                             fontSize: 12,
                             height: 1.5,
@@ -282,25 +282,23 @@ By focusing on the anchoring phenomenon "$anch", this lesson encourages learners
                   
                       // Tags side-by-side, using tag colors, answers only
                       Container(
-  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-  decoration: BoxDecoration(
-    borderRadius: BorderRadius.circular(20), // 🔹 rounded group
-    // optional: light background to show the group
-    // color: AppColors.tagBackground.withOpacity(0.2),
-  ),
-  child: Wrap(
-    spacing: 16,   // 🔹 more horizontal space between chips
-    runSpacing: 10,
-    children: [
-      _buildChip(_subjectDomain),
-      _buildChip(_learningObjective),
-      _buildChip(_pes),
-      _buildChip(_dci),
-      _buildChip(_sep),
-      _buildChip(_ccc),
-    ],
-  ),
-),
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20), 
+                        ),
+                        child: Wrap(
+                          spacing: 16,  
+                          runSpacing: 10,
+                          children: [
+                            _buildChip(_subjectDomain),
+                            _buildChip(_learningObjective),
+                            _buildChip(_pes),
+                            _buildChip(_dci),
+                            _buildChip(_sep),
+                            _buildChip(_ccc),
+                          ],
+                        ),
+                      ),
 
                       const SizedBox(height: 28),
                       SizedBox(
@@ -537,14 +535,14 @@ By focusing on the anchoring phenomenon "$anch", this lesson encourages learners
   final textToShow = content.isEmpty ? 'Not set' : content;
 
   return Container(
-    margin: const EdgeInsets.only(right: 4, bottom: 4), // small extra gap
+    margin: const EdgeInsets.only(right: 4, bottom: 4), 
     padding: const EdgeInsets.symmetric(
       horizontal: 18,  // 🔹 wider pill
       vertical: 8,
     ),
     decoration: BoxDecoration(
       color: AppColors.tagBackground,
-      borderRadius: BorderRadius.circular(20), // 🔹 pill shape
+      borderRadius: BorderRadius.circular(20), 
     ),
     child: Text(
       textToShow,
@@ -561,4 +559,3 @@ By focusing on the anchoring phenomenon "$anch", this lesson encourages learners
 
   }
 }
-//Colors.green[100]
