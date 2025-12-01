@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:juniper_journal/main.dart';
 import 'package:juniper_journal/src/backend/db/repositories/learning_module_repo.dart';
 
+import './summary.dart';
+
+
 class Assessment extends StatefulWidget {
   final Map<String, dynamic> module;
 
@@ -170,12 +173,11 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
 
                   // Then navigate to home
                   if (context.mounted) {
-                    Navigator.pushAndRemoveUntil(
+                    Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => const MyHomePage(title: 'Juniper Journal'),
-                      ),
-                      (route) => false,
+                        builder: (context) => Summary(module: widget.module),
+                      )
                     );
                   }
                 },
