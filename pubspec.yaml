@@ -36,4 +36,4 @@ flutter:
   # Include environment variables file
   assets:
     - .env
-    - assets/link_project.png
+    - assets/
