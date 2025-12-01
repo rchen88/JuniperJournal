@@ -188,6 +188,7 @@ class _MaterialsCostPageState extends State<MaterialsCostPage> {
                     context,
                     MaterialPageRoute(
                       builder: (_) => MetricsPage(
+                        projectId: widget.projectId,
                         projectName: widget.projectName,
                         tags: widget.tags,
                       ),
