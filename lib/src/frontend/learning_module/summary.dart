@@ -97,14 +97,12 @@ class _SummaryScreenState extends State<Summary> {
           'CCCs not set';
 
       _pes = _stringFromListOrSingle(
-            merged['ngss_pe'] ?? merged['ngss_pes'],
+            merged['performance_expectation'],
           ) ??
           'NGSS PEs not set';
 
       _anchoringPhenomenon = _stringFromListOrSingle(
-            merged['anchoring_phenomenon'] ??
-                merged['anchoring_problem'] ??
-                merged['anchoring_question'],
+            merged['inquiry'],
           ) ??
           'Anchoring phenomenon not set';
 
