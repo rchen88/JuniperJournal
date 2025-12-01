@@ -1,6 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:juniper_journal/src/frontend/learning_module/learning_objective.dart';
+import 'package:juniper_journal/main.dart';
 import 'package:juniper_journal/src/styling/app_colors.dart';
 import 'package:juniper_journal/src/backend/db/repositories/learning_module_repo.dart';
 import 'package:intl/intl.dart';
@@ -15,23 +15,20 @@ class CallToAction extends StatefulWidget {
 }
 
 class _CallToActionScreenState extends State<CallToAction> {
-  final List<TextEditingController> _controllers = [TextEditingController()];
+  final _controller = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
   String _selectedNavigation = 'CALL TO ACTION';
-  String _selectedQuestionType = 'WHY';
 
   @override
   void initState() {
     super.initState();
-    _loadExistingData(); // read from supabase
+    _loadExistingData();
   }
 
   @override
   void dispose() {
-    for (var c in _controllers) {
-      c.dispose();
-    }
+    _controller.dispose();
     super.dispose();
   }
 
@@ -41,20 +38,45 @@ class _CallToActionScreenState extends State<CallToAction> {
       final repo = LearningModuleRepo();
       final fresh = await repo.getModule(module['id'].toString());
 
-      if (fresh != null) {
-        setState(() {
-          if (fresh['creator_action'] != null) {
-            _selectedQuestionType = fresh['creator_action'];
-          }
-          if (fresh['inquiry'] != null && fresh['inquiry'] is List) {
-            final list = List<String>.from(fresh['inquiry']);
-            if (list.isNotEmpty) {
-              _controllers
-                ..clear()
-                ..addAll(list.map((t) => TextEditingController(text: t)));
-            }
-          }
-        });
+      if (fresh != null && mounted) {
+        final callToAction = fresh['call_to_action'];
+        if (callToAction != null && callToAction is String) {
+          setState(() {
+            _controller.text = callToAction;
+          });
+        }
+      }
+    }
+  }
+
+  Future<void> _saveAndNavigateHome() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    final module = widget.existingModule;
+    if (module != null && module['id'] != null) {
+      final repo = LearningModuleRepo();
+      final success = await repo.updateCallToAction(
+        id: module['id'].toString(),
+        callToAction: _controller.text.trim(),
+      );
+
+      if (!mounted) return;
+
+      if (success) {
+        // Navigate to home screen
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (context) => const MyHomePage(
+            title: 'Juniper Journal'
+          )),
+          (route) => false,
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to save call to action'),
+            backgroundColor: AppColors.error,
+          ),
+        );
       }
     }
   }
@@ -132,135 +154,57 @@ class _CallToActionScreenState extends State<CallToAction> {
                 ),
                 const SizedBox(height: 16),
 
-                // dynamic text areas
-                ..._controllers.asMap().entries.map((entry) {
-                  final index = entry.key;
-                  final controller = entry.value;
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: controller,
-                            maxLines: 6,
-                            decoration: InputDecoration(
-                              hintText: index == 0
-                                  ? 'End the module with a clear next step that guides the user on what to do or explore...'
-                                  : 'Additional detail...',
-                              hintStyle:
-                                  const TextStyle(color: AppColors.hintText),
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 14,
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderSide: const BorderSide(
-                                  color: AppColors.primary,
-                                  width: 1,
-                                ),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderSide: const BorderSide(
-                                  color: AppColors.primary,
-                                  width: 1.5,
-                                ),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              errorBorder: OutlineInputBorder(
-                                borderSide: const BorderSide(
-                                  color: AppColors.error,
-                                  width: 1.5,
-                                ),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              focusedErrorBorder: OutlineInputBorder(
-                                borderSide: const BorderSide(
-                                  color: AppColors.error,
-                                  width: 1.5),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            validator: index == 0
-                                ? (value) {
-                                    final hasContent = _controllers.any(
-                                      (ctrl) =>
-                                          ctrl.text.trim().isNotEmpty,
-                                    );
-                                    if (!hasContent) {
-                                      return 'At least one call to action must be completed';
-                                    }
-                                    return null;
-                                  }
-                                : null,
-                          ),
-                        ),
-                        if (_controllers.length > 1) ...[
-                          const SizedBox(width: 8),
-                          InkWell(
-                            borderRadius: BorderRadius.circular(18),
-                            onTap: () {
-                              setState(() {
-                                controller.dispose();
-                                _controllers.removeAt(index);
-                              });
-                            },
-                            child: Container(
-                              width: 36,
-                              height: 36,
-                              decoration: BoxDecoration(
-                                border: Border.all(color: AppColors.error),
-                                color: AppColors.white,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Center(
-                                child: Icon(
-                                  CupertinoIcons.minus,
-                                  size: 20,
-                                  color: Colors.red,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
+                // Single text area for call to action
+                TextFormField(
+                  controller: _controller,
+                  maxLines: 6,
+                  decoration: InputDecoration(
+                    hintText: 'End the module with a clear next step that guides the user on what to do or explore...',
+                    hintStyle: const TextStyle(color: AppColors.hintText),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
                     ),
-                  );
-                }),
-
-                // 👇 your “Link a Project…” row goes here
-                const SizedBox(height: 6),
-                InkWell(
-                  onTap: () {
-                    // TODO: open project picker or dialog
-                  },
-                  borderRadius: BorderRadius.circular(12),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // use your asset name here
-                      // make sure you add it to pubspec.yaml
-                      Image.asset(
-                        'assets/link_project.png',
-                        height: 28,
+                    enabledBorder: OutlineInputBorder(
+                      borderSide: const BorderSide(
+                        color: AppColors.primary,
+                        width: 1,
                       ),
-                      const SizedBox(width: 8),
-                      const Text(
-                        'Link a Project...',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.grey,
-                          fontWeight: FontWeight.w500,
-                        ),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderSide: const BorderSide(
+                        color: AppColors.primary,
+                        width: 1.5,
                       ),
-                    ],
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    errorBorder: OutlineInputBorder(
+                      borderSide: const BorderSide(
+                        color: AppColors.error,
+                        width: 1.5,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    focusedErrorBorder: OutlineInputBorder(
+                      borderSide: const BorderSide(
+                        color: AppColors.error,
+                        width: 1.5,
+                      ),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Call to action must be completed';
+                    }
+                    return null;
+                  },
                 ),
+
                 const SizedBox(height: 16),
 
-                
+
 
                 // complete
                 SizedBox(
@@ -274,27 +218,7 @@ class _CallToActionScreenState extends State<CallToAction> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    onPressed: () {
-                      if (_formKey.currentState!.validate()) {
-                        final allText = _controllers
-                            .map((c) => c.text.trim())
-                            .where((t) => t.isNotEmpty)
-                            .toList();
-
-                        final updatedModule = {
-                          ...widgetModule,
-                          'creator_action': _selectedQuestionType,
-                          'inquiry': allText,
-                        };
-
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (context) =>
-                                LearningObjectiveScreen(module: updatedModule),
-                          ),
-                        );
-                      }
-                    },
+                    onPressed: _saveAndNavigateHome,
                     child: const Text('Complete'),
                   ),
                 ),

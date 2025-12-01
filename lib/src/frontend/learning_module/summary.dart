@@ -1,8 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:juniper_journal/src/frontend/learning_module/learning_objective.dart';
 import 'package:juniper_journal/src/styling/app_colors.dart';
 import 'package:juniper_journal/src/backend/db/repositories/learning_module_repo.dart';
+import 'package:juniper_journal/src/frontend/learning_module/call_to_action.dart';
 import 'package:intl/intl.dart';
 
 class Summary extends StatefulWidget {
@@ -15,55 +15,144 @@ class Summary extends StatefulWidget {
 }
 
 class _SummaryScreenState extends State<Summary> {
-  final List<TextEditingController> _controllers = [TextEditingController()];
-  final _formKey = GlobalKey<FormState>();
-
-  // this screen is SUMMARY now
   String _selectedNavigation = 'SUMMARY';
-  String _selectedQuestionType = 'WHY';
+  String _generatedSummary = '';
+  Map<String, dynamic>? _moduleData;
 
   @override
   void initState() {
     super.initState();
-    _loadExistingData(); // fetch from Supabase, but only read
+    _loadModuleData();
   }
 
-  @override
-  void dispose() {
-    for (var controller in _controllers) {
-      controller.dispose();
+  void _loadModuleData() async {
+    final module = widget.existingModule;
+    debugPrint('existingModule: $module');
+
+    if (module != null) {
+      // Use existing module data as fallback
+      setState(() {
+        _moduleData = module;
+      });
+
+      // Try to fetch fresh data if we have an ID
+      if (module['id'] != null) {
+        debugPrint('Fetching module with ID: ${module['id']}');
+        final repo = LearningModuleRepo();
+        final freshModuleData = await repo.getModule(module['id'].toString());
+
+        debugPrint('Fresh module data: $freshModuleData');
+
+        if (freshModuleData != null && mounted) {
+          setState(() {
+            _moduleData = freshModuleData;
+          });
+        }
+      }
+    } else {
+      debugPrint('No existing module data provided');
     }
-    super.dispose();
   }
 
-  // KEEP: read from Supabase so we prefill
-  void _loadExistingData() async {
+  String _generateSummary() {
+    if (_moduleData == null) {
+      debugPrint('Module data is null');
+      return 'Unable to generate summary - module data not loaded';
+    }
+
+    debugPrint('Module data: $_moduleData');
+
+    // Get lesson title
+    final lessonTitle = _moduleData!['module_name'] ?? 'Untitled Lesson';
+
+    // Get learning objectives (it's an array, take first or join all)
+    final learningObjectivesList = _moduleData!['learning_objectives'];
+    String learningObjective = 'explore key concepts';
+    if (learningObjectivesList != null && learningObjectivesList is List && learningObjectivesList.isNotEmpty) {
+      learningObjective = learningObjectivesList.join(', ');
+    }
+
+    // Get anchoring phenomenon (stored as inquiry array)
+    final inquiryList = _moduleData!['inquiry'];
+    String anchoringPhenomenon = 'a relevant real-world issue';
+    if (inquiryList != null && inquiryList is List && inquiryList.isNotEmpty) {
+      anchoringPhenomenon = inquiryList.join(' ');
+    }
+
+    // Get domains
+    final domainsList = _moduleData!['subject_domain'];
+    String domains = 'various domains';
+    if (domainsList != null && domainsList is List && domainsList.isNotEmpty) {
+      domains = domainsList.join(', ');
+    }
+
+    // Get performance expectations
+    final pesList = _moduleData!['performance_expectation'];
+    String performanceExpectations = 'NGSS standards';
+    if (pesList != null && pesList is List && pesList.isNotEmpty) {
+      performanceExpectations = pesList.join(', ');
+    }
+
+    // Get DCIs (Disciplinary Core Ideas)
+    final dcisList = _moduleData!['dci'];
+    String disciplinaryCoreIdeas = 'fundamental concepts';
+    if (dcisList != null && dcisList is List && dcisList.isNotEmpty) {
+      disciplinaryCoreIdeas = dcisList.join(', ');
+    }
+
+    // Get SEPs (Science and Engineering Practices)
+    final sepsList = _moduleData!['sep'];
+    String sciencePractices = 'scientific inquiry';
+    if (sepsList != null && sepsList is List && sepsList.isNotEmpty) {
+      sciencePractices = sepsList.join(', ');
+    }
+
+    // Get CCCs (Crosscutting Concepts)
+    final cccsList = _moduleData!['ccc'];
+    String crosscuttingConcepts = 'interconnected ideas';
+    if (cccsList != null && cccsList is List && cccsList.isNotEmpty) {
+      crosscuttingConcepts = cccsList.join(', ');
+    }
+
+    return 'The "$lessonTitle" learning lesson is designed to $learningObjective within the domain(s) of $domains, directly supporting NGSS Performance Expectations: $performanceExpectations. It emphasizes key disciplinary ideas including $disciplinaryCoreIdeas, engages students in critical Science and Engineering Practices such as $sciencePractices, and explores essential Crosscutting Concepts like $crosscuttingConcepts. By focusing on the anchoring phenomenon "$anchoringPhenomenon", this lesson encourages learners to connect real-world issues with scientific understanding, fostering deeper exploration and practical problem-solving skills.';
+  }
+
+  Future<void> _saveSummaryAndNavigate() async {
+    if (_generatedSummary.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please generate a summary first'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
     final module = widget.existingModule;
     if (module != null && module['id'] != null) {
       final repo = LearningModuleRepo();
+      final success = await repo.updateSummary(
+        id: module['id'].toString(),
+        summary: _generatedSummary,
+      );
 
-      // pull latest data from backend
-      final freshModuleData = await repo.getModule(module['id'].toString());
+      if (!mounted) return;
 
-      if (freshModuleData != null) {
-        setState(() {
-          // Load question type
-          if (freshModuleData['creator_action'] != null) {
-            _selectedQuestionType = freshModuleData['creator_action'];
-          }
-
-          // Load inquiry list
-          if (freshModuleData['inquiry'] != null &&
-              freshModuleData['inquiry'] is List) {
-            final inquiryList = List<String>.from(freshModuleData['inquiry']);
-            if (inquiryList.isNotEmpty) {
-              _controllers.clear();
-              for (final text in inquiryList) {
-                _controllers.add(TextEditingController(text: text));
-              }
-            }
-          }
-        });
+      if (success) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => CallToAction(
+              existingModule: module,
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to save summary'),
+            backgroundColor: AppColors.error,
+          ),
+        );
       }
     }
   }
@@ -91,205 +180,119 @@ class _SummaryScreenState extends State<Summary> {
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Top bar
-                Row(
-                  children: [
-                    IconButton(
-                      icon: const Icon(
-                        CupertinoIcons.back,
-                        color: AppColors.iconPrimary,
-                      ),
-                      onPressed: () => Navigator.of(context).pop(),
-                      tooltip: 'Back',
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Top bar
+              Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(
+                      CupertinoIcons.back,
+                      color: AppColors.iconPrimary,
                     ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            moduleName,
-                            style: const TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.darkText,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            formattedDate,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: AppColors.lightGrey,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-                // Summary + question type
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 8,
-                  children: [
-                    _buildNavigationDropdown()
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-                // Dynamic text fields
-                ..._controllers.asMap().entries.map((entry) {
-                  final index = entry.key;
-                  final controller = entry.value;
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Row(
+                    onPressed: () => Navigator.of(context).pop(),
+                    tooltip: 'Back',
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: controller,
-                            maxLines: 6,
-                            decoration: InputDecoration(
-                              hintText: index == 0
-                                  ? 'Write the summary...'
-                                  : 'Additional summary detail...',
-                              hintStyle:
-                                  const TextStyle(color: AppColors.hintText),
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 14,
-                              ),
-                              enabledBorder: OutlineInputBorder(
-                                borderSide: const BorderSide(
-                                  color: AppColors.primary,
-                                  width: 1,
-                                ),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderSide: const BorderSide(
-                                  color: AppColors.primary,
-                                  width: 1.5,
-                                ),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              errorBorder: OutlineInputBorder(
-                                borderSide: const BorderSide(
-                                  color: AppColors.error,
-                                  width: 1.5,
-                                ),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              focusedErrorBorder: OutlineInputBorder(
-                                borderSide: const BorderSide(
-                                  color: AppColors.error,
-                                  width: 1.5,
-                                ),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            validator: index == 0
-                                ? (value) {
-                                    final hasContent = _controllers.any(
-                                      (ctrl) =>
-                                          ctrl.text.trim().isNotEmpty,
-                                    );
-                                    if (!hasContent) {
-                                      return 'At least one summary must be completed';
-                                    }
-                                    return null;
-                                  }
-                                : null,
+                        Text(
+                          moduleName,
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.darkText,
                           ),
                         ),
-                        if (_controllers.length > 1) ...[
-                          const SizedBox(width: 8),
-                          InkWell(
-                            borderRadius: BorderRadius.circular(18),
-                            onTap: () {
-                              setState(() {
-                                controller.dispose();
-                                _controllers.removeAt(index);
-                              });
-                            },
-                            child: Container(
-                              width: 36,
-                              height: 36,
-                              decoration: BoxDecoration(
-                                border: Border.all(color: AppColors.error),
-                                color: AppColors.white,
-                                shape: BoxShape.circle,
-                              ),
-                              child: const Center(
-                                child: Icon(
-                                  CupertinoIcons.minus,
-                                  size: 20,
-                                  color: Colors.red,
-                                ),
-                              ),
-                            ),
+                        const SizedBox(height: 2),
+                        Text(
+                          formattedDate,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: AppColors.lightGrey,
                           ),
-                        ],
+                        ),
                       ],
                     ),
-                  );
-                }),
-
-                // Add another summary
-                
-
-                // Complete: DON'T update Supabase, just navigate
-                SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: FilledButton(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: AppColors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      textStyle: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
+                  ),
+                  GestureDetector(
+                    onTap: _saveSummaryAndNavigate,
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 8),
+                      child: Text(
+                        'Done',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                          fontSize: 16,
+                        ),
                       ),
                     ),
-                    onPressed: () {
-                      if (_formKey.currentState!.validate()) {
-                        final allText = _controllers
-                            .map((c) => c.text.trim())
-                            .where((t) => t.isNotEmpty)
-                            .toList();
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
 
-                        final updatedModule = {
-                          ...widgetModule,
-                          'creator_action': _selectedQuestionType,
-                          'inquiry': allText,
-                        };
+              // Summary navigation
+              Wrap(
+                spacing: 10,
+                runSpacing: 8,
+                children: [
+                  _buildNavigationDropdown()
+                ],
+              ),
+              const SizedBox(height: 24),
 
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (context) => LearningObjectiveScreen(
-                              module: updatedModule,
-                            ),
-                          ),
-                        );
-                      }
-                    },
-                    child: const Text('Generate Summary Report'),
+              // Display generated summary if available
+              if (_generatedSummary.isNotEmpty) ...[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: AppColors.white,
+                    border: Border.all(color: AppColors.primary, width: 1.5),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    _generatedSummary,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      height: 1.6,
+                      color: AppColors.darkText,
+                    ),
                   ),
                 ),
+                const SizedBox(height: 20),
               ],
-            ),
+
+              // Generate Summary Report button
+              SizedBox(
+                width: double.infinity,
+                height: 52,
+                child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: AppColors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    textStyle: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  onPressed: () {
+                    setState(() {
+                      _generatedSummary = _generateSummary();
+                    });
+                  },
+                  child: const Text('Generate Summary Report'),
+                ),
+              ),
+            ],
           ),
         ),
       ),
