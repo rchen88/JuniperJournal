@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:fleather/fleather.dart';
 import '../styling/app_colors.dart';
 
 /// A toolbar for the Concept Exploration page that allows users to build their own modules.
@@ -7,12 +8,14 @@ class ConceptExplorationToolbar extends StatelessWidget {
   final VoidCallback? onCamera;
   final VoidCallback? onInsertMath;
   final VoidCallback? onInsertTable;
+  final Function(ParchmentAttribute)? onFormat;
 
   const ConceptExplorationToolbar({
     super.key,
     this.onCamera,
     this.onInsertMath,
     this.onInsertTable,
+    this.onFormat,
   });
 
   @override
@@ -41,6 +44,9 @@ class ConceptExplorationToolbar extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
+              _FormatButton(
+                onFormat: onFormat,
+              ),
               _ToolbarButton(
                 icon: Icons.camera_alt,
                 onPressed: onCamera,
@@ -57,6 +63,110 @@ class ConceptExplorationToolbar extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Formatting button with popup menu for text styling
+class _FormatButton extends StatelessWidget {
+  final Function(ParchmentAttribute)? onFormat;
+
+  const _FormatButton({
+    this.onFormat,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<String>(
+      icon: Container(
+        width: 48,
+        height: 48,
+        alignment: Alignment.center,
+        child: const Icon(
+          Icons.format_size,
+          color: AppColors.white,
+          size: 26,
+        ),
+      ),
+      color: AppColors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+      ),
+      offset: const Offset(0, -180),
+      onSelected: (value) {
+        if (onFormat == null) return;
+
+        switch (value) {
+          case 'bold':
+            onFormat!(ParchmentAttribute.bold);
+            break;
+          case 'italic':
+            onFormat!(ParchmentAttribute.italic);
+            break;
+          case 'h1':
+            onFormat!(ParchmentAttribute.h1);
+            break;
+          case 'h2':
+            onFormat!(ParchmentAttribute.h2);
+            break;
+          case 'h3':
+            onFormat!(ParchmentAttribute.h3);
+            break;
+        }
+      },
+      itemBuilder: (BuildContext context) => [
+        PopupMenuItem<String>(
+          value: 'bold',
+          child: Row(
+            children: [
+              Icon(Icons.format_bold, color: AppColors.darkText, size: 20),
+              const SizedBox(width: 12),
+              Text('Bold', style: TextStyle(fontWeight: FontWeight.w600)),
+            ],
+          ),
+        ),
+        PopupMenuItem<String>(
+          value: 'italic',
+          child: Row(
+            children: [
+              Icon(Icons.format_italic, color: AppColors.darkText, size: 20),
+              const SizedBox(width: 12),
+              Text('Italic', style: TextStyle(fontStyle: FontStyle.italic)),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(),
+        PopupMenuItem<String>(
+          value: 'h1',
+          child: Row(
+            children: [
+              Icon(Icons.title, color: AppColors.darkText, size: 20),
+              const SizedBox(width: 12),
+              Text('Heading 1', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            ],
+          ),
+        ),
+        PopupMenuItem<String>(
+          value: 'h2',
+          child: Row(
+            children: [
+              Icon(Icons.title, color: AppColors.darkText, size: 18),
+              const SizedBox(width: 12),
+              Text('Heading 2', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            ],
+          ),
+        ),
+        PopupMenuItem<String>(
+          value: 'h3',
+          child: Row(
+            children: [
+              Icon(Icons.title, color: AppColors.darkText, size: 16),
+              const SizedBox(width: 12),
+              Text('Heading 3', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold)),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
