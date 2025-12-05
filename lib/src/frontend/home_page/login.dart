@@ -100,7 +100,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const green = Color(0xFF6BB578); // adjust to match your palette
+    const green = Color(0xFF6BB578); 
 
     return Scaffold(
       backgroundColor: Colors.white,

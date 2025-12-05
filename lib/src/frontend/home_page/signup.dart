@@ -16,7 +16,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
   bool _obscurePassword = true;
   bool _isLoading = false;
-  static const Color _green = Color(0xFF6BB578); // tweak to match your palette
+  static const Color _green = Color(0xFF6BB578);
 
   @override
   void dispose() {
