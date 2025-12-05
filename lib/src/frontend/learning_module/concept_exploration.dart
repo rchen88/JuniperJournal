@@ -643,6 +643,36 @@ class _ConceptExplorationScreenState extends State<ConceptExplorationScreen> {
     return const SizedBox.shrink();
   }
 
+  /// Applies text formatting to the selected text or toggles formatting for new text
+  void _formatText(ParchmentAttribute attribute) {
+    if (_controller == null) return;
+
+    final selection = _controller!.selection;
+
+    // If there's a selection, format the selected text
+    if (selection.isValid && !selection.isCollapsed) {
+      _controller!.formatText(selection.start, selection.end - selection.start, attribute);
+    } else {
+      // If no selection, toggle the attribute for future typing
+      // Get the current style at cursor position
+      final currentStyle = _controller!.getSelectionStyle();
+
+      // Check if the attribute is already active
+      final isActive = currentStyle.contains(attribute);
+
+      if (isActive) {
+        // If active, unset it (turn off the formatting)
+        _controller!.formatSelection(attribute.unset);
+      } else {
+        // If not active, set it (turn on the formatting)
+        _controller!.formatSelection(attribute);
+      }
+    }
+
+    // Request focus back to the editor
+    _focusNode.requestFocus();
+  }
+
   /// Shows a dialog to input a LaTeX math equation
   Future<void> _insertMathEquation() async {
     
@@ -1022,6 +1052,7 @@ class _ConceptExplorationScreenState extends State<ConceptExplorationScreen> {
             right: 0,
             bottom: 12,
             child: ConceptExplorationToolbar(
+              onFormat: _formatText,
               onCamera: _openCamera,
               onInsertMath: _insertMathEquation,
               onInsertTable: _insertTable,
