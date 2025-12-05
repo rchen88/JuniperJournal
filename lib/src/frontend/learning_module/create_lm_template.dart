@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:juniper_journal/src/backend/db/repositories/learning_module_repo.dart';
+import 'package:juniper_journal/src/backend/auth/auth_service.dart';
 import 'package:juniper_journal/src/frontend/learning_module/anchoring_phenomenon.dart';
 import '../../styling/app_colors.dart';
 
@@ -194,15 +195,20 @@ class _CreateTemplateScreenState extends State<CreateTemplateScreen> {
                       final messenger = ScaffoldMessenger.of(context);
                       final navigator = Navigator.of(context);
                       final repo = LearningModuleRepo();
+                      final authService = AuthService.instance;
 
                       Map<String, dynamic>? moduleData;
 
                       if (widget.existingModule == null) {
                         // CREATE new module
+                        // Get current user ID
+                        final userId = authService.currentUser?.id;
+
                         moduleData = await repo.createModule(
                           moduleName: moduleName,
                           difficulty: difficulty,
                           ecoPoints: ecoPoints,
+                          authorId: userId,
                         );
                       } else {
                         // UPDATE existing module
