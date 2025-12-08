@@ -21,6 +21,7 @@ class LearningModuleRepo {
     required String moduleName,
     required String difficulty,
     required int ecoPoints,
+    String? authorId,
   }) async {
     try {
       final response = await _client
@@ -29,12 +30,14 @@ class LearningModuleRepo {
             'module_name': moduleName,
             'difficulty': difficulty,
             'eco_points': ecoPoints,
+            if (authorId != null) 'author_id': authorId,
           })
           .select()
           .single();
 
       return response;
     } catch (e) {
+      debugPrint('Error creating module: $e');
       return null;
     }
   }
