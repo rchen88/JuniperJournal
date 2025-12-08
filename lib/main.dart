@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:juniper_journal/src/backend/db/supabase_database.dart';
+import 'package:juniper_journal/src/frontend/home1/start.dart';
+import 'package:juniper_journal/src/frontend/home_page/home.dart';
+import 'src/frontend/learning_module/create_lm_template.dart';
+import 'src/frontend/submission_template/create_submission_template.dart';
+
+
 import 'package:juniper_journal/src/backend/auth/auth_service.dart';
 import 'package:juniper_journal/src/frontend/home_page/home.dart';
 import 'src/frontend/learning_module/create_lm_template.dart';
@@ -137,6 +143,32 @@ class MyHomePage extends StatelessWidget {
               },
               child: const Text('Go to Submission Template'),
             ),
+          const SizedBox(height: 20),
+          ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const JuniperAuthScreen()
+                    , // Submission screen
+                  ),
+                );
+              },
+              child: const Text('Go to Login / Signup'),
+            ),const SizedBox(height: 20),
+          ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const HomeShellScreen()
+                    , // Submission screen
+                  ),
+                );
+              },
+              child: const Text('Go to New Home Screen'),
+            ),
+      
           ],
         ),
       ),
