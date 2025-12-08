@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:fleather/fleather.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_math_fork/flutter_math.dart';
+import 'package:juniper_journal/src/frontend/home_page/home.dart';
 import 'dart:convert';
 import 'dart:math' as math;
 import '../../styling/app_colors.dart';
@@ -784,8 +785,7 @@ class _SolutionScreenState extends State<SolutionScreen> {
                               // Navigate to home page
                               navigator.pushAndRemoveUntil(
                                 MaterialPageRoute(
-                                  builder: (context) => const MyHomePage(
-                                    title: 'Juniper Journal',
+                                  builder: (context) => const HomeShellScreen(
                                   ),
                                 ),
                                 (route) => false,

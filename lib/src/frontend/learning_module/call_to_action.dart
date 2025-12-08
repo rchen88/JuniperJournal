@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:juniper_journal/src/backend/db/repositories/learning_module_repo.dart';
+import 'package:juniper_journal/src/frontend/home_page/home.dart';
 import 'package:juniper_journal/src/frontend/learning_module/learning_objective.dart';
 import 'package:juniper_journal/src/frontend/learning_module/summary.dart';
 import 'package:juniper_journal/src/styling/app_colors.dart';
@@ -222,8 +223,7 @@ class _CallToActionScreenState extends State<CallToAction> {
       if (ok) {
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(
-            builder: (context) => const MyHomePage(
-              title: 'Juniper Journal',
+            builder: (context) => const HomeShellScreen(
             ),
           ),
           (route) => false,
