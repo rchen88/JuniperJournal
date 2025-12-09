@@ -316,7 +316,7 @@ class _CreateAnchoringPhenomenonScreenState extends State<AnchoringPhenomenon> {
       height: 28,
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
       decoration: BoxDecoration(
-        color: Colors.green[100],
+        color: AppColors.tagBackground,
         borderRadius: BorderRadius.circular(20),
       ),
       child: DropdownButtonHideUnderline(
@@ -325,22 +325,22 @@ class _CreateAnchoringPhenomenonScreenState extends State<AnchoringPhenomenon> {
           icon: const Icon(
             Icons.keyboard_arrow_down,
             size: 16,
-            color: Colors.green,
+            color: AppColors.primary,
           ),
           style: const TextStyle(
-            color: Colors.green,
+            color: AppColors.primary,
             fontSize: 11,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.5,
           ),
-          dropdownColor: Colors.green[50],
+          dropdownColor: AppColors.tagBackground,
           items: const [
             DropdownMenuItem(
               value: 'TITLE',
               child: Text(
                 'TITLE',
                 style: TextStyle(
-                  color: Colors.green,
+                  color: AppColors.primary,
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.5,
@@ -352,7 +352,7 @@ class _CreateAnchoringPhenomenonScreenState extends State<AnchoringPhenomenon> {
               child: Text(
                 'ANCHORING PHENOMENON',
                 style: TextStyle(
-                  color: Colors.green,
+                  color: AppColors.primary,
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.5,

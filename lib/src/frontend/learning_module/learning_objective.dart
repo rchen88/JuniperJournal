@@ -340,81 +340,114 @@ class _LearningObjectiveScreenState extends State<LearningObjectiveScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Section navigation dropdown
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.green[100],
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: DropdownButtonHideUnderline(
-                      child: DropdownButton<String>(
-                        value: _currentSection,
-                        icon: const Icon(
-                          Icons.keyboard_arrow_down,
-                          color: Colors.green,
-                          size: 16,
-                        ),
-                        style: const TextStyle(
-                          color: Colors.green,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                        ),
-                        dropdownColor: Colors.green[50],
-                        items: const [
-                          DropdownMenuItem(
-                            value: 'TITLE',
-                            child: Text(
-                              'TITLE',
-                              style: TextStyle(
-                                color: Colors.green,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          DropdownMenuItem(
-                            value: 'ANCHORING PHENOMENON',
-                            child: Text(
-                              'ANCHORING PHENOMENON',
-                              style: TextStyle(
-                                color: Colors.green,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          DropdownMenuItem(
-                            value: 'OBJECTIVE',
-                            child: Text(
-                              'OBJECTIVE',
-                              style: TextStyle(
-                                color: Colors.green,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ],
-                        onChanged: (value) {
-                          if (value == 'TITLE') {
-                            // Go back to title (parent of AP, grandparent of Objective)
-                            Navigator.of(context).popUntil((route) => route.isFirst);
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (context) => CreateTemplateScreen(
-                                  existingModule: widget.module,
-                                ),
-                              ),
-                            );
-                          } else if (value == 'ANCHORING PHENOMENON') {
-                            // Go back to AP (parent of Objective)
-                            Navigator.of(context).pop();
-                          }
-                          // If OBJECTIVE is selected, stay on current page
-                        },
-                      ),
-                    ),
-                  ),
+                Align(  alignment: Alignment.centerLeft,
+  child: Container(
+    height: 28,
+    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+    decoration: BoxDecoration(
+      color: AppColors.tagBackground,
+      borderRadius: BorderRadius.circular(20),
+    ),
+    child: DropdownButtonHideUnderline(
+      child: DropdownButton<String>(
+        value: _currentSection, // 'OBJECTIVE' on this screen
+
+        icon: const Icon(
+          Icons.keyboard_arrow_down,
+          size: 16,
+          color: AppColors.primary,
+        ),
+
+        dropdownColor: AppColors.tagBackground,
+        style: const TextStyle(
+          color: AppColors.primary,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.5,
+        ),
+
+        // 👇 This controls how the CLOSED pill looks,
+        // and therefore its WIDTH (so it only fits the current label).
+        selectedItemBuilder: (context) {
+          // these must be the same length/order as items
+          const closedLabels = ['TITLE', 'ANCHORING', 'OBJECTIVE'];
+
+          return closedLabels.map((label) {
+            return Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                label,
+                style: const TextStyle(
+                  color: AppColors.primary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
                 ),
+              ),
+            );
+          }).toList();
+        },
+
+        // 👇 These are the full labels in the DROPDOWN MENU
+        items: const [
+          DropdownMenuItem(
+            value: 'TITLE',
+            child: Text(
+              'TITLE',
+              style: TextStyle(
+                color: AppColors.primary,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ),
+          DropdownMenuItem(
+            value: 'ANCHORING PHENOMENON',
+            child: Text(
+              'ANCHORING PHENOMENON',
+              style: TextStyle(
+                color: AppColors.primary,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ),
+          DropdownMenuItem(
+            value: 'OBJECTIVE',
+            child: Text(
+              'OBJECTIVE',
+              style: TextStyle(
+                color: AppColors.primary,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ),
+        ],
+
+        onChanged: (value) {
+          if (value == 'TITLE') {
+            // Go back to title (parent of AP, grandparent of Objective)
+            Navigator.of(context).popUntil((route) => route.isFirst);
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => CreateTemplateScreen(
+                  existingModule: widget.module,
+                ),
+              ),
+            );
+          } else if (value == 'ANCHORING PHENOMENON') {
+            // Go back to AP (parent of Objective)
+            Navigator.of(context).pop();
+          }
+          // OBJECTIVE -> stay here; we don't need to update _currentSection
+        },
+      ),
+    ),
+  ),),
 
                 const SizedBox(height: 24),
 
@@ -561,7 +594,7 @@ class _LearningObjectiveScreenState extends State<LearningObjectiveScreen> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
                   decoration: BoxDecoration(
-                    color: Colors.green[50],
+                    color: AppColors.tagBackground,
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Column(
@@ -569,7 +602,7 @@ class _LearningObjectiveScreenState extends State<LearningObjectiveScreen> {
                       Text(
                         learningObjectiveHeader,
                         style: TextStyle(
-                          color: Colors.green[800],
+                          color: AppColors.primary,
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
                           letterSpacing: 0.5,
@@ -619,7 +652,7 @@ class _LearningObjectiveScreenState extends State<LearningObjectiveScreen> {
                       );
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green[500],
+                      backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
@@ -643,7 +676,7 @@ class _LearningObjectiveScreenState extends State<LearningObjectiveScreen> {
       ),
     );
   }
-
+  
   /// Builds a rounded pill-style dropdown
   Widget _buildPillDropdown({
     required String? value,
@@ -660,14 +693,14 @@ class _LearningObjectiveScreenState extends State<LearningObjectiveScreen> {
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(25),
         borderSide: const BorderSide(
-          color: AppColors.inputBorder,
+          color: AppColors.tagBackground,
           width: 1.5,
         ),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(25),
         borderSide: const BorderSide(
-          color: AppColors.inputBorder,
+          color: AppColors.tagBackground,
           width: 1.5,
         ),
       ),
@@ -738,3 +771,4 @@ class _LearningObjectiveScreenState extends State<LearningObjectiveScreen> {
     );
   }
 }
+

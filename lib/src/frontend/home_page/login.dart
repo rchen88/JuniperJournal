@@ -303,10 +303,12 @@ class _LoginScreenState extends State<LoginScreen> {
               //     ),
               //   ),
               // ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+                        ],          // 1) closes Column.children
+          ),           // 2) closes Column
+        ),             // 3) closes SingleChildScrollView
+      ],               // 4) closes Stack.children  <--- NEW
+    ),                 // 5) closes Stack          <--- shifted from before
+  ),
+);
+}
 }

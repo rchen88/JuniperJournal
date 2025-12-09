@@ -870,6 +870,7 @@ class _ConceptExplorationScreenState extends State<ConceptExplorationScreen> {
           SafeArea(
             bottom: false, // Don't apply SafeArea to bottom
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // App bar
                 Padding(
@@ -983,15 +984,15 @@ class _ConceptExplorationScreenState extends State<ConceptExplorationScreen> {
                                   return Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
                                     decoration: BoxDecoration(
-                                      color: AppColors.tagBackground,
+                                      color: AppColors.primary,
                                       borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: AppColors.tagBorder, width: 1),
+                                      border: Border.all(color: AppColors.primary, width: 1),
                                     ),
                                     child: Text(
                                       tag,
                                       textAlign: TextAlign.center,
                                       style: const TextStyle(
-                                        color: AppColors.tagText,
+                                        color: AppColors.buttonText,
                                         fontSize: 10,
                                         fontFamily: 'Inter',
                                         fontWeight: FontWeight.w600,
@@ -1064,149 +1065,153 @@ class _ConceptExplorationScreenState extends State<ConceptExplorationScreen> {
   }
 
   Widget _buildNavigationDropdown() {
-    return Container(
-      height: 28,
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-      decoration: BoxDecoration(
-        color: Colors.green[100],
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: _currentSection,
-          icon: const Icon(
-            Icons.keyboard_arrow_down,
-            size: 16,
-            color: Colors.green,
-          ),
-          style: const TextStyle(
-            color: Colors.green,
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.5,
-          ),
-          dropdownColor: Colors.green[50],
-          items: const [
-            DropdownMenuItem(
-              value: 'TITLE',
-              child: Text(
-                'TITLE',
-                style: TextStyle(
-                  color: Colors.green,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-            DropdownMenuItem(
-              value: 'ANCHORING PHENOMENON',
-              child: Text(
-                'ANCHORING PHENOMENON',
-                style: TextStyle(
-                  color: Colors.green,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-            DropdownMenuItem(
-              value: 'OBJECTIVE',
-              child: Text(
-                'OBJECTIVE',
-                style: TextStyle(
-                  color: Colors.green,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-            DropdownMenuItem(
-              value: 'LEARNING',
-              child: Text(
-                'LEARNING',
-                style: TextStyle(
-                  color: Colors.green,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-            DropdownMenuItem(
-              value: 'CONCEPT EXPLORATION',
-              child: Text(
-                'CONCEPT EXPLORATION',
-                style: TextStyle(
-                  color: Colors.green,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-            DropdownMenuItem(
-              value: 'ACTIVITY',
-              child: Text(
-                'ACTIVITY',
-                style: TextStyle(
-                  color: Colors.green,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-          ],
-          onChanged: (value) {
-            if (value == 'TITLE') {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => CreateTemplateScreen(
-                    existingModule: widget.module,
-                  ),
-                ),
-              );
-            } else if (value == 'ANCHORING PHENOMENON') {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => AnchoringPhenomenon(
-                    existingModule: widget.module,
-                  ),
-                ),
-              );
-            } else if (value == 'OBJECTIVE') {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => LearningObjectiveScreen(
-                    module: widget.module,
-                  ),
-                ),
-              );
-            } else if (value == 'LEARNING') {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => ThreeDLearning(
-                    module: widget.module,
-                  ),
-                ),
-              );
-            } else if (value == 'ACTIVITY') {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => ActivityScreen(
-                    module: widget.module,
-                  ),
-                ),
-              );
-            }
-            // If CONCEPT EXPLORATION is selected, stay on current page
-          },
+  return Container(
+    height: 28,
+    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+    decoration: BoxDecoration(
+      // was: Colors.green[100]
+      color: AppColors.tagBackground,
+      borderRadius: BorderRadius.circular(20),
+    ),
+    child: DropdownButtonHideUnderline(
+      child: DropdownButton<String>(
+        value: _currentSection,
+        icon: const Icon(
+          Icons.keyboard_arrow_down,
+          size: 16,
+          // was: Colors.green
+          color: AppColors.primary,
         ),
+        style: const TextStyle(
+          // was: Colors.green
+          color: AppColors.primary,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.5,
+        ),
+        // was: Colors.green[50]
+        dropdownColor: AppColors.tagBackground,
+        items: const [
+          DropdownMenuItem(
+            value: 'TITLE',
+            child: Text(
+              'TITLE',
+              style: TextStyle(
+                color: AppColors.primary,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ),
+          DropdownMenuItem(
+            value: 'ANCHORING PHENOMENON',
+            child: Text(
+              'ANCHORING PHENOMENON',
+              style: TextStyle(
+                color: AppColors.primary,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ),
+          DropdownMenuItem(
+            value: 'OBJECTIVE',
+            child: Text(
+              'OBJECTIVE',
+              style: TextStyle(
+                color: AppColors.primary,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ),
+          DropdownMenuItem(
+            value: 'LEARNING',
+            child: Text(
+              'LEARNING',
+              style: TextStyle(
+                color: AppColors.primary,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ),
+          DropdownMenuItem(
+            value: 'CONCEPT EXPLORATION',
+            child: Text(
+              'CONCEPT EXPLORATION',
+              style: TextStyle(
+                color: AppColors.primary,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ),
+          DropdownMenuItem(
+            value: 'ACTIVITY',
+            child: Text(
+              'ACTIVITY',
+              style: TextStyle(
+                color: AppColors.primary,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ),
+        ],
+        onChanged: (value) {
+          if (value == 'TITLE') {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => CreateTemplateScreen(
+                  existingModule: widget.module,
+                ),
+              ),
+            );
+          } else if (value == 'ANCHORING PHENOMENON') {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => AnchoringPhenomenon(
+                  existingModule: widget.module,
+                ),
+              ),
+            );
+          } else if (value == 'OBJECTIVE') {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => LearningObjectiveScreen(
+                  module: widget.module,
+                ),
+              ),
+            );
+          } else if (value == 'LEARNING') {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => ThreeDLearning(
+                  module: widget.module,
+                ),
+              ),
+            );
+          } else if (value == 'ACTIVITY') {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => ActivityScreen(
+                  module: widget.module,
+                ),
+              ),
+            );
+          }
+          // CONCEPT EXPLORATION = stay here
+        },
       ),
-    );
+    ),
+  );
   }
 }
 
