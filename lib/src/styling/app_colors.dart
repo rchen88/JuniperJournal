@@ -33,7 +33,8 @@ class AppColors {
   static const Color error = Colors.red;
 
   // Tag colors
-  static const Color tagBackground = Color(0xFFD2E2DA); // Tag background color
+  static const Color tagBackground = Color(0xFFDCF7E4); // Tag background color
   static const Color tagBorder = Color(0xFF5DB075); // Tag border color
   static const Color tagText = Color(0xFF5DB075); // Tag text color
+  static const Color lightGreenSoft = Color(0xFFDCF7E4);
 }

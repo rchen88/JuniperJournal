@@ -475,97 +475,125 @@ class _ThreeDLearningState extends State<ThreeDLearning> {
           child: ListView(
             children: [
               // LEARNING pill with navigation
-              Align(
+              Align(alignment: Alignment.centerLeft,
+  child: IntrinsicWidth(                 // ⬅️ ADD THIS
+    child: Container(
+      height: 28,
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      decoration: BoxDecoration(
+        color: AppColors.tagBackground,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: 'LEARNING',
+          icon: const Icon(
+            Icons.keyboard_arrow_down,
+            size: 16,
+            color: AppColors.primary,
+          ),
+          dropdownColor: AppColors.tagBackground,
+          style: const TextStyle(
+            color: AppColors.primary,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.5,
+          ),
+          selectedItemBuilder: (context) {
+            const closedLabels = ['TITLE', 'ANCHORING', 'OBJECTIVE', 'LEARNING'];
+            return closedLabels.map((label) {
+              return Align(
                 alignment: Alignment.centerLeft,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.green[100],
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<String>(
-                      value: 'LEARNING',
-                      icon: const Icon(
-                        Icons.keyboard_arrow_down,
-                        color: Colors.green,
-                        size: 16,
-                      ),
-                      style: const TextStyle(
-                        color: Colors.green,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                      dropdownColor: Colors.green[50],
-                      items: const [
-                        DropdownMenuItem(
-                          value: 'TITLE',
-                          child: Text(
-                            'TITLE',
-                            style: TextStyle(
-                              color: Colors.green,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        DropdownMenuItem(
-                          value: 'ANCHORING PHENOMENON',
-                          child: Text(
-                            'ANCHORING PHENOMENON',
-                            style: TextStyle(
-                              color: Colors.green,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        DropdownMenuItem(
-                          value: 'OBJECTIVE',
-                          child: Text(
-                            'OBJECTIVE',
-                            style: TextStyle(
-                              color: Colors.green,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                        DropdownMenuItem(
-                          value: 'LEARNING',
-                          child: Text(
-                            'LEARNING',
-                            style: TextStyle(
-                              color: Colors.green,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ],
-                      onChanged: (value) {
-                        if (value == 'TITLE') {
-                          Navigator.of(context).popUntil((route) => route.isFirst);
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (context) => CreateTemplateScreen(
-                                existingModule: widget.module,
-                              ),
-                            ),
-                          );
-                        } else if (value == 'ANCHORING PHENOMENON') {
-                          Navigator.of(context).popUntil((route) => route.isFirst);
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (context) => AnchoringPhenomenon(
-                                existingModule: widget.module,
-                              ),
-                            ),
-                          );
-                        } else if (value == 'OBJECTIVE') {
-                          Navigator.of(context).pop();
-                        }
-                        // If LEARNING is selected, stay on current page
-                      },
-                    ),
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    color: AppColors.primary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5,
                   ),
                 ),
+              );
+            }).toList();
+          },
+          items: const [
+            DropdownMenuItem(
+              value: 'TITLE',
+              child: Text(
+                'TITLE',
+                style: TextStyle(
+                  color: AppColors.primary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+            DropdownMenuItem(
+              value: 'ANCHORING PHENOMENON',
+              child: Text(
+                'ANCHORING PHENOMENON',
+                style: TextStyle(
+                  color: AppColors.primary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+            DropdownMenuItem(
+              value: 'OBJECTIVE',
+              child: Text(
+                'OBJECTIVE',
+                style: TextStyle(
+                  color: AppColors.primary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+            DropdownMenuItem(
+              value: 'LEARNING',
+              child: Text(
+                'LEARNING',
+                style: TextStyle(
+                  color: AppColors.primary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+          ],
+          onChanged: (value) {
+            if (value == 'TITLE') {
+              Navigator.of(context).popUntil((route) => route.isFirst);
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => CreateTemplateScreen(
+                    existingModule: widget.module,
+                  ),
+                ),
+              );
+            } else if (value == 'ANCHORING PHENOMENON') {
+              Navigator.of(context).popUntil((route) => route.isFirst);
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => AnchoringPhenomenon(
+                    existingModule: widget.module,
+                  ),
+                ),
+              );
+            } else if (value == 'OBJECTIVE') {
+              Navigator.of(context).pop();
+            }
+            // LEARNING → stay on this page
+          },
+        ),
+      ),
+    ),
+  ),
               ),
               const SizedBox(height: 24),
 

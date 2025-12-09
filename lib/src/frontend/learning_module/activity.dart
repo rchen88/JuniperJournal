@@ -39,7 +39,7 @@ class ActivityScreen extends StatefulWidget {
 
 class _ActivityScreen extends State<ActivityScreen> {
   Map<String, dynamic>? _freshModuleData;
-  final String _currentSection = 'ACTIVITY';
+  String _currentSection = 'ACTIVITY';
 
   FleatherController? _controller;
   final FocusNode _focusNode = FocusNode();
@@ -804,357 +804,381 @@ class _ActivityScreen extends State<ActivityScreen> {
       }
     }
   }
+@override
+Widget build(BuildContext context) {
+  final moduleName = widget.module['module_name'] ?? 'Module Name';
+  final formattedDate = _formatDate(widget.module['created_at']);
+  final performanceExpectations = _getPerformanceExpectations();
 
-  @override
-  Widget build(BuildContext context) {
-    final moduleName = widget.module['module_name'] ?? 'Module Name';
-    final formattedDate = _formatDate(widget.module['created_at']);
-    final performanceExpectations = _getPerformanceExpectations();
-
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: Stack(
-        children: [
-          // Main content with SafeArea
-          SafeArea(
-            bottom: false, // Don't apply SafeArea to bottom
-            child: Column(
-              children: [
-                // App bar
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  child: Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(CupertinoIcons.back, color: AppColors.iconPrimary),
-                        onPressed: () => Navigator.of(context).pop(),
-                        tooltip: 'Back',
+  return Scaffold(
+    backgroundColor: AppColors.background,
+    body: Stack(
+      children: [
+        SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
+              // App bar
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                child: Row(
+                  children: [
+                    IconButton(
+                      icon: const Icon(
+                        CupertinoIcons.back,
+                        color: AppColors.iconPrimary,
                       ),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              moduleName,
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.darkText,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              formattedDate,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: AppColors.lightGrey,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      // Save button with options
-                      PopupMenuButton<String>(
-                        icon: const Icon(Icons.save, color: AppColors.primary),
-                        tooltip: 'Save',
-                        offset: const Offset(0, 40),
-                        onSelected: (value) async {
-                          if (value == 'save') {
-                            await _saveDocument();
-                          } else if (value == 'save_continue') {
-                            final navigator = Navigator.of(context);
-                            await _saveDocument();
-                            navigator.push(
-                                MaterialPageRoute(
-                                  builder: (context) => AssessmentScreen(
-                                    module: _freshModuleData ?? widget.module,
-                                  ),
-                                ),
-                              );
-                          }
-                        },
-                        itemBuilder: (BuildContext context) => [
-                          const PopupMenuItem<String>(
-                            value: 'save',
-                            child: Row(
-                              children: [
-                                Icon(Icons.save_outlined, size: 20, color: AppColors.darkText),
-                                SizedBox(width: 12),
-                                Text('Save'),
-                              ],
-                            ),
-                          ),
-                          const PopupMenuItem<String>(
-                            value: 'save_continue',
-                            child: Row(
-                              children: [
-                                Icon(Icons.arrow_forward, size: 20, color: AppColors.primary),
-                                SizedBox(width: 12),
-                                Text('Save & Continue'),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(width: 8),
-                    ],
-                  ),
-                ),
-
-                // Navigation and performance expectation tags - Collapsible
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  curve: Curves.easeInOut,
-                  height: _isHeaderCollapsed ? 36 : null,
-                  child: SingleChildScrollView(
-                    physics: const NeverScrollableScrollPhysics(),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      onPressed: () => Navigator.of(context).pop(),
+                      tooltip: 'Back',
+                    ),
+                    const SizedBox(width: 4),
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Navigation dropdown
-                          _buildNavigationDropdown(),
-
-                          // Only show tags when not collapsed
-                          if (!_isHeaderCollapsed) ...[
-                            const SizedBox(height: 12),
-                            // Performance expectation tags
-                            if (performanceExpectations.isNotEmpty)
-                              Wrap(
-                                spacing: 8,
-                                runSpacing: 8,
-                                children: performanceExpectations.map((tag) {
-                                  return Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.tagBackground,
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: AppColors.tagBorder, width: 1),
-                                    ),
-                                    child: Text(
-                                      tag,
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(
-                                        color: AppColors.tagText,
-                                        fontSize: 10,
-                                        fontFamily: 'Inter',
-                                        fontWeight: FontWeight.w600,
-                                        letterSpacing: 0.5,
-                                      ),
-                                    ),
-                                  );
-                                }).toList(),
+                          Text(
+                            moduleName,
+                            style: const TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.darkText,
                             ),
-                          ],
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            formattedDate,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: AppColors.lightGrey,
+                            ),
+                          ),
                         ],
                       ),
                     ),
-                  ),
-                ),
-
-                const SizedBox(height: 16),
-
-                // Fleather rich text editor with loading state
-                Expanded(
-                  child: _isLoading
-                      ? const Center(child: CircularProgressIndicator())
-                      : NotificationListener<ScrollNotification>(
-                          onNotification: (ScrollNotification notification) {
-                            if (notification is ScrollUpdateNotification) {
-                              // Update scroll position for header collapse
-                              final offset = notification.metrics.pixels;
-                              final shouldCollapse = offset > 50;
-
-                              if (shouldCollapse != _isHeaderCollapsed) {
-                                setState(() {
-                                  _isHeaderCollapsed = shouldCollapse;
-                                });
-                              }
-                            }
-                            return false;
-                          },
-                          child: Container(
-                            color: AppColors.white,
-                            padding: const EdgeInsets.only(left: 16, right: 16, top: 16),
-                            child: FleatherEditor(
-                              controller: _controller!,
-                              focusNode: _focusNode,
-                              padding: const EdgeInsets.only(bottom: 120), // Extra space to scroll past toolbar
-                              autofocus: false,
-                              embedBuilder: _embedBuilder,
+                    PopupMenuButton<String>(
+                      icon: const Icon(Icons.save, color: AppColors.primary),
+                      tooltip: 'Save',
+                      offset: const Offset(0, 40),
+                      onSelected: (value) async {
+                        if (value == 'save') {
+                          await _saveDocument();
+                        } else if (value == 'save_continue') {
+                          final navigator = Navigator.of(context);
+                          await _saveDocument();
+                          navigator.push(
+                            MaterialPageRoute(
+                              builder: (context) => AssessmentScreen(
+                                module: _freshModuleData ?? widget.module,
+                              ),
                             ),
+                          );
+                        }
+                      },
+                      itemBuilder: (BuildContext context) => const [
+                        PopupMenuItem<String>(
+                          value: 'save',
+                          child: Row(
+                            children: [
+                              Icon(Icons.save_outlined,
+                                  size: 20, color: AppColors.darkText),
+                              SizedBox(width: 12),
+                              Text('Save'),
+                            ],
                           ),
                         ),
+                        PopupMenuItem<String>(
+                          value: 'save_continue',
+                          child: Row(
+                            children: [
+                              Icon(Icons.arrow_forward,
+                                  size: 20, color: AppColors.primary),
+                              SizedBox(width: 12),
+                              Text('Save & Continue'),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(width: 8),
+                  ],
                 ),
-              ],
-            ),
-          ),
+              ),
 
-          // Floating toolbar at bottom
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 12,
-            child: ConceptExplorationToolbar(
-              onFormat: _formatText,
-              onCamera: _openCamera,
-              onInsertMath: _insertMathEquation,
-              onInsertTable: _insertTable,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+              // Navigation + tags
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeInOut,
+                height: _isHeaderCollapsed ? 36 : null,
+                child: SingleChildScrollView(
+                  physics: const NeverScrollableScrollPhysics(),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildNavigationDropdown(),
 
-  Widget _buildNavigationDropdown() {
-    return Container(
-      height: 28,
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-      decoration: BoxDecoration(
-        color: Colors.green[100],
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: _currentSection,
-          icon: const Icon(
-            Icons.keyboard_arrow_down,
-            size: 16,
-            color: Colors.green,
-          ),
+                        if (!_isHeaderCollapsed) ...[
+                          const SizedBox(height: 12),
+
+                          if (performanceExpectations.isNotEmpty)
+                            Wrap(
+    spacing: 8,
+    runSpacing: 8,
+    children: performanceExpectations.map((tag) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: AppColors.primary,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          tag,
+          softWrap: true,
+          textAlign: TextAlign.left,
           style: const TextStyle(
-            color: Colors.green,
-            fontSize: 11,
+            color: AppColors.buttonText,
+            fontSize: 10,
+            fontFamily: 'Inter',
             fontWeight: FontWeight.w600,
             letterSpacing: 0.5,
           ),
-          dropdownColor: Colors.green[50],
-          items: const [
-            DropdownMenuItem(
-              value: 'TITLE',
-              child: Text(
-                'TITLE',
-                style: TextStyle(
-                  color: Colors.green,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-            DropdownMenuItem(
-              value: 'ANCHORING PHENOMENON',
-              child: Text(
-                'ANCHORING PHENOMENON',
-                style: TextStyle(
-                  color: Colors.green,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-            DropdownMenuItem(
-              value: 'OBJECTIVE',
-              child: Text(
-                'OBJECTIVE',
-                style: TextStyle(
-                  color: Colors.green,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-            DropdownMenuItem(
-              value: 'LEARNING',
-              child: Text(
-                'LEARNING',
-                style: TextStyle(
-                  color: Colors.green,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-            DropdownMenuItem(
-              value: 'CONCEPT EXPLORATION',
-              child: Text(
-                'CONCEPT EXPLORATION',
-                style: TextStyle(
-                  color: Colors.green,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-            DropdownMenuItem(
-              value: 'ACTIVITY',
-              child: Text(
-                'ACTIVITY',
-                style: TextStyle(
-                  color: Colors.green,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-          ],
-          onChanged: (value) {
-            if (value == 'TITLE') {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => CreateTemplateScreen(
-                    existingModule: widget.module,
+        ),
+      );
+    }).toList(),
+  ),
+                        ],
+                      ],
+                    ),
                   ),
                 ),
-              );
-            } else if (value == 'ANCHORING PHENOMENON') {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => AnchoringPhenomenon(
-                    existingModule: widget.module,
+              ),
+
+              const SizedBox(height: 16),
+
+              // Editor
+              Expanded(
+                child: _isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : NotificationListener<ScrollNotification>(
+                        onNotification: (ScrollNotification notification) {
+                          if (notification is ScrollUpdateNotification) {
+                            final offset = notification.metrics.pixels;
+                            final shouldCollapse = offset > 50;
+                            if (shouldCollapse != _isHeaderCollapsed) {
+                              setState(() {
+                                _isHeaderCollapsed = shouldCollapse;
+                              });
+                            }
+                          }
+                          return false;
+                        },
+                        child: Container(
+                          color: AppColors.white,
+                          padding: const EdgeInsets.only(
+                              left: 16, right: 16, top: 16),
+                          child: FleatherEditor(
+                            controller: _controller!,
+                            focusNode: _focusNode,
+                            padding:
+                                const EdgeInsets.only(bottom: 120),
+                            autofocus: false,
+                            embedBuilder: _embedBuilder,
+                          ),
+                        ),
+                      ),
+              ),
+            ],
+          ),
+        ),
+
+        // Toolbar
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 12,
+          child: ConceptExplorationToolbar(
+            onFormat: _formatText,
+            onCamera: _openCamera,
+            onInsertMath: _insertMathEquation,
+            onInsertTable: _insertTable,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+Widget _buildNavigationDropdown() {
+    return Align(
+    alignment: Alignment.centerLeft,
+    child: ConstrainedBox(
+      constraints: const BoxConstraints(
+        maxWidth: 80, // 🔧 tune this until it looks right
+      ),
+      child: Container(
+        height: 28,
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+        decoration: BoxDecoration(
+          color: AppColors.tagBackground,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: DropdownButtonHideUnderline(
+          child: DropdownButton<String>(
+            value: _currentSection,
+            isExpanded: true, // use full (capped) width of the pill
+            icon: const Icon(
+              Icons.keyboard_arrow_down,
+              size: 16,
+              color: AppColors.primary,
+            ),
+            style: const TextStyle(
+              color: AppColors.primary,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.5,
+            ),
+            dropdownColor: AppColors.tagBackground,
+            items: const [
+              DropdownMenuItem(
+                value: 'TITLE',
+                child: Text(
+                  'TITLE',
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                  style: TextStyle(
+                    color: AppColors.primary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5,
                   ),
                 ),
-              );
-            } else if (value == 'OBJECTIVE') {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => LearningObjectiveScreen(
-                    module: widget.module,
+              ),
+              DropdownMenuItem(
+                value: 'ANCHORING PHENOMENON',
+                child: Text(
+                  'ANCHORING PHENOMENON',
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                  style: TextStyle(
+                    color: AppColors.primary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5,
                   ),
                 ),
-              );
-            } else if (value == 'LEARNING') {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => ThreeDLearning(
-                    module: widget.module,
+              ),
+              DropdownMenuItem(
+                value: 'OBJECTIVE',
+                child: Text(
+                  'OBJECTIVE',
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                  style: TextStyle(
+                    color: AppColors.primary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5,
                   ),
                 ),
-              );
-            } else if (value == 'CONCEPT EXPLORATION') {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => ConceptExplorationScreen(
-                    module: widget.module,
+              ),
+              DropdownMenuItem(
+                value: 'LEARNING',
+                child: Text(
+                  'LEARNING',
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                  style: TextStyle(
+                    color: AppColors.primary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5,
                   ),
                 ),
-              );
-            }
-            // If ACTIVITY is selected, stay on current page
-          },
+              ),
+              DropdownMenuItem(
+                value: 'CONCEPT EXPLORATION',
+                child: Text(
+                  'CONCEPT EXPLORATION',
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                  style: TextStyle(
+                    color: AppColors.primary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+              DropdownMenuItem(
+                value: 'ACTIVITY',
+                child: Text(
+                  'ACTIVITY',
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                  style: TextStyle(
+                    color: AppColors.primary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+            ],
+            onChanged: (value) {
+              if (value == null) return;
+
+              if (value == 'TITLE') {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        CreateTemplateScreen(existingModule: widget.module),
+                  ),
+                );
+              } else if (value == 'ANCHORING PHENOMENON') {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        AnchoringPhenomenon(existingModule: widget.module),
+                  ),
+                );
+              } else if (value == 'OBJECTIVE') {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        LearningObjectiveScreen(module: widget.module),
+                  ),
+                );
+              } else if (value == 'LEARNING') {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        ThreeDLearning(module: widget.module),
+                  ),
+                );
+              } else if (value == 'CONCEPT EXPLORATION') {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        ConceptExplorationScreen(module: widget.module),
+                  ),
+                );
+              } else if (value == 'ACTIVITY') {
+                // stay here
+              }
+
+              setState(() {
+                _currentSection = value;
+              });
+            },
+          ),
         ),
       ),
-    );
-  }
+    ),
+  );
 }
+}
+
 
 /// Editable table widget that allows users to tap and edit cells
 class _EditableTable extends StatefulWidget {

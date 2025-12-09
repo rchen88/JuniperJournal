@@ -245,7 +245,7 @@ class _CreateTemplateScreenState extends State<CreateTemplateScreen> {
                     }
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.buttonPrimary,
+                    backgroundColor: AppColors.primary,
                     foregroundColor: AppColors.buttonText,
                     elevation: 0,
                     shape: RoundedRectangleBorder(

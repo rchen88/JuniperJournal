@@ -1,6 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:juniper_journal/src/backend/db/repositories/learning_module_repo.dart';
 import 'package:juniper_journal/src/frontend/learning_module/summary.dart';
+import 'package:juniper_journal/src/frontend/learning_module/create_lm_template.dart';
+import 'package:juniper_journal/src/frontend/learning_module/anchoring_phenomenon.dart';
+import 'package:juniper_journal/src/frontend/learning_module/learning_objective.dart';
+import 'package:juniper_journal/src/frontend/learning_module/3d_learning.dart';
+import 'package:juniper_journal/src/frontend/learning_module/concept_exploration.dart';
+import 'package:juniper_journal/src/frontend/learning_module/activity.dart';
+
+import '../../styling/app_colors.dart';
 
 
 class Assessment extends StatefulWidget {
@@ -34,6 +42,8 @@ class AssessmentScreen extends StatefulWidget {
 
 class _AssessmentScreenState extends State<AssessmentScreen> {
   final List<QuestionModel> _questions = [QuestionModel()];
+
+  String _currentSection = 'ASSESSMENT';
 
   @override
   void dispose() {
@@ -154,6 +164,10 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.white,
+            leading: IconButton(
+      icon: const Icon(Icons.arrow_back, color: AppColors.border),
+      onPressed: () => Navigator.of(context).pop(),
+    ),
         foregroundColor: Colors.black87,
         automaticallyImplyLeading: false,
         title: const Text(
@@ -194,12 +208,26 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Wrap(spacing: 8, runSpacing: 8, children: [
-            _buildTag('ASSESSMENT'),
-            _buildTag('ANALYZE: ENVIRONMENTAL SUSTAINABILITY', filled: true),
-            _circleAdd(onTap: () => _addQuestion()),
-          ]),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [_buildNavigationDropdown(), 
+          Wrap(
+  spacing: 8,
+  crossAxisAlignment: WrapCrossAlignment.center,
+  children: [
+    ConstrainedBox(
+      constraints: BoxConstraints(
+        // optional: don't let it get wider than 70% of the screen
+        maxWidth: MediaQuery.of(context).size.width * 0.7,
+      ),
+      child: IntrinsicWidth(
+        child: _buildTag(
+          'ANALYZE: ENVIRONMENTAL SUSTAINABILITY',
+          filled: true,
+        ),
+      ),
+    ),
+    _circleAdd(onTap: () => _addQuestion()),
+  ],
+),
           const SizedBox(height: 20),
           for (int i = 0; i < _questions.length; i++) ...[
             QuestionCard(
@@ -240,6 +268,126 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
           onPressed: onTap,
         ),
       );
+        Widget _buildNavigationDropdown() {
+    return Container(
+      height: 28,
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE7F0E9), // same pale green you use for tags
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: _currentSection,
+          isExpanded: false,
+          icon: const Icon(
+            Icons.keyboard_arrow_down,
+            size: 16,
+            color: AppColors.tagBackground,
+          ),
+          style: const TextStyle(
+            color: AppColors.primary,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.5,
+          ),
+          dropdownColor: AppColors.tagBackground,
+          items: const [
+            DropdownMenuItem(
+              value: 'TITLE',
+              child: Text('TITLE'),
+            ),
+            DropdownMenuItem(
+              value: 'ANCHORING PHENOMENON',
+              child: Text('ANCHORING PHENOMENON'),
+            ),
+            DropdownMenuItem(
+              value: 'OBJECTIVE',
+              child: Text('OBJECTIVE'),
+            ),
+            DropdownMenuItem(
+              value: 'LEARNING',
+              child: Text('LEARNING'),
+            ),
+            DropdownMenuItem(
+              value: 'CONCEPT EXPLORATION',
+              child: Text('CONCEPT EXPLORATION'),
+            ),
+            DropdownMenuItem(
+              value: 'ACTIVITY',
+              child: Text('ACTIVITY'),
+            ),
+            DropdownMenuItem(
+              value: 'ASSESSMENT',
+              child: Text('ASSESSMENT'),
+            ),
+            DropdownMenuItem(
+              value: 'SUMMARY',
+              child: Text('SUMMARY'),
+            ),
+          ],
+          onChanged: (value) {
+            if (value == null) return;
+
+            // navigate based on the selection
+            if (value == 'TITLE') {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) =>
+                      CreateTemplateScreen(existingModule: widget.module),
+                ),
+              );
+            } else if (value == 'ANCHORING PHENOMENON') {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) =>
+                      AnchoringPhenomenon(existingModule: widget.module),
+                ),
+              );
+            } else if (value == 'OBJECTIVE') {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) =>
+                      LearningObjectiveScreen(module: widget.module),
+                ),
+              );
+            } else if (value == 'LEARNING') {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => ThreeDLearning(module: widget.module),
+                ),
+              );
+            } else if (value == 'CONCEPT EXPLORATION') {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) =>
+                      ConceptExplorationScreen(module: widget.module),
+                ),
+              );
+            } else if (value == 'ACTIVITY') {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => ActivityScreen(module: widget.module),
+                ),
+              );
+            } else if (value == 'SUMMARY') {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => Summary(module: widget.module),
+                ),
+              );
+            }
+            // ASSESSMENT = stay here
+
+            setState(() {
+              _currentSection = value;
+            });
+          },
+        ),
+      ),
+    );
+  }
+
 }
 
 /* ===========================
