@@ -270,7 +270,7 @@ class FriendsRepo {
           .select('id, display_name, username, avatar_url')
           .inFilter('id', friendIds);
 
-      return profiles.map((r) => UserProfile.fromMap(r)).toList();
+      return List<Map<String, dynamic>>.from(profiles).map(UserProfile.fromMap).toList();
     } catch (e, st) {
       debugPrint('getFriends error: $e\n$st');
       return null;

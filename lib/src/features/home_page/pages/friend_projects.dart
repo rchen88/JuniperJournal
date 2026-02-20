@@ -152,6 +152,7 @@ class _FriendProjectsPageState extends State<FriendProjectsPage> {
                             projectId: projectId,
                             projectName: projectName,
                             tags: tags,
+                            isOwner: false,
                           ),
                         ),
                       );

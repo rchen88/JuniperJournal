@@ -19,7 +19,7 @@ class ProjectsRepo {
           .eq('user_id', user.id)
           .order('created_at', ascending: false);
 
-      return rows.map((r) => Project.fromMap(r)).toList();
+      return List<Map<String, dynamic>>.from(rows).map(Project.fromMap).toList();
     } catch (e, st) {
       debugPrint('getCurrentUserProjects error: $e\n$st');
       return null;
@@ -36,7 +36,7 @@ class ProjectsRepo {
           .eq('user_id', userId)
           .order('created_at', ascending: false);
 
-      return rows.map((r) => Project.fromMap(r)).toList();
+      return List<Map<String, dynamic>>.from(rows).map(Project.fromMap).toList();
     } catch (e, st) {
       debugPrint('getProjectsByUserId error: $e\n$st');
       return null;
@@ -57,7 +57,7 @@ class ProjectsRepo {
           .inFilter('user_id', ownerIds)
           .order('created_at', ascending: false);
 
-      return rows.map((r) => Project.fromMap(r)).toList();
+      return List<Map<String, dynamic>>.from(rows).map(Project.fromMap).toList();
     } catch (e, st) {
       debugPrint('getProjectsForFeed error: $e\n$st');
       return null;
@@ -244,7 +244,7 @@ class ProjectsRepo {
           .eq('user_id', user.id)
           .order('created_at', ascending: false);
 
-      return result.map((r) => JournalEntry.fromMap(r)).toList();
+      return List<Map<String, dynamic>>.from(result).map(JournalEntry.fromMap).toList();
     } catch (e, st) {
       debugPrint('getJournalEntries error: $e\n$st');
       return null;

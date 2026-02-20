@@ -29,7 +29,7 @@ class UsersRepo {
       }
 
       final rows = await request.limit(30);
-      return rows.map((r) => UserProfile.fromMap(r)).toList();
+      return List<Map<String, dynamic>>.from(rows).map(UserProfile.fromMap).toList();
     } catch (e, st) {
       debugPrint('searchPublicUsers error: $e\n$st');
       return null;

@@ -324,6 +324,8 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
               final tags = project.tags;
               final imageUrl = project.imageUrl;
               final ownerId = project.userId;
+              final currentUserId = AuthService.instance.currentUser?.id;
+              final isOwner = ownerId != null && ownerId == currentUserId;
               final ownerLabel = ownerId == null
                   ? null
                   : _ownerLabelByUserId[ownerId];
@@ -345,6 +347,7 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
                         projectId: projectId,
                         projectName: projectName,
                         tags: tags,
+                        isOwner: isOwner,
                       ),
                     ),
                   );
