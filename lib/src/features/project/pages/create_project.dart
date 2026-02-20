@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:juniper_journal/src/features/project/project.dart';
 import 'package:juniper_journal/src/shared/styling/theme.dart';
 import 'package:juniper_journal/src/shared/widgets/widgets.dart';
-import '../../../backend/db/repositories/projects_repo.dart';
+import 'package:juniper_journal/src/backend/db/repositories/projects_repo.dart';
 
 class CreateProjectScreen extends StatefulWidget {
   const CreateProjectScreen({super.key});
@@ -155,7 +155,7 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
       Navigator.of(context).push(
         MaterialPageRoute(
           builder: (context) => DefineProblemStatementScreen(
-            projectId: result['id'].toString(),
+            projectId: result.id,
             projectName: _projectNameController.text,
             tags: _selectedTags,
           ),

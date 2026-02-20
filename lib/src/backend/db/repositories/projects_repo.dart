@@ -1,11 +1,70 @@
 import 'package:flutter/foundation.dart';
+import 'package:juniper_journal/src/backend/db/models/journal_entry.dart';
+import 'package:juniper_journal/src/backend/db/models/project.dart';
 import 'package:juniper_journal/src/backend/db/supabase_database.dart';
 
 class ProjectsRepo {
   static const table = 'projects';
-  final _client = SupabaseDatabase.instance.client;
+  static const journalEntriesTable = 'journal_entries';
+  get _client => SupabaseDatabase.instance.client;
 
-  Future<Map<String, dynamic>?> createProject({
+  Future<List<Project>?> getCurrentUserProjects() async {
+    final user = _client.auth.currentUser;
+    if (user == null) return [];
+
+    try {
+      final rows = await _client
+          .from(table)
+          .select('id, project_name, tags, project_image_url, created_at')
+          .eq('user_id', user.id)
+          .order('created_at', ascending: false);
+
+      return rows.map((r) => Project.fromMap(r)).toList();
+    } catch (e, st) {
+      debugPrint('getCurrentUserProjects error: $e\n$st');
+      return null;
+    }
+  }
+
+  Future<List<Project>?> getProjectsByUserId({
+    required String userId,
+  }) async {
+    try {
+      final rows = await _client
+          .from(table)
+          .select('id, project_name, tags, project_image_url, created_at')
+          .eq('user_id', userId)
+          .order('created_at', ascending: false);
+
+      return rows.map((r) => Project.fromMap(r)).toList();
+    } catch (e, st) {
+      debugPrint('getProjectsByUserId error: $e\n$st');
+      return null;
+    }
+  }
+
+  Future<List<Project>?> getProjectsForFeed({
+    required List<String> ownerIds,
+  }) async {
+    if (ownerIds.isEmpty) return [];
+
+    try {
+      final rows = await _client
+          .from(table)
+          .select(
+            'id, user_id, project_name, tags, project_image_url, created_at',
+          )
+          .inFilter('user_id', ownerIds)
+          .order('created_at', ascending: false);
+
+      return rows.map((r) => Project.fromMap(r)).toList();
+    } catch (e, st) {
+      debugPrint('getProjectsForFeed error: $e\n$st');
+      return null;
+    }
+  }
+
+  Future<Project?> createProject({
     required String projectName,
     required String problemStatement,
     required List<String> tags,
@@ -21,11 +80,11 @@ class ProjectsRepo {
             'project_name': projectName,
             'problem_statement': problemStatement,
             'tags': tags.isEmpty ? null : tags, // avoid [] issues
-            'user_id': user.id
+            'user_id': user.id,
           })
           .select()
           .single();
-      return row;
+      return Project.fromMap(row);
     } catch (e, st) {
       debugPrint('createProject error: $e\n$st');
       return null;
@@ -48,12 +107,79 @@ class ProjectsRepo {
     }
   }
 
-  Future<Map<String, dynamic>?> getProject(int id) async {
+  Future<Project?> getProject(int id) async {
     try {
-      return await _client.from(table).select().eq('id', id).single();
+      final row = await _client.from(table).select().eq('id', id).single();
+      return Project.fromMap(row);
     } catch (e, st) {
       debugPrint('getProject error: $e\n$st');
       return null;
+    }
+  }
+
+  Future<Project?> getProjectById(String id) async {
+    try {
+      final row = await _client
+          .from(table)
+          .select(
+            'id, project_name, problem_statement, tags, project_image_url, created_at',
+          )
+          .eq('id', id)
+          .single();
+      return Project.fromMap(row);
+    } catch (e, st) {
+      debugPrint('getProjectById error: $e\n$st');
+      return null;
+    }
+  }
+
+  Future<bool> updateProjectMetadata({
+    required String id,
+    required String projectName,
+    required String problemStatement,
+    required List<String> tags,
+    String? projectImageUrl,
+  }) async {
+    try {
+      await _client
+          .from(table)
+          .update({
+            'project_name': projectName,
+            'problem_statement': problemStatement,
+            'tags': tags,
+            'project_image_url': projectImageUrl,
+          })
+          .eq('id', id);
+      return true;
+    } catch (e, st) {
+      debugPrint('updateProjectMetadata error: $e\n$st');
+      return false;
+    }
+  }
+
+  Future<bool> deleteProject({required String id}) async {
+    final user = _client.auth.currentUser;
+    if (user == null) return false;
+
+    try {
+      // Clean dependent rows with user scoping for RLS-safe deletes.
+      await _client
+          .from(journalEntriesTable)
+          .delete()
+          .eq('project_id', id)
+          .eq('user_id', user.id);
+
+      final deletedRows = await _client
+          .from(table)
+          .delete()
+          .eq('id', id)
+          .eq('user_id', user.id)
+          .select('id');
+
+      return deletedRows.isNotEmpty;
+    } catch (e, st) {
+      debugPrint('deleteProject error: $e\n$st');
+      return false;
     }
   }
 
@@ -62,10 +188,7 @@ class ProjectsRepo {
     required List<Map<String, String>> timeline,
   }) async {
     try {
-      await _client
-          .from(table)
-          .update({'timeline': timeline})
-          .eq('id', id);
+      await _client.from(table).update({'timeline': timeline}).eq('id', id);
       return true;
     } catch (e, st) {
       debugPrint('updateTimeline error: $e\n$st');
@@ -107,6 +230,97 @@ class ProjectsRepo {
     }
   }
 
+  Future<List<JournalEntry>?> getJournalEntries({
+    required String projectId,
+  }) async {
+    final user = _client.auth.currentUser;
+    if (user == null) return [];
+
+    try {
+      final result = await _client
+          .from(journalEntriesTable)
+          .select('id, title, content, created_at, updated_at, project_id')
+          .eq('project_id', projectId)
+          .eq('user_id', user.id)
+          .order('created_at', ascending: false);
+
+      return result.map((r) => JournalEntry.fromMap(r)).toList();
+    } catch (e, st) {
+      debugPrint('getJournalEntries error: $e\n$st');
+      return null;
+    }
+  }
+
+  Future<JournalEntry?> createJournalEntry({
+    required String projectId,
+    required String title,
+    required List<dynamic> content,
+  }) async {
+    final user = _client.auth.currentUser;
+    if (user == null) throw Exception('Not signed in');
+
+    try {
+      final row = await _client
+          .from(journalEntriesTable)
+          .insert({
+            'project_id': projectId,
+            'user_id': user.id,
+            'title': title,
+            'content': content,
+          })
+          .select('id, title, content, created_at, updated_at, project_id')
+          .single();
+
+      return JournalEntry.fromMap(row);
+    } catch (e, st) {
+      debugPrint('createJournalEntry error: $e\n$st');
+      return null;
+    }
+  }
+
+  Future<bool> updateJournalEntry({
+    required String entryId,
+    String? title,
+    List<dynamic>? content,
+  }) async {
+    final user = _client.auth.currentUser;
+    if (user == null) return false;
+
+    final updates = <String, dynamic>{};
+    if (title != null) updates['title'] = title;
+    if (content != null) updates['content'] = content;
+    if (updates.isEmpty) return true;
+
+    try {
+      await _client
+          .from(journalEntriesTable)
+          .update(updates)
+          .eq('id', entryId)
+          .eq('user_id', user.id);
+      return true;
+    } catch (e, st) {
+      debugPrint('updateJournalEntry error: $e\n$st');
+      return false;
+    }
+  }
+
+  Future<bool> deleteJournalEntry({required String entryId}) async {
+    final user = _client.auth.currentUser;
+    if (user == null) return false;
+
+    try {
+      await _client
+          .from(journalEntriesTable)
+          .delete()
+          .eq('id', entryId)
+          .eq('user_id', user.id);
+      return true;
+    } catch (e, st) {
+      debugPrint('deleteJournalEntry error: $e\n$st');
+      return false;
+    }
+  }
+
   Future<String?> getJournalLog(String id) async {
     try {
       final result = await _client
@@ -126,10 +340,7 @@ class ProjectsRepo {
     required String solutionJson,
   }) async {
     try {
-      await _client
-          .from(table)
-          .update({'solution': solutionJson})
-          .eq('id', id);
+      await _client.from(table).update({'solution': solutionJson}).eq('id', id);
       return true;
     } catch (e, st) {
       debugPrint('updateSolution error: $e\n$st');
