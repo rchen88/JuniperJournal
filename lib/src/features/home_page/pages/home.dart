@@ -4,6 +4,8 @@ import 'package:juniper_journal/src/backend/db/models/project.dart';
 import 'package:juniper_journal/src/shared/styling/app_colors.dart';
 import 'package:juniper_journal/src/backend/db/repositories/friends_repo.dart';
 import 'package:juniper_journal/src/backend/db/repositories/projects_repo.dart';
+import 'package:juniper_journal/src/backend/db/repositories/chat_repo.dart';
+import 'package:juniper_journal/src/features/chat/chat.dart';
 import 'package:juniper_journal/src/features/learning_module/learning_module.dart';
 import 'package:juniper_journal/src/features/project/project.dart';
 import 'package:juniper_journal/src/features/home_page/home_page.dart';
@@ -19,14 +21,27 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
   int _selectedIndex = 0;
   final ProjectsRepo _projectsRepo = ProjectsRepo();
   final FriendsRepo _friendsRepo = FriendsRepo();
+  final ChatRepo _chatRepo = ChatRepo();
+  int _unreadCount = 0;
   final Map<String, String> _ownerLabelByUserId = {};
   final Map<String, String?> _ownerAvatarByUserId = {};
+  final Set<String> _likedProjectIds = {};
   Future<List<Project>?>? _projectsFuture;
 
   @override
   void initState() {
     super.initState();
     _projectsFuture = _loadFeedProjects();
+    _loadUnreadCount();
+  }
+
+  Future<void> _loadUnreadCount() async {
+    final conversations = await _chatRepo.getConversations();
+    if (!mounted) return;
+    setState(() {
+      _unreadCount =
+          conversations?.fold(0, (sum, c) => (sum ?? 0) + c.unreadCount) ?? 0;
+    });
   }
 
   Future<void> _refreshProjects() async {
@@ -70,7 +85,16 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
           (avatarUrl != null && avatarUrl.isNotEmpty) ? avatarUrl : null;
     }
 
-    return _projectsRepo.getProjectsForFeed(ownerIds: ownerIds.toList());
+    final projects = await _projectsRepo.getProjectsForFeed(ownerIds: ownerIds.toList());
+    if (projects != null && projects.isNotEmpty) {
+      final liked = await _projectsRepo.getLikedProjectIds(
+        projectIds: projects.map((p) => p.id).toList(),
+      );
+      _likedProjectIds
+        ..clear()
+        ..addAll(liked);
+    }
+    return projects;
   }
 
   String _tabTitle() {
@@ -247,8 +271,24 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
                   ),
                   IconButton(
                     padding: EdgeInsets.zero,
-                    onPressed: () {},
-                    icon: const Icon(Icons.chat_bubble_outline, size: 26),
+                    onPressed: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ChatsListScreen(),
+                        ),
+                      );
+                      if (!mounted) return;
+                      _loadUnreadCount();
+                    },
+                    icon: Badge(
+                      isLabelVisible: _unreadCount > 0,
+                      label: Text(
+                        _unreadCount > 99 ? '99+' : '$_unreadCount',
+                        style: const TextStyle(fontSize: 10),
+                      ),
+                      child: const Icon(Icons.chat_bubble_outline, size: 26),
+                    ),
                   ),
                 ],
               ),
@@ -334,11 +374,15 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
                   : _ownerAvatarByUserId[ownerId];
 
               return _ProjectCard(
+                projectId: projectId,
                 name: projectName,
                 ownerLabel: ownerLabel,
                 ownerAvatarUrl: ownerAvatarUrl,
                 tags: tags,
                 imageUrl: imageUrl,
+                description: project.problemStatement,
+                initialLikes: project.likes,
+                initialHasLiked: _likedProjectIds.contains(projectId),
                 onTap: () async {
                   await Navigator.push(
                     context,
@@ -456,27 +500,78 @@ class _CreateOption extends StatelessWidget {
   }
 }
 
-class _ProjectCard extends StatelessWidget {
+class _ProjectCard extends StatefulWidget {
+  final String projectId;
   final String name;
   final String? ownerLabel;
   final String? ownerAvatarUrl;
   final List<String> tags;
   final String? imageUrl;
+  final String? description;
+  final int initialLikes;
+  final bool initialHasLiked;
   final VoidCallback onTap;
 
   const _ProjectCard({
+    required this.projectId,
     required this.name,
     required this.ownerLabel,
     required this.ownerAvatarUrl,
     required this.tags,
     required this.imageUrl,
     required this.onTap,
+    this.description,
+    this.initialLikes = 0,
+    this.initialHasLiked = false,
   });
+
+  @override
+  State<_ProjectCard> createState() => _ProjectCardState();
+}
+
+class _ProjectCardState extends State<_ProjectCard> {
+  final ProjectsRepo _projectsRepo = ProjectsRepo();
+  late int _likes;
+  bool _hasLiked = false;
+  bool _isLiking = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _likes = widget.initialLikes;
+    _hasLiked = widget.initialHasLiked;
+  }
+
+  Future<void> _handleLike() async {
+    if (_isLiking) return;
+    _isLiking = true;
+
+    final prevLikes = _likes;
+    final prevHasLiked = _hasLiked;
+
+    setState(() {
+      _hasLiked = !_hasLiked;
+      _likes = _hasLiked ? prevLikes + 1 : prevLikes - 1;
+    });
+
+    final ok = _hasLiked
+        ? await _projectsRepo.likeProject(id: widget.projectId)
+        : await _projectsRepo.unlikeProject(id: widget.projectId);
+
+    if (!ok && mounted) {
+      setState(() {
+        _hasLiked = prevHasLiked;
+        _likes = prevLikes;
+      });
+    }
+
+    _isLiking = false;
+  }
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: onTap,
+      onTap: widget.onTap,
       borderRadius: BorderRadius.circular(14),
       child: Container(
         padding: const EdgeInsets.all(16),
@@ -499,45 +594,40 @@ class _ProjectCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(10),
               child: AspectRatio(
                 aspectRatio: 16 / 9,
-                child: (imageUrl != null && imageUrl!.trim().isNotEmpty)
+                child: (widget.imageUrl != null && widget.imageUrl!.trim().isNotEmpty)
                     ? Image.network(
-                        imageUrl!,
+                        widget.imageUrl!,
                         fit: BoxFit.cover,
                         errorBuilder: (_, __, ___) => _buildDefaultBanner(),
                       )
                     : _buildDefaultBanner(),
               ),
             ),
-            const SizedBox(height: 12),
-            Text(
-              name,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-            ),
-            if (ownerLabel != null && ownerLabel!.trim().isNotEmpty) ...[
-              const SizedBox(height: 4),
-              Row(
-                children: [
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                if (widget.ownerLabel != null && widget.ownerLabel!.trim().isNotEmpty) ...[
                   CircleAvatar(
-                    radius: 10,
+                    radius: 12,
                     backgroundColor: const Color(0xFFE6E8EC),
                     backgroundImage:
-                        (ownerAvatarUrl != null &&
-                            ownerAvatarUrl!.trim().isNotEmpty)
-                        ? NetworkImage(ownerAvatarUrl!)
+                        (widget.ownerAvatarUrl != null &&
+                            widget.ownerAvatarUrl!.trim().isNotEmpty)
+                        ? NetworkImage(widget.ownerAvatarUrl!)
                         : null,
                     child:
-                        (ownerAvatarUrl == null ||
-                            ownerAvatarUrl!.trim().isEmpty)
+                        (widget.ownerAvatarUrl == null ||
+                            widget.ownerAvatarUrl!.trim().isEmpty)
                         ? const Icon(
                             Icons.person,
-                            size: 12,
+                            size: 14,
                             color: Color(0xFF4A4A4A),
                           )
                         : null,
                   ),
                   const SizedBox(width: 6),
                   Text(
-                    ownerLabel == 'You' ? 'by You' : 'by $ownerLabel',
+                    widget.ownerLabel == 'You' ? 'by You' : 'by ${widget.ownerLabel}',
                     style: const TextStyle(
                       color: Color(0xFF1F2328),
                       fontSize: 14,
@@ -545,10 +635,59 @@ class _ProjectCard extends StatelessWidget {
                     ),
                   ),
                 ],
+                const Spacer(),
+                GestureDetector(
+                  onTap: _handleLike,
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.local_florist,
+                        size: 22,
+                        color: _hasLiked ? const Color(0xFF2A7A38) : Colors.grey.shade400,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        '$_likes',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: _hasLiked ? const Color(0xFF2A7A38) : Colors.grey.shade400,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 14),
+                GestureDetector(
+                  onTap: () {},
+                  child: Icon(
+                    Icons.chat_bubble_outline,
+                    size: 22,
+                    color: Colors.grey.shade500,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              widget.name,
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+            ),
+            if (widget.description != null && widget.description!.trim().isNotEmpty) ...[
+              const SizedBox(height: 2),
+              Text(
+                widget.description!.trim(),
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: Colors.black54,
+                  height: 1.4,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
             const SizedBox(height: 10),
-            if (tags.isEmpty)
+            if (widget.tags.isEmpty)
               const Text(
                 'No tags',
                 style: TextStyle(color: Colors.black54, fontSize: 12),
@@ -557,7 +696,7 @@ class _ProjectCard extends StatelessWidget {
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
-                children: tags
+                children: widget.tags
                     .map(
                       (tag) => Container(
                         padding: const EdgeInsets.symmetric(
