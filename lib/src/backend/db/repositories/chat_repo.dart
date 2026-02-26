@@ -2,9 +2,10 @@ import 'package:flutter/foundation.dart';
 import 'package:juniper_journal/src/backend/db/models/conversation_preview.dart';
 import 'package:juniper_journal/src/backend/db/models/message.dart';
 import 'package:juniper_journal/src/backend/db/supabase_database.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ChatRepo {
-  get _client => SupabaseDatabase.instance.client;
+  SupabaseClient get _client => SupabaseDatabase.instance.client;
 
   Future<List<ConversationPreview>?> getConversations() async {
     try {

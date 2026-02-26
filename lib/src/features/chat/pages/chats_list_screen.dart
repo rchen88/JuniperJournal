@@ -5,6 +5,7 @@ import 'package:juniper_journal/src/backend/db/repositories/chat_repo.dart';
 import 'package:juniper_journal/src/backend/db/repositories/friends_repo.dart';
 import 'package:juniper_journal/src/features/chat/pages/chat_screen.dart';
 import 'package:juniper_journal/src/shared/styling/app_colors.dart';
+import 'package:juniper_journal/src/shared/widgets/user_avatar.dart';
 
 class ChatsListScreen extends StatefulWidget {
   const ChatsListScreen({super.key});
@@ -53,10 +54,9 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
   List<ConversationPreview> _applySearch(List<ConversationPreview> list) {
     final query = _searchController.text.trim().toLowerCase();
     if (query.isEmpty) return list;
-    return list.where((c) {
-      final name = (c.otherDisplayName ?? c.otherUsername ?? '').toLowerCase();
-      return name.contains(query);
-    }).toList();
+    return list
+        .where((c) => c.resolvedDisplayName.toLowerCase().contains(query))
+        .toList();
   }
 
   Future<void> _openNewChat() async {
@@ -64,7 +64,9 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
     if (!mounted) return;
     if (friends == null || friends.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No friends yet. Add friends to start a chat.')),
+        const SnackBar(
+          content: Text('No friends yet. Add friends to start a chat.'),
+        ),
       );
       return;
     }
@@ -80,25 +82,45 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
     final conversationId = await _chatRepo.getOrCreateDm(picked.id);
     if (!mounted || conversationId == null) return;
 
-    final displayName =
-        picked.displayName?.trim().isNotEmpty == true
-            ? picked.displayName!
-            : (picked.username?.trim().isNotEmpty == true
-                ? '@${picked.username}'
-                : 'User');
-
     await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => ChatScreen(
           conversationId: conversationId,
-          otherUserName: displayName,
+          otherUserName: picked.resolvedDisplayName,
           otherAvatarUrl: picked.avatarUrl,
         ),
       ),
     );
     if (!mounted) return;
     _loadConversations();
+  }
+
+  Future<bool> _confirmAndDelete(String conversationId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Conversation'),
+        content: const Text(
+          'This will hide the conversation for you. The other person will still be able to see it.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text(
+              'Delete',
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return false;
+    return _chatRepo.deleteConversation(conversationId);
   }
 
   @override
@@ -144,114 +166,102 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
               ),
             ),
           ),
-          Expanded(
-            child: _loading
-                ? const Center(child: CircularProgressIndicator())
-                : _filtered.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.chat_bubble_outline,
-                              size: 48,
-                              color: Colors.grey.shade300,
-                            ),
-                            const SizedBox(height: 12),
-                            Text(
-                              _conversations.isEmpty
-                                  ? 'No conversations yet'
-                                  : 'No results',
-                              style: const TextStyle(
-                                fontSize: 16,
-                                color: Colors.black54,
-                              ),
-                            ),
-                            if (_conversations.isEmpty) ...[
-                              const SizedBox(height: 6),
-                              Text(
-                                'Tap + to start a chat',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: Colors.grey.shade400,
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      )
-                    : RefreshIndicator(
-                        onRefresh: _loadConversations,
-                        child: ListView.builder(
-                          itemCount: _filtered.length,
-                          itemBuilder: (_, index) {
-                            final c = _filtered[index];
-                            final name =
-                                c.otherDisplayName?.trim().isNotEmpty == true
-                                    ? c.otherDisplayName!
-                                    : (c.otherUsername?.trim().isNotEmpty == true
-                                          ? '@${c.otherUsername}'
-                                          : 'User');
-                            return Dismissible(
-                              key: Key(c.conversationId),
-                              direction: DismissDirection.endToStart,
-                              background: Container(
-                                color: Colors.red,
-                                alignment: Alignment.centerRight,
-                                padding: const EdgeInsets.only(right: 24),
-                                child: const Icon(
-                                  Icons.delete_outline,
-                                  color: Colors.white,
-                                  size: 26,
-                                ),
-                              ),
-                              confirmDismiss: (_) =>
-                                  _chatRepo.deleteConversation(c.conversationId),
-                              onDismissed: (_) {
-                                final id = c.conversationId;
-                                setState(() {
-                                  _conversations.removeWhere(
-                                    (x) => x.conversationId == id,
-                                  );
-                                  _filtered.removeWhere(
-                                    (x) => x.conversationId == id,
-                                  );
-                                });
-                              },
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  _ConversationTile(
-                                    conversation: c,
-                                    onTap: () async {
-                                      await Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (_) => ChatScreen(
-                                            conversationId: c.conversationId,
-                                            otherUserName: name,
-                                            otherAvatarUrl: c.otherAvatarUrl,
-                                          ),
-                                        ),
-                                      );
-                                      if (!mounted) return;
-                                      _loadConversations();
-                                    },
-                                  ),
-                                  if (index < _filtered.length - 1)
-                                    const Divider(
-                                      height: 1,
-                                      indent: 76,
-                                      endIndent: 16,
-                                    ),
-                                ],
-                              ),
-                            );
-                          },
+          Expanded(child: _buildBody()),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBody() {
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_filtered.isEmpty) return _buildEmptyState();
+    return _buildConversationList();
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.chat_bubble_outline,
+            size: 48,
+            color: Colors.grey.shade300,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            _conversations.isEmpty ? 'No conversations yet' : 'No results',
+            style: const TextStyle(fontSize: 16, color: Colors.black54),
+          ),
+          if (_conversations.isEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Tap + to start a chat',
+              style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildConversationList() {
+    return RefreshIndicator(
+      onRefresh: _loadConversations,
+      child: ListView.builder(
+        itemCount: _filtered.length,
+        itemBuilder: (_, index) {
+          final c = _filtered[index];
+          return Dismissible(
+            key: Key(c.conversationId),
+            direction: DismissDirection.endToStart,
+            background: Container(
+              color: Colors.red,
+              alignment: Alignment.centerRight,
+              padding: const EdgeInsets.only(right: 24),
+              child: const Icon(
+                Icons.delete_outline,
+                color: Colors.white,
+                size: 26,
+              ),
+            ),
+            confirmDismiss: (_) => _confirmAndDelete(c.conversationId),
+            onDismissed: (_) {
+              setState(() {
+                _conversations.removeWhere(
+                  (x) => x.conversationId == c.conversationId,
+                );
+                _filtered.removeWhere(
+                  (x) => x.conversationId == c.conversationId,
+                );
+              });
+            },
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _ConversationTile(
+                  conversation: c,
+                  onTap: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => ChatScreen(
+                          conversationId: c.conversationId,
+                          otherUserName: c.resolvedDisplayName,
+                          otherAvatarUrl: c.otherAvatarUrl,
                         ),
                       ),
-          ),
-        ],
+                    );
+                    if (!mounted) return;
+                    _loadConversations();
+                  },
+                ),
+                if (index < _filtered.length - 1)
+                  const Divider(height: 1, indent: 76, endIndent: 16),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -266,11 +276,6 @@ class _ConversationTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final c = conversation;
-    final name = c.otherDisplayName?.trim().isNotEmpty == true
-        ? c.otherDisplayName!
-        : (c.otherUsername?.trim().isNotEmpty == true
-              ? '@${c.otherUsername}'
-              : 'User');
     final hasUnread = c.unreadCount > 0;
 
     return InkWell(
@@ -279,24 +284,14 @@ class _ConversationTile extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
           children: [
-            CircleAvatar(
-              radius: 26,
-              backgroundColor: const Color(0xFFE6E8EC),
-              backgroundImage:
-                  (c.otherAvatarUrl != null && c.otherAvatarUrl!.isNotEmpty)
-                      ? NetworkImage(c.otherAvatarUrl!)
-                      : null,
-              child: (c.otherAvatarUrl == null || c.otherAvatarUrl!.isEmpty)
-                  ? const Icon(Icons.person, size: 26, color: Color(0xFF4A4A4A))
-                  : null,
-            ),
+            UserAvatar(avatarUrl: c.otherAvatarUrl, radius: 26),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    name,
+                    c.resolvedDisplayName,
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight:
@@ -324,7 +319,10 @@ class _ConversationTile extends StatelessWidget {
             if (hasUnread) ...[
               const SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 7,
+                  vertical: 3,
+                ),
                 decoration: const BoxDecoration(
                   color: AppColors.submitButton,
                   shape: BoxShape.circle,
@@ -373,30 +371,10 @@ class _FriendPickerSheet extends StatelessWidget {
             itemCount: friends.length,
             itemBuilder: (_, index) {
               final friend = friends[index];
-              final name =
-                  friend.displayName?.trim().isNotEmpty == true
-                      ? friend.displayName!
-                      : (friend.username?.trim().isNotEmpty == true
-                          ? '@${friend.username}'
-                          : 'User');
               return ListTile(
-                leading: CircleAvatar(
-                  radius: 22,
-                  backgroundColor: const Color(0xFFE6E8EC),
-                  backgroundImage: (friend.avatarUrl != null &&
-                          friend.avatarUrl!.isNotEmpty)
-                      ? NetworkImage(friend.avatarUrl!)
-                      : null,
-                  child: (friend.avatarUrl == null || friend.avatarUrl!.isEmpty)
-                      ? const Icon(
-                          Icons.person,
-                          size: 22,
-                          color: Color(0xFF4A4A4A),
-                        )
-                      : null,
-                ),
+                leading: UserAvatar(avatarUrl: friend.avatarUrl, radius: 22),
                 title: Text(
-                  name,
+                  friend.resolvedDisplayName,
                   style: const TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,

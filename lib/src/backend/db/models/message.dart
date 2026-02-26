@@ -20,9 +20,7 @@ class Message {
     conversationId: map['conversation_id']?.toString() ?? '',
     senderId: map['sender_id']?.toString() ?? '',
     content: map['content']?.toString() ?? '',
-    createdAt: map['created_at'] != null
-        ? DateTime.parse(map['created_at'].toString())
-        : DateTime.now(),
+    createdAt: DateTime.parse(map['created_at'].toString()),
     readAt: map['read_at'] != null
         ? DateTime.parse(map['read_at'].toString())
         : null,

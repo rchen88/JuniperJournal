@@ -21,6 +21,16 @@ class ConversationPreview {
     this.myDeletedAt,
   });
 
+  String get resolvedDisplayName {
+    if (otherDisplayName != null && otherDisplayName!.trim().isNotEmpty) {
+      return otherDisplayName!.trim();
+    }
+    if (otherUsername != null && otherUsername!.trim().isNotEmpty) {
+      return '@${otherUsername!.trim()}';
+    }
+    return 'User';
+  }
+
   factory ConversationPreview.fromMap(Map<String, dynamic> map) =>
       ConversationPreview(
         conversationId: map['conversation_id']?.toString() ?? '',
