@@ -71,7 +71,13 @@ class _SignupScreenState extends State<SignupScreen> {
       return;
     }
 
-    // 3️⃣ Email confirmation required
+    // 3️⃣ Duplicate email — Supabase silently accepts it but returns empty identities
+    if (result.user?.identities?.isEmpty == true) {
+      _showError('Signup failed. Please try again.');
+      return;
+    }
+
+    // 4️⃣ Email confirmation required
     Navigator.push(
       context,
       MaterialPageRoute(
