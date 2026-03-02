@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../backend/auth/auth_service.dart';
+import 'package:juniper_journal/src/backend/auth/auth_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:juniper_journal/src/backend/db/repositories/users_repo.dart';
 import 'package:juniper_journal/src/shared/widgets/widgets.dart';
@@ -31,6 +31,8 @@ class _LoginScreenState extends State<LoginScreen> {
   void dispose() {
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
+    _usernameFocus.dispose();
+    _passwordFocus.dispose();
     super.dispose();
   }
 
@@ -72,24 +74,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  /// Handles Google OAuth login
-  Future<void> _handleGoogleLogin() async {
-    setState(() => _isLoading = true);
-
-    try {
-      await _authService.signInWithGoogle();
-      // Note: OAuth will redirect to browser, user will return to app after auth
-    } catch (e) {
-      if (mounted) {
-        _showError(_getErrorMessage(e.toString()));
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
-  }
-
   /// Shows error message as SnackBar
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -110,22 +94,8 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  /// Converts error messages to user-friendly text
-  String _getErrorMessage(String error) {
-    if (error.contains('Invalid login credentials')) {
-      return 'Invalid email or password';
-    } else if (error.contains('Email not confirmed')) {
-      return 'Please confirm your email address';
-    } else if (error.contains('network')) {
-      return 'Network error. Please check your connection';
-    }
-    return 'Login failed. Please try again';
-  }
-
   @override
   Widget build(BuildContext context) {
-    const green = Color(0xFF6BB578); 
-
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -216,22 +186,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     }
                   },
                 ),
-                const SizedBox(height: 12),
-
-                // Forgot password
-                TextButton(
-                  onPressed: () {
-                    // TODO: navigate to forgot password flow
-                  },
-                  child: const Text(
-                    'Forgot Password?',
-                    style: TextStyle(
-                      color: green,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 24),
 
                 // Login button
                 SubmitButton(
@@ -254,7 +209,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: const Text(
                         'Sign up',
                         style: TextStyle(
-                          color: green,
+                          color: AppColors.submitButton,
                           fontWeight: FontWeight.w600,
                         ),
                       ),

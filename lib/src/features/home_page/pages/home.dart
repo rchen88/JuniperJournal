@@ -63,7 +63,7 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
     if (!mounted) return;
     setState(() {
       _unreadCount =
-          conversations?.fold(0, (sum, c) => (sum ?? 0) + c.unreadCount) ?? 0;
+          conversations?.fold<int>(0, (sum, c) => sum + c.unreadCount) ?? 0;
     });
   }
 
@@ -410,18 +410,8 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
                 index: _selectedIndex,
                 children: [
                   _buildProjectsSection(),
-                  const Center(
-                    child: Text(
-                      'Coming soon',
-                      style: TextStyle(color: Colors.black54, fontSize: 16),
-                    ),
-                  ),
-                  const Center(
-                    child: Text(
-                      'Coming soon',
-                      style: TextStyle(color: Colors.black54, fontSize: 16),
-                    ),
-                  ),
+                  const _ComingSoonPlaceholder(),
+                  const _ComingSoonPlaceholder(),
                   UserProfilePage(key: _profileKey),
                 ],
               ),
@@ -460,6 +450,7 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
           );
         }
 
+        final currentUserId = AuthService.instance.currentUser?.id;
         return RefreshIndicator(
           onRefresh: _refreshProjects,
           child: ListView.separated(
@@ -475,7 +466,6 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
               final tags = project.tags;
               final imageUrl = project.imageUrl;
               final ownerId = project.userId;
-              final currentUserId = AuthService.instance.currentUser?.id;
               final isOwner = ownerId != null && ownerId == currentUserId;
               final ownerLabel = ownerId == null
                   ? null
@@ -517,6 +507,20 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
     );
   }
 
+}
+
+class _ComingSoonPlaceholder extends StatelessWidget {
+  const _ComingSoonPlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: Text(
+        'Coming soon',
+        style: TextStyle(color: Colors.black54, fontSize: 16),
+      ),
+    );
+  }
 }
 
 // Simple widget for bottom icons
@@ -669,14 +673,14 @@ class _ProjectCardState extends State<_ProjectCard> {
         ? await _projectsRepo.likeProject(id: widget.projectId)
         : await _projectsRepo.unlikeProject(id: widget.projectId);
 
-    if (!ok && mounted) {
-      setState(() {
+    if (!mounted) return;
+    setState(() {
+      _isLiking = false;
+      if (!ok) {
         _hasLiked = prevHasLiked;
         _likes = prevLikes;
-      });
-    }
-
-    _isLiking = false;
+      }
+    });
   }
 
   @override
@@ -769,13 +773,10 @@ class _ProjectCardState extends State<_ProjectCard> {
                   ),
                 ),
                 const SizedBox(width: 14),
-                GestureDetector(
-                  onTap: () {},
-                  child: Icon(
-                    Icons.chat_bubble_outline,
-                    size: 22,
-                    color: Colors.grey.shade500,
-                  ),
+                Icon(
+                  Icons.chat_bubble_outline,
+                  size: 22,
+                  color: Colors.grey.shade500,
                 ),
               ],
             ),

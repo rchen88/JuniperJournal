@@ -97,8 +97,7 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
         _friends = const [];
         _friendStatuses = const {};
         _isFriendsLoading = false;
-        _friendsErrorMessage =
-            'Friends search is not configured yet. Add the profiles table to enable it.';
+        _friendsErrorMessage = 'Search unavailable. Please try again.';
       });
       return;
     }

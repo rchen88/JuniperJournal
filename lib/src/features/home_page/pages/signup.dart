@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../backend/auth/auth_service.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:juniper_journal/src/backend/auth/auth_service.dart';
 import 'package:juniper_journal/src/backend/db/repositories/users_repo.dart';
 import 'package:juniper_journal/src/shared/widgets/widgets.dart';
 import 'package:juniper_journal/src/shared/styling/theme.dart';
@@ -15,7 +14,6 @@ class SignupScreen extends StatefulWidget {
 
 class _SignupScreenState extends State<SignupScreen> {
   final _formKey = GlobalKey<FormState>();
-  final AuthService _authService = AuthService.instance;
   final _usersRepo = UsersRepo();
 
   final TextEditingController _usernameCtrl = TextEditingController();
@@ -100,24 +98,6 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
 
-  // Handles Google OAuth signup
-  Future<void> _handleGoogleSignup() async {
-    setState(() => _isLoading = true);
-
-    try {
-      await _authService.signInWithGoogle();
-      // Note: OAuth will redirect to browser, user will return to app after auth
-    } catch (e) {
-      if (mounted) {
-        _showError(_getErrorMessage(e.toString()));
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
-  }
-
   /// Shows error message as SnackBar
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -126,33 +106,6 @@ class _SignupScreenState extends State<SignupScreen> {
         backgroundColor: Colors.red,
       ),
     );
-  }
-
-  String _mapAuthApiError(AuthApiException e) {
-    switch (e.code) {
-      case 'email_address_invalid':
-        return 'Please enter a valid email address.';
-      case 'email_already_exists':
-        return 'Email already registered. Please log in instead.';
-      case 'invalid_login_credentials':
-        return 'Invalid email or password.';
-      default:
-        return 'Signup failed. Please try again.';
-    }
-  }
-
-  /// Converts error messages to user-friendly text
-  String _getErrorMessage(String error) {
-    if (error.contains('already registered')) {
-      return 'Email already registered. Please login instead';
-    } else if (error.contains('invalid email')) {
-      return 'Please enter a valid email address';
-    } else if (error.contains('weak password')) {
-      return 'Password is too weak. Use at least 6 characters';
-    } else if (error.contains('network')) {
-      return 'Network error. Please check your connection';
-    }
-    return error;
   }
 
   @override

@@ -59,7 +59,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Future<void> _toggleVisibility(bool value) async {
     setState(() => _isPublicProfile = value);
-    await _usersRepo.updateCurrentUserProfile(isPublicProfile: value);
+    final ok = await _usersRepo.updateCurrentUserProfile(isPublicProfile: value);
+    if (!ok && mounted) {
+      setState(() => _isPublicProfile = !value);
+    }
   }
 
   Future<void> _sendPasswordReset() async {

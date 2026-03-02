@@ -2,12 +2,13 @@ import 'package:flutter/foundation.dart';
 import 'package:juniper_journal/src/backend/db/models/friend_request.dart';
 import 'package:juniper_journal/src/backend/db/models/user_profile.dart';
 import 'package:juniper_journal/src/backend/db/supabase_database.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class FriendsRepo {
   static const table = 'friend_requests';
   static const profilesTable = 'profiles';
 
-  get _client => SupabaseDatabase.instance.client;
+  SupabaseClient get _client => SupabaseDatabase.instance.client;
 
   Future<bool> canViewUserProjects({required String targetUserId}) async {
     final currentUserId = _client.auth.currentUser?.id;

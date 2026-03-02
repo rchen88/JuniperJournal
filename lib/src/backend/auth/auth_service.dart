@@ -37,7 +37,10 @@ class AuthService {
   bool get isLoggedIn => currentUser != null;
 
   void logCurrentUser() {
-    debugPrint('Current user: ${currentUser?.email} (${currentUser?.id})');
+    assert(() {
+      debugPrint('Current user: ${currentUser?.email} (${currentUser?.id})');
+      return true;
+    }());
   }
   /// Sign up a new user with email and password
   ///
