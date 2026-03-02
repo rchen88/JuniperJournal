@@ -252,22 +252,6 @@ class ProjectsRepo {
     }
   }
 
-  Future<bool> updateJournalLog({
-    required String id,
-    required String journalLogJson,
-  }) async {
-    try {
-      await _client
-          .from(table)
-          .update({'journal_log': journalLogJson})
-          .eq('id', id);
-      return true;
-    } catch (e, st) {
-      debugPrint('updateJournalLog error: $e\n$st');
-      return false;
-    }
-  }
-
   Future<List<JournalEntry>?> getJournalEntries({
     required String projectId,
   }) async {
@@ -359,19 +343,6 @@ class ProjectsRepo {
     }
   }
 
-  Future<String?> getJournalLog(String id) async {
-    try {
-      final result = await _client
-          .from(table)
-          .select('journal_log')
-          .eq('id', id)
-          .single();
-      return result['journal_log'] as String?;
-    } catch (e, st) {
-      debugPrint('getJournalLog error: $e\n$st');
-      return null;
-    }
-  }
 
   Future<bool> updateSolution({
     required String id,

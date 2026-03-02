@@ -55,67 +55,11 @@ class _JournalLogScreenState extends State<JournalLogScreen> {
       return;
     }
 
-    if (entries.isEmpty) {
-      await _migrateLegacyJournalIfNeeded();
-      entries =
-          await _projectsRepo.getJournalEntries(projectId: widget.projectId) ??
-          const <JournalEntry>[];
-    }
-
     if (!mounted) return;
     setState(() {
-      _entries = entries!;
+      _entries = entries;
       _isLoading = false;
     });
-  }
-
-  Future<void> _migrateLegacyJournalIfNeeded() async {
-    final legacy = await _projectsRepo.getJournalLog(widget.projectId);
-    if (legacy == null || legacy.trim().isEmpty) return;
-
-    final legacyEntries = _parseLegacyEntries(legacy);
-    if (legacyEntries.isEmpty) return;
-
-    for (final entry in legacyEntries) {
-      await _projectsRepo.createJournalEntry(
-        projectId: widget.projectId,
-        title: entry['title']! as String,
-        content: entry['content']! as List<dynamic>,
-      );
-    }
-  }
-
-  List<Map<String, dynamic>> _parseLegacyEntries(String raw) {
-    try {
-      final decoded = jsonDecode(raw);
-
-      if (decoded is Map<String, dynamic> && decoded['entries'] is List) {
-        final entries = (decoded['entries'] as List)
-            .whereType<Map>()
-            .map((e) => Map<String, dynamic>.from(e))
-            .where((e) => e['document'] is List)
-            .toList();
-
-        return entries.asMap().entries.map((indexed) {
-          final i = indexed.key;
-          final value = indexed.value;
-          return {
-            'title': value['title']?.toString().trim().isNotEmpty == true
-                ? value['title'].toString().trim()
-                : 'Entry ${i + 1}',
-            'content': (value['document'] as List<dynamic>),
-          };
-        }).toList();
-      }
-
-      if (decoded is List<dynamic>) {
-        return [
-          {'title': 'Entry 1', 'content': decoded},
-        ];
-      }
-    } catch (_) {}
-
-    return [];
   }
 
   Future<void> _createEntry() async {
