@@ -39,10 +39,26 @@ class _LoginScreenState extends State<LoginScreen> {
   /// Handles email/password login
   Future<void> _handleLogin() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
-    final email = _emailCtrl.text.trim();
+    final input = _emailCtrl.text.trim();
     final password = _passwordCtrl.text.trim();
 
     setState(() => _isLoading = true);
+
+    // Resolve username → email if the user didn't enter an email address
+    String email;
+    if (input.contains('@')) {
+      email = input;
+    } else {
+      final resolved = await _usersRepo.getEmailByUsername(input);
+      if (resolved == null) {
+        if (mounted) {
+          setState(() => _isLoading = false);
+          _showError('No account found with that username.');
+        }
+        return;
+      }
+      email = resolved;
+    }
 
     try {
       final user = await _authService.signInWithEmail(

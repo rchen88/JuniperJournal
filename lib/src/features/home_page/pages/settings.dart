@@ -20,6 +20,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _isLoading = true;
   bool _isSaving = false;
   bool _isPublicProfile = true;
+  String _email = '';
+  String _username = '';
 
   @override
   void initState() {
@@ -41,6 +43,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _displayNameController.text =
           profile?.displayName?.trim() ?? profile?.username?.trim() ?? '';
       _isPublicProfile = profile?.isPublicProfile ?? true;
+      _email = _authService.currentUser?.email ?? '';
+      _username = profile?.username?.trim() ?? '';
       _isLoading = false;
     });
   }
@@ -63,16 +67,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (!ok && mounted) {
       setState(() => _isPublicProfile = !value);
     }
-  }
-
-  Future<void> _sendPasswordReset() async {
-    final email = _authService.currentUser?.email;
-    if (email == null) return;
-    await _authService.resetPassword(email);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Password reset email sent')),
-    );
   }
 
   Future<void> _signOut() async {
@@ -195,6 +189,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   children: [
                     _sectionHeader('Profile'),
                     _card([
+                      ListTile(
+                        title: const Text(
+                          'Email',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w500,
+                            color: Colors.black38,
+                          ),
+                        ),
+                        trailing: Text(
+                          _email,
+                          style: const TextStyle(color: Colors.black38),
+                        ),
+                      ),
+                      const Divider(height: 1),
+                      ListTile(
+                        title: const Text(
+                          'Username',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w500,
+                            color: Colors.black38,
+                          ),
+                        ),
+                        trailing: Text(
+                          _username.isNotEmpty ? '@$_username' : '',
+                          style: const TextStyle(color: Colors.black38),
+                        ),
+                      ),
+                      const Divider(height: 1),
                       Padding(
                         padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
                         child: Row(
@@ -242,9 +264,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ListTile(
                         leading: const Icon(Icons.lock_outline),
                         title: const Text('Change Password'),
-                        subtitle: const Text('Send a reset link to your email'),
+                        subtitle: const Text('Update your password'),
                         trailing: const Icon(Icons.chevron_right),
-                        onTap: _sendPasswordReset,
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const ChangePasswordScreen(),
+                          ),
+                        ),
                       ),
                       const Divider(height: 1),
                       ListTile(

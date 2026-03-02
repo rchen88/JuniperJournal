@@ -50,28 +50,17 @@ class UserProfilePageState extends State<UserProfilePage> {
   }
 
   Future<void> _loadUser() async {
-    final user = _authService.currentUser;
-    setState(() => _email = user?.email ?? '');
-
     final profile = await _usersRepo.getCurrentUserProfile();
+    final email = _authService.currentUser?.email ?? '';
     if (!mounted) return;
-
-    // Fall back through: profiles table → auth metadata → email prefix
-    final metadata = user?.userMetadata ?? {};
     setState(() {
-      _displayName = (profile?.displayName?.trim().isNotEmpty == true)
-          ? profile!.displayName!.trim()
-          : (profile?.username?.trim().isNotEmpty == true)
-              ? profile!.username!.trim()
-              : (metadata['display_name']?.toString().trim().isNotEmpty == true)
-                  ? metadata['display_name'].toString().trim()
-                  : (metadata['username']?.toString().trim().isNotEmpty == true)
-                      ? metadata['username'].toString().trim()
-                      : (user?.email?.split('@').first ?? 'User');
-      _avatarUrl =
-          (profile?.avatarUrl?.trim().isNotEmpty == true)
-          ? profile!.avatarUrl
-          : metadata['avatar_url']?.toString();
+      _displayName = profile?.displayName?.trim().isNotEmpty == true
+          ? profile!.displayName!
+          : profile?.username?.trim().isNotEmpty == true
+              ? '@${profile!.username}'
+              : email.split('@').first;
+      _email = email;
+      _avatarUrl = profile?.avatarUrl;
     });
   }
 
@@ -145,10 +134,7 @@ class UserProfilePageState extends State<UserProfilePage> {
       );
       return;
     }
-    await Future.wait([
-      _authService.updateProfile(avatarUrl: imageUrl),
-      _usersRepo.updateCurrentUserProfile(avatarUrl: imageUrl),
-    ]);
+    await _usersRepo.updateCurrentUserProfile(avatarUrl: imageUrl);
     if (!mounted) return;
     setState(() {
       _avatarUrl = imageUrl;

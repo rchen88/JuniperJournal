@@ -71,28 +71,13 @@ class _SignupScreenState extends State<SignupScreen> {
       return;
     }
 
-    // 3️⃣ Email confirmation required OR email already exists
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Check your email'),
-        content: const Text(
-          'If this email is new, you’ll receive a confirmation email.\n\n'
-          'If you already have an account, please log in.',
+    // 3️⃣ Email confirmation required
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => EmailVerificationPendingScreen(
+          email: _emailCtrl.text.trim(),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pushNamed(context, '/login');
-            },
-            child: const Text('Log in'),
-          ),
-        ],
       ),
     );
   }
@@ -152,6 +137,11 @@ class _SignupScreenState extends State<SignupScreen> {
                   validator: (v) {
                     final value = (v ?? '').trim();
                     if (value.isEmpty) return 'Enter a username';
+                    if (value.length < 3) return 'Username must be at least 3 characters';
+                    if (value.length > 30) return 'Username must be 30 characters or fewer';
+                    if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(value)) {
+                      return 'Only letters, numbers, and underscores allowed';
+                    }
                     return null;
                   },
                   textInputAction: TextInputAction.next,

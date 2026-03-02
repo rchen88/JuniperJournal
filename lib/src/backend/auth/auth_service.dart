@@ -44,23 +44,81 @@ class AuthService {
   }
   /// Sign up a new user with email and password
   ///
-  /// Throws an exception if signup fails
-  /// Returns the user object on success
+  /// Returns a [SignUpResult] with a friendly error message on failure.
   Future<SignUpResult> signUpWithEmail({
     required String email,
     required String password,
     String? username,
   }) async {
-    final response = await _client.auth.signUp(
-      email: email,
-      password: password,
-      data: username != null ? {'username': username} : null,
-    );
-    return SignUpResult(
-      user: response.user,
-      session: response.session,
-      requiresEmailConfirmation: response.session == null,
-    );
+    try {
+      final response = await _client.auth.signUp(
+        email: email,
+        password: password,
+        data: username != null ? {'username': username} : null,
+      );
+      return SignUpResult(
+        user: response.user,
+        session: response.session,
+        requiresEmailConfirmation: response.session == null,
+      );
+    } on AuthApiException catch (e) {
+      final code = e.code ?? '';
+      String message;
+      if (code == 'email_address_invalid') {
+        message = 'Please enter a valid email address.';
+      } else if (code == 'email_exists' || code == 'user_already_exists') {
+        message = 'An account with this email already exists.';
+      } else {
+        message = 'Signup failed. Please try again.';
+      }
+      return SignUpResult(
+        user: null,
+        session: null,
+        requiresEmailConfirmation: false,
+        friendlyErrorMessage: message,
+        rawErrorCode: code,
+        rawStatusCode: int.tryParse(e.statusCode ?? ''),
+      );
+    }
+  }
+
+  /// Resend the confirmation email for a pending signup.
+  Future<bool> resendVerificationEmail(String email) async {
+    try {
+      await _client.auth.resend(type: OtpType.signup, email: email);
+      return true;
+    } catch (e) {
+      debugPrint('resendVerificationEmail error: $e');
+      return false;
+    }
+  }
+
+  /// Change the current user's password after re-authenticating.
+  ///
+  /// Returns null on success, or a user-facing error string on failure.
+  Future<String?> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final email = currentUser?.email;
+    if (email == null) return 'You must be logged in to change your password.';
+    try {
+      await _client.auth.signInWithPassword(email: email, password: currentPassword);
+    } on AuthApiException catch (e) {
+      final code = e.code ?? '';
+      if (code == 'invalid_credentials') {
+        return 'Current password is incorrect.';
+      }
+      return 'Failed to update password. Please try again.';
+    } catch (_) {
+      return 'Failed to update password. Please try again.';
+    }
+    try {
+      await _client.auth.updateUser(UserAttributes(password: newPassword));
+      return null;
+    } catch (_) {
+      return 'Failed to update password. Please try again.';
+    }
   }
 
   /// Sign in an existing user with email and password

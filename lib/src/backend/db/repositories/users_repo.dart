@@ -85,6 +85,22 @@ class UsersRepo {
     }
   }
 
+  /// Returns the email for a given username, or null if not found.
+  /// Requires the `get_email_by_username` RPC function in Supabase.
+  Future<String?> getEmailByUsername(String username) async {
+    try {
+      final result = await _client.rpc(
+        'get_email_by_username',
+        params: {'p_username': username.trim().toLowerCase()},
+      );
+      if (result == null || result.toString().isEmpty) return null;
+      return result.toString();
+    } catch (e) {
+      debugPrint('getEmailByUsername error: $e');
+      return null;
+    }
+  }
+
   Future<List<UserProfile>?> searchPublicUsers({
     required String query,
   }) async {
