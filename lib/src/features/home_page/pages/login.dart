@@ -40,7 +40,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _handleLogin() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     final input = _emailCtrl.text.trim();
-    final password = _passwordCtrl.text.trim();
+    final password = _passwordCtrl.text;
 
     setState(() => _isLoading = true);
 

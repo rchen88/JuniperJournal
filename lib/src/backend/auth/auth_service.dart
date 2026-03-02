@@ -67,7 +67,7 @@ class AuthService {
       if (code == 'email_address_invalid') {
         message = 'Please enter a valid email address.';
       } else if (code == 'email_exists' || code == 'user_already_exists') {
-        message = 'An account with this email already exists.';
+        message = 'Signup failed. Please try again.';
       } else {
         message = 'Signup failed. Please try again.';
       }
