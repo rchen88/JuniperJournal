@@ -44,27 +44,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
     setState(() => _isLoading = true);
 
-    // Resolve username → email if the user didn't enter an email address
-    String email;
-    if (input.contains('@')) {
-      email = input;
-    } else {
-      final resolved = await _usersRepo.getEmailByUsername(input);
-      if (resolved == null) {
-        if (mounted) {
-          setState(() => _isLoading = false);
-          _showError('No account found with that username.');
-        }
-        return;
-      }
-      email = resolved;
-    }
-
     try {
-      final user = await _authService.signInWithEmail(
-        email: email,
-        password: password,
-      );
+      final User? user;
+      if (input.contains('@')) {
+        user = await _authService.signInWithEmail(email: input, password: password);
+      } else {
+        user = await _authService.signInWithUsername(username: input, password: password);
+      }
 
       if (user != null && mounted) {
         // Ensure a profile row exists (creates one for users who signed up

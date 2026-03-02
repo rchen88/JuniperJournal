@@ -137,6 +137,32 @@ class AuthService {
     return response.user;
   }
 
+  /// Sign in using a username instead of an email.
+  ///
+  /// Calls the `login-with-username` Edge Function which resolves the email
+  /// server-side so it is never exposed to the client. Returns the user on
+  /// success, or throws [AuthApiException] / [Exception] on failure.
+  Future<User?> signInWithUsername({
+    required String username,
+    required String password,
+  }) async {
+    final response = await _client.functions.invoke(
+      'login-with-username',
+      body: {'username': username, 'password': password},
+    );
+
+    final data = response.data as Map<String, dynamic>;
+    if (data['error'] != null) {
+      throw AuthApiException(data['error'].toString());
+    }
+
+    // Restore the session locally using the returned refresh token
+    final authResponse = await _client.auth.setSession(
+      data['refresh_token'].toString(),
+    );
+    return authResponse.user;
+  }
+
   /// Sign in with Google OAuth
   ///
   /// Opens browser for Google authentication
