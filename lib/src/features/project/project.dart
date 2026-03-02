@@ -1,8 +1,10 @@
 export 'pages/project_dashboard.dart';
+export 'pages/project_settings.dart';
 export 'pages/create_project.dart';
 export 'pages/define_problem_statement.dart';
 export 'pages/submissions_timeline.dart';
 export 'pages/journal_log.dart';
+export 'pages/journal_entry_editor.dart';
 export 'pages/materials_cost.dart';
 export 'pages/metrics.dart';
 export 'pages/solution.dart';

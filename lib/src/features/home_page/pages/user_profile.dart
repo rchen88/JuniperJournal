@@ -2,88 +2,142 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:juniper_journal/src/backend/auth/auth_service.dart';
-import 'package:juniper_journal/src/backend/db/models/friend_request.dart';
+import 'package:juniper_journal/src/backend/db/models/achievement.dart';
 import 'package:juniper_journal/src/backend/db/models/user_profile.dart';
+import 'package:juniper_journal/src/backend/db/repositories/achievements_repo.dart';
 import 'package:juniper_journal/src/backend/db/repositories/friends_repo.dart';
-import 'package:juniper_journal/src/features/home_page/pages/social_connections.dart';
+import 'package:juniper_journal/src/backend/db/repositories/users_repo.dart';
+import 'package:juniper_journal/src/features/home_page/pages/search.dart';
 import 'package:juniper_journal/src/services/media_service.dart';
 import 'package:juniper_journal/src/shared/styling/theme.dart';
 
 class UserProfilePage extends StatefulWidget {
-  final Future<void> Function()? onSignOut;
-
-  const UserProfilePage({super.key, this.onSignOut});
+  const UserProfilePage({super.key});
 
   @override
-  State<UserProfilePage> createState() => _UserProfilePageState();
+  State<UserProfilePage> createState() => UserProfilePageState();
 }
 
-class _UserProfilePageState extends State<UserProfilePage> {
+class UserProfilePageState extends State<UserProfilePage> {
   final _authService = AuthService.instance;
   final _mediaService = MediaService();
   final _friendsRepo = FriendsRepo();
+  final _achievementsRepo = AchievementsRepo();
+  final _usersRepo = UsersRepo();
 
   String? _avatarUrl;
   String _displayName = 'User';
   String _email = '';
-  bool _isPublicProfile = true;
   bool _isUploading = false;
-  bool _isUpdatingVisibility = false;
-  bool _isSigningOut = false;
-  bool _isRequestsLoading = false;
-  List<FriendRequest> _incomingRequests = const [];
   List<UserProfile> _friends = const [];
-  final List<UserProfile> _followers = const [];
+  List<Achievement> _achievements = const [];
+  bool _isLoadingAchievements = false;
+  int _totalPoints = 0;
+  int _selectedTab = 0;
 
   @override
   void initState() {
     super.initState();
     _loadUser();
-    _loadInitialSocialData();
+    _loadFriends();
+    _loadAchievements();
   }
 
-  Future<void> _loadInitialSocialData() async {
-    setState(() => _isRequestsLoading = true);
+  /// Called by the parent shell whenever the Profile tab becomes active.
+  void reload() {
+    _loadFriends();
+    _loadAchievements();
+  }
 
-    final requests = await _friendsRepo.getIncomingFriendRequests();
-    final friends = await _friendsRepo.getFriends();
+  Future<void> _loadUser() async {
+    final user = _authService.currentUser;
+    setState(() => _email = user?.email ?? '');
+
+    final profile = await _usersRepo.getCurrentUserProfile();
     if (!mounted) return;
 
+    // Fall back through: profiles table → auth metadata → email prefix
+    final metadata = user?.userMetadata ?? {};
     setState(() {
-      _incomingRequests = requests ?? const [];
-      _friends = friends ?? const [];
-      _isRequestsLoading = false;
+      _displayName = (profile?.displayName?.trim().isNotEmpty == true)
+          ? profile!.displayName!.trim()
+          : (profile?.username?.trim().isNotEmpty == true)
+              ? profile!.username!.trim()
+              : (metadata['display_name']?.toString().trim().isNotEmpty == true)
+                  ? metadata['display_name'].toString().trim()
+                  : (metadata['username']?.toString().trim().isNotEmpty == true)
+                      ? metadata['username'].toString().trim()
+                      : (user?.email?.split('@').first ?? 'User');
+      _avatarUrl =
+          (profile?.avatarUrl?.trim().isNotEmpty == true)
+          ? profile!.avatarUrl
+          : metadata['avatar_url']?.toString();
     });
   }
 
-  void _loadUser() {
-    final user = _authService.currentUser;
-    final metadata = user?.userMetadata ?? {};
-    final name =
-        (metadata['display_name']?.toString().trim().isNotEmpty == true)
-        ? metadata['display_name'].toString().trim()
-        : (metadata['username']?.toString().trim().isNotEmpty == true)
-        ? metadata['username'].toString().trim()
-        : (user?.email?.split('@').first ?? 'User');
-
+  Future<void> _loadFriends() async {
+    final friends = await _friendsRepo.getFriends();
+    if (!mounted) return;
     setState(() {
-      _displayName = name;
-      _email = user?.email ?? '';
-      _avatarUrl = metadata['avatar_url']?.toString();
-      _isPublicProfile = metadata['is_public_profile'] as bool? ?? true;
+      _friends = friends ?? const [];
+    });
+  }
+
+  Future<void> _deleteFriend(UserProfile friend) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Remove friend?'),
+        content: Text(
+          '${friend.resolvedDisplayName} will be removed from your friends.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
+    final ok = await _friendsRepo.removeFriend(friendId: friend.id);
+    if (!mounted) return;
+    if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to remove friend')),
+      );
+      return;
+    }
+    _loadFriends();
+  }
+
+  Future<void> _loadAchievements() async {
+    setState(() => _isLoadingAchievements = true);
+    final results = await Future.wait([
+      _achievementsRepo.getCurrentUserAchievements(),
+      _achievementsRepo.getTotalPoints(),
+    ]);
+    if (!mounted) return;
+    setState(() {
+      _achievements = (results[0] as List<Achievement>?) ?? const [];
+      _totalPoints = results[1] as int;
+      _isLoadingAchievements = false;
     });
   }
 
   Future<void> _pickProfileImage(ImageSource source) async {
     setState(() => _isUploading = true);
-
     final imageUrl = await _mediaService.pickAndUploadImage(
       source,
       folder: 'profile-images',
     );
-
     if (!mounted) return;
-
     if (imageUrl == null) {
       setState(() => _isUploading = false);
       ScaffoldMessenger.of(context).showSnackBar(
@@ -91,15 +145,15 @@ class _UserProfilePageState extends State<UserProfilePage> {
       );
       return;
     }
-
-    await _authService.updateProfile(avatarUrl: imageUrl);
+    await Future.wait([
+      _authService.updateProfile(avatarUrl: imageUrl),
+      _usersRepo.updateCurrentUserProfile(avatarUrl: imageUrl),
+    ]);
     if (!mounted) return;
-
     setState(() {
       _avatarUrl = imageUrl;
       _isUploading = false;
     });
-
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text('Profile image updated')));
@@ -135,335 +189,508 @@ class _UserProfilePageState extends State<UserProfilePage> {
     );
   }
 
-  Future<void> _handleSignOut() async {
-    if (_isSigningOut) return;
-    setState(() => _isSigningOut = true);
+  // ── Avatar ────────────────────────────────────────────────────────────────
 
-    try {
-      if (widget.onSignOut != null) {
-        await widget.onSignOut!.call();
-      } else {
-        await _authService.signOut();
-      }
-    } finally {
-      if (mounted) {
-        setState(() => _isSigningOut = false);
-      }
-    }
-  }
-
-  Future<void> _loadIncomingRequests() async {
-    setState(() => _isRequestsLoading = true);
-    final requests = await _friendsRepo.getIncomingFriendRequests();
-    if (!mounted) return;
-
-    setState(() {
-      _incomingRequests = requests ?? const <FriendRequest>[];
-      _isRequestsLoading = false;
-    });
-  }
-
-  Future<void> _acceptRequest(String requesterId) async {
-    final ok = await _friendsRepo.acceptFriendRequest(requesterId: requesterId);
-    if (!mounted) return;
-    if (!ok) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to accept friend request')),
-      );
-      return;
-    }
-    _loadIncomingRequests();
-    _loadFriends();
-  }
-
-  Future<void> _declineRequest(String requesterId) async {
-    final ok = await _friendsRepo.declineFriendRequest(
-      requesterId: requesterId,
-    );
-    if (!mounted) return;
-    if (!ok) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to decline friend request')),
-      );
-      return;
-    }
-    _loadIncomingRequests();
-  }
-
-  Future<void> _loadFriends() async {
-    final friends = await _friendsRepo.getFriends();
-    if (!mounted) return;
-
-    setState(() {
-      _friends = friends ?? const <UserProfile>[];
-    });
-  }
-
-  Future<void> _openConnectionsPage(ConnectionsTab initialTab) async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => SocialConnectionsPage(
-          friends: _friends,
-          followers: _followers,
-          initialTab: initialTab,
-        ),
-      ),
-    );
-  }
-
-  Future<void> _updateVisibility(bool value) async {
-    setState(() {
-      _isPublicProfile = value;
-      _isUpdatingVisibility = true;
-    });
-
-    final updatedUser = await _authService.updateProfile(
-      isPublicProfile: value,
-    );
-
-    if (!mounted) return;
-
-    if (updatedUser == null) {
-      setState(() {
-        _isPublicProfile = !value;
-        _isUpdatingVisibility = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to update profile visibility')),
-      );
-      return;
-    }
-
-    setState(() => _isUpdatingVisibility = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          value ? 'Profile is now public' : 'Profile is now private',
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSettingsTile({
-    required IconData icon,
-    required String title,
-    VoidCallback? onTap,
-  }) {
-    return ListTile(
-      leading: Icon(icon, color: AppColors.iconSecondary),
-      title: Text(title),
-      trailing: const Icon(Icons.chevron_right),
-      onTap: onTap ?? () {},
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-      children: [
-        Center(
-          child: GestureDetector(
-            onTap: _isUploading ? null : _showImageSourceSheet,
-            child: Stack(
-              alignment: Alignment.bottomRight,
-              children: [
-                CircleAvatar(
-                  radius: 52,
-                  backgroundColor: const Color(0xFFE8F4EC),
-                  backgroundImage:
-                      (_avatarUrl != null && _avatarUrl!.isNotEmpty)
-                      ? NetworkImage(_avatarUrl!)
-                      : null,
-                  child: (_avatarUrl == null || _avatarUrl!.isEmpty)
-                      ? const Icon(
-                          Icons.person,
-                          size: 50,
-                          color: Color(0xFF5B7B63),
-                        )
-                      : null,
-                ),
-                Container(
-                  padding: const EdgeInsets.all(7),
-                  decoration: const BoxDecoration(
-                    color: AppColors.primary,
-                    shape: BoxShape.circle,
-                  ),
-                  child: _isUploading
-                      ? const SizedBox(
-                          width: 14,
-                          height: 14,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(
-                              Colors.white,
-                            ),
-                          ),
-                        )
-                      : const Icon(
-                          Icons.camera_alt,
-                          size: 14,
-                          color: Colors.white,
-                        ),
-                ),
-              ],
+  Widget _buildAvatar() {
+    return GestureDetector(
+      onTap: _isUploading ? null : _showImageSourceSheet,
+      child: Stack(
+        alignment: Alignment.bottomRight,
+        children: [
+          Container(
+            width: 112,
+            height: 112,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 4),
+            ),
+            child: ClipOval(
+              child: CircleAvatar(
+                radius: 52,
+                backgroundColor: const Color(0xFFE8F4EC),
+                backgroundImage:
+                    (_avatarUrl != null && _avatarUrl!.isNotEmpty)
+                    ? NetworkImage(_avatarUrl!)
+                    : null,
+                child: (_avatarUrl == null || _avatarUrl!.isEmpty)
+                    ? const Icon(
+                        Icons.person,
+                        size: 50,
+                        color: Color(0xFF5B7B63),
+                      )
+                    : null,
+              ),
             ),
           ),
-        ),
-        const SizedBox(height: 12),
-        Center(
+          Container(
+            padding: const EdgeInsets.all(7),
+            decoration: const BoxDecoration(
+              color: AppColors.primary,
+              shape: BoxShape.circle,
+            ),
+            child: _isUploading
+                ? const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  )
+                : const Icon(Icons.camera_alt, size: 14, color: Colors.white),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ── Stats card ────────────────────────────────────────────────────────────
+
+  Widget _buildStatsCard() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 8),
+      decoration: BoxDecoration(
+        color: AppColors.primary,
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Row(
+        children: [
+          _buildStatItem(
+            Icons.star_border_outlined,
+            'ECOPOINTS',
+            '$_totalPoints',
+          ),
+          _buildStatDivider(),
+          _buildStatItem(Icons.public_outlined, 'WORLD RANK', '—'),
+          _buildStatDivider(),
+          _buildStatItem(Icons.adjust, 'LOCAL RANK', '—'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatItem(IconData icon, String label, String value) {
+    return Expanded(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: Colors.white70, size: 22),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white70,
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatDivider() =>
+      Container(height: 40, width: 1, color: Colors.white38);
+
+  // ── Tab bar ───────────────────────────────────────────────────────────────
+
+  Widget _buildTabBar() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade200),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          _buildTabItem('Activity', 0),
+          Container(width: 1, height: 22, color: Colors.grey.shade300),
+          _buildTabItem('Friends', 1),
+          Container(width: 1, height: 22, color: Colors.grey.shade300),
+          _buildTabItem('Badge', 2),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTabItem(String label, int index) {
+    final isActive = _selectedTab == index;
+    return Expanded(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => setState(() => _selectedTab = index),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
           child: Text(
-            _displayName,
-            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
-          ),
-        ),
-        if (_email.isNotEmpty)
-          Center(
-            child: Text(_email, style: const TextStyle(color: Colors.black54)),
-          ),
-        const SizedBox(height: 14),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            OutlinedButton(
-              onPressed: () => _openConnectionsPage(ConnectionsTab.friends),
-              child: Text('Friends ${_friends.length}'),
+            label,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: isActive ? FontWeight.w700 : FontWeight.w400,
+              color: isActive ? Colors.black87 : Colors.black45,
             ),
-            const SizedBox(width: 10),
-            OutlinedButton(
-              onPressed: () => _openConnectionsPage(ConnectionsTab.followers),
-              child: Text('Followers ${_followers.length}'),
-            ),
-          ],
-        ),
-        const SizedBox(height: 24),
-        const Text(
-          'User Settings',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-        ),
-        const SizedBox(height: 8),
-        Card(
-          elevation: 0,
-          color: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-            side: BorderSide(color: Colors.grey.shade200),
           ),
-          child: Column(
+        ),
+      ),
+    );
+  }
+
+  // ── Tab content ───────────────────────────────────────────────────────────
+
+  Widget _buildTabContent() {
+    switch (_selectedTab) {
+      case 1:
+        return _buildFriendsContent();
+      case 2:
+        return _buildBadgesContent();
+      default:
+        return _buildActivityContent();
+    }
+  }
+
+  Widget _buildActivityContent() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 14, 12, 10),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              SwitchListTile.adaptive(
-                secondary: const Icon(
-                  Icons.public_outlined,
-                  color: AppColors.iconSecondary,
-                ),
-                title: const Text('Public Profile'),
-                subtitle: Text(
-                  _isPublicProfile
-                      ? 'Other users can find your profile'
-                      : 'Only you can see your profile',
-                  style: const TextStyle(fontSize: 12),
-                ),
-                value: _isPublicProfile,
-                onChanged: _isUpdatingVisibility ? null : _updateVisibility,
+              const Text(
+                'Showing last month activity',
+                style: TextStyle(fontSize: 13, color: Colors.black54),
               ),
-              Divider(height: 1, color: Colors.grey.shade200),
-              _buildSettingsTile(icon: Icons.person_outline, title: 'Account'),
-              Divider(height: 1, color: Colors.grey.shade200),
-              _buildSettingsTile(
-                icon: Icons.notifications_none,
-                title: 'Notifications',
-              ),
-              Divider(height: 1, color: Colors.grey.shade200),
-              _buildSettingsTile(
-                icon: Icons.lock_outline,
-                title: 'Privacy & Security',
+              IconButton(
+                icon: const Icon(Icons.tune, size: 20, color: Colors.black45),
+                onPressed: () {},
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 18),
-        const Text(
-          'Friend Requests',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-        ),
-        const SizedBox(height: 8),
-        Card(
-          elevation: 0,
-          color: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-            side: BorderSide(color: Colors.grey.shade200),
-          ),
-          child: _isRequestsLoading
-              ? const Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Center(child: CircularProgressIndicator()),
-                )
-              : _incomingRequests.isEmpty
-              ? const ListTile(
-                  title: Text('No pending requests'),
-                  subtitle: Text(
-                    'When users add you, requests will appear here.',
-                  ),
-                )
-              : Column(
-                  children: _incomingRequests.map((request) {
-                    final requesterId = request.requesterId;
-                    final displayName =
-                        request.displayName ?? request.username ?? 'Unknown User';
-                    final username = request.username;
-                    final avatarUrl = request.avatarUrl;
+        if (_isLoadingAchievements)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 32),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else if (_achievements.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 32, horizontal: 24),
+            child: Center(
+              child: Text(
+                'No activity yet.\nStart a project to earn points!',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.black54, fontSize: 15),
+              ),
+            ),
+          )
+        else
+          ..._achievements.map(_buildActivityCard),
+      ],
+    );
+  }
 
-                    return ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: const Color(0xFFE8F4EC),
-                        backgroundImage:
-                            (avatarUrl != null && avatarUrl.isNotEmpty)
-                            ? NetworkImage(avatarUrl)
-                            : null,
-                        child: (avatarUrl == null || avatarUrl.isEmpty)
-                            ? const Icon(Icons.person, color: Color(0xFF5B7B63))
-                            : null,
-                      ),
-                      title: Text(displayName),
-                      subtitle: username != null && username.isNotEmpty
-                          ? Text('@$username')
-                          : null,
-                      trailing: Wrap(
-                        spacing: 6,
-                        children: [
-                          OutlinedButton(
-                            onPressed: () => _declineRequest(requesterId),
-                            child: const Text('Decline'),
-                          ),
-                          FilledButton(
-                            onPressed: () => _acceptRequest(requesterId),
-                            child: const Text('Accept'),
-                          ),
-                        ],
-                      ),
-                    );
-                  }).toList(),
-                ),
-        ),
-        const SizedBox(height: 18),
-        OutlinedButton.icon(
-          onPressed: _isSigningOut ? null : _handleSignOut,
-          icon: _isSigningOut
-              ? const SizedBox(
-                  width: 14,
-                  height: 14,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Icon(Icons.logout),
-          label: const Text('Sign Out'),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: Colors.red.shade700,
-            side: BorderSide(color: Colors.red.shade200),
-            padding: const EdgeInsets.symmetric(vertical: 12),
+  Widget _buildActivityCard(Achievement achievement) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
           ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  achievement.title,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.blue,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  achievement.occurredAt != null
+                      ? _formatTimestamp(achievement.occurredAt!)
+                      : '',
+                  style: const TextStyle(fontSize: 12, color: Colors.black45),
+                ),
+              ],
+            ),
+          ),
+          Icon(Icons.arrow_upward, color: AppColors.primary, size: 22),
+        ],
+      ),
+    );
+  }
+
+  String _formatTimestamp(DateTime dt) {
+    final now = DateTime.now();
+    final local = dt.toLocal();
+    final diff = now.difference(local);
+    final h = local.hour % 12 == 0 ? 12 : local.hour % 12;
+    final m = local.minute.toString().padLeft(2, '0');
+    final ampm = local.hour < 12 ? 'AM' : 'PM';
+    if (diff.inDays == 0) return 'Today, $h:$m $ampm';
+    if (diff.inDays == 1) return 'Yesterday, $h:$m $ampm';
+    return '${diff.inDays} days ago';
+  }
+
+  Widget _buildFriendsContent() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 8, 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '${_friends.length} Friends',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              Row(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.person_add_outlined, size: 22),
+                    tooltip: 'Add friend',
+                    onPressed: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const HomeSearchScreen(),
+                        ),
+                      );
+                      if (!mounted) return;
+                      _loadFriends();
+                    },
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 36,
+                      minHeight: 36,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        if (_friends.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 32, horizontal: 24),
+            child: Center(
+              child: Text(
+                'No friends yet.\nSearch for people to connect with!',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.black54, fontSize: 15),
+              ),
+            ),
+          )
+        else
+          ...List.generate(_friends.length, (index) {
+            final friend = _friends[index];
+            final avatarUrl = friend.avatarUrl;
+            return Container(
+              margin: const EdgeInsets.fromLTRB(20, 0, 20, 10),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 12,
+              ),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Colors.grey.shade200),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 6,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              child: Row(
+                children: [
+                  CircleAvatar(
+                    radius: 22,
+                    backgroundColor: const Color(0xFFE8F4EC),
+                    backgroundImage:
+                        (avatarUrl != null && avatarUrl.isNotEmpty)
+                        ? NetworkImage(avatarUrl)
+                        : null,
+                    child: (avatarUrl == null || avatarUrl.isEmpty)
+                        ? const Icon(
+                            Icons.person,
+                            color: Color(0xFF5B7B63),
+                            size: 22,
+                          )
+                        : null,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          friend.resolvedDisplayName,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        Text(
+                          '0 Points',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey.shade500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: Icon(
+                      Icons.delete_outline,
+                      color: Colors.grey.shade400,
+                      size: 20,
+                    ),
+                    onPressed: () => _deleteFriend(friend),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 32,
+                      minHeight: 32,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+      ],
+    );
+  }
+
+  Widget _buildBadgesContent() {
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: 32, horizontal: 24),
+      child: Center(
+        child: Text(
+          'Badges coming soon!',
+          style: TextStyle(color: Colors.black54, fontSize: 15),
+          textAlign: TextAlign.center,
+        ),
+      ),
+    );
+  }
+
+  // ── Build ─────────────────────────────────────────────────────────────────
+
+  @override
+  Widget build(BuildContext context) {
+    // Layout uses a Stack so the white card can overlap the green header,
+    // and the avatar can straddle their boundary.
+    //
+    // Green bar: 0–100px
+    // White card: starts at 80px (overlaps green by 20px), rounded top
+    // Avatar centre: at 100px → Positioned top: 44 (44 + 56 = 100)
+    // Content padding-top: 88px (card-top 80 → avatar bottom 156 → delta 76 + 12 gap)
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        // Green top section
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 100,
+          child: Container(color: AppColors.primary),
+        ),
+
+        // White rounded card (main scrollable content)
+        Positioned(
+          top: 80,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(24),
+                topRight: Radius.circular(24),
+              ),
+            ),
+            clipBehavior: Clip.hardEdge,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.only(bottom: 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: 88), // clears avatar
+                  Center(
+                    child: Text(
+                      _displayName,
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Center(
+                    child: Text(
+                      _email.isNotEmpty ? _email : 'Member',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.black54,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  _buildStatsCard(),
+                  const SizedBox(height: 16),
+                  _buildTabBar(),
+                  const SizedBox(height: 8),
+                  _buildTabContent(),
+                ],
+              ),
+            ),
+          ),
+        ),
+
+        // Avatar straddling the green/white boundary
+        Positioned(
+          top: 44,
+          left: 0,
+          right: 0,
+          child: Center(child: _buildAvatar()),
         ),
       ],
     );

@@ -12,12 +12,16 @@ class JournalLogScreen extends StatefulWidget {
   final String projectId;
   final String projectName;
   final List<String> tags;
+  /// When true, skips the Scaffold/AppBar so this widget can be embedded
+  /// directly inside a TabBarView or other parent scaffold.
+  final bool embedded;
 
   const JournalLogScreen({
     super.key,
     required this.projectId,
     required this.projectName,
     required this.tags,
+    this.embedded = false,
   });
 
   @override
@@ -198,8 +202,122 @@ class _JournalLogScreenState extends State<JournalLogScreen> {
     return DateFormat('MMM d, yyyy • h:mm a').format(value.toLocal());
   }
 
+  Widget _buildBody() {
+    if (_isLoading) return const Center(child: CircularProgressIndicator());
+
+    final list = _entries.isEmpty
+        ? Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'No journal entries yet.',
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 12),
+                FilledButton.icon(
+                  onPressed: _createEntry,
+                  icon: const Icon(Icons.add),
+                  label: const Text('New Entry'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                  ),
+                ),
+              ],
+            ),
+          )
+        : RefreshIndicator(
+            onRefresh: _loadEntries,
+            child: ListView.separated(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+              itemCount: _entries.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              itemBuilder: (context, index) {
+                final entry = _entries[index];
+                return InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () => _openEntry(entry),
+                  child: Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.book_outlined,
+                          color: AppColors.primary,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                entry.title.isNotEmpty
+                                    ? entry.title
+                                    : 'Untitled Entry',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                _formattedDate(
+                                  entry.updatedAt ?? entry.createdAt,
+                                ),
+                                style: const TextStyle(
+                                  color: Colors.black54,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: 'Delete entry',
+                          onPressed: () => _deleteEntry(entry),
+                          icon: const Icon(
+                            Icons.delete_outline,
+                            color: Colors.black45,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          );
+
+    return list;
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Embedded mode: return body only, no Scaffold or AppBar.
+    if (widget.embedded) {
+      return Stack(
+        children: [
+          _buildBody(),
+          if (!_isLoading && _entries.isNotEmpty)
+            Positioned(
+              bottom: 16,
+              right: 16,
+              child: FloatingActionButton.extended(
+                backgroundColor: AppColors.primary,
+                onPressed: _createEntry,
+                icon: const Icon(Icons.add),
+                label: const Text('New Entry'),
+              ),
+            ),
+        ],
+      );
+    }
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -232,83 +350,7 @@ class _JournalLogScreenState extends State<JournalLogScreen> {
         icon: const Icon(Icons.add),
         label: const Text('New Entry'),
       ),
-      body: SafeArea(
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : _entries.isEmpty
-            ? const Center(
-                child: Text(
-                  'No journal entries yet.\nTap "New Entry" to start.',
-                  textAlign: TextAlign.center,
-                ),
-              )
-            : RefreshIndicator(
-                onRefresh: _loadEntries,
-                child: ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-                  itemCount: _entries.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
-                  itemBuilder: (context, index) {
-                    final entry = _entries[index];
-                    return InkWell(
-                      borderRadius: BorderRadius.circular(12),
-                      onTap: () => _openEntry(entry),
-                      child: Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.grey.shade200),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.book_outlined,
-                              color: AppColors.primary,
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    entry.title.isNotEmpty
-                                        ? entry.title
-                                        : 'Untitled Entry',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w700,
-                                      fontSize: 16,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    _formattedDate(
-                                      entry.updatedAt ?? entry.createdAt,
-                                    ),
-                                    style: const TextStyle(
-                                      color: Colors.black54,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            IconButton(
-                              tooltip: 'Delete entry',
-                              onPressed: () => _deleteEntry(entry),
-                              icon: const Icon(
-                                Icons.delete_outline,
-                                color: Colors.black45,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-      ),
+      body: SafeArea(child: _buildBody()),
     );
   }
 }

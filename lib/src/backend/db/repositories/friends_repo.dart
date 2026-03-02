@@ -237,6 +237,34 @@ class FriendsRepo {
     }
   }
 
+  Future<bool> removeFriend({required String friendId}) async {
+    final currentUserId = _client.auth.currentUser?.id;
+    if (currentUserId == null) return false;
+
+    try {
+      // Run both directions in parallel. The friendship row exists in exactly
+      // one direction, so one delete will hit a row and the other will be a
+      // no-op. This also handles RLS policies that only allow deleting rows
+      // where the current user is the requester.
+      await Future.wait<void>([
+        _client
+            .from(table)
+            .delete()
+            .eq('requester_id', currentUserId)
+            .eq('addressee_id', friendId),
+        _client
+            .from(table)
+            .delete()
+            .eq('requester_id', friendId)
+            .eq('addressee_id', currentUserId),
+      ]);
+      return true;
+    } catch (e, st) {
+      debugPrint('removeFriend error: $e\n$st');
+      return false;
+    }
+  }
+
   Future<List<UserProfile>?> getFriends() async {
     final currentUserId = _client.auth.currentUser?.id;
     if (currentUserId == null) return [];

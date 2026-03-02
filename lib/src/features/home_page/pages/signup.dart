@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../backend/auth/auth_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:juniper_journal/src/backend/db/repositories/users_repo.dart';
 import 'package:juniper_journal/src/shared/widgets/widgets.dart';
 import 'package:juniper_journal/src/shared/styling/theme.dart';
 import 'package:juniper_journal/src/features/home_page/home_page.dart';
@@ -15,6 +16,7 @@ class SignupScreen extends StatefulWidget {
 class _SignupScreenState extends State<SignupScreen> {
   final _formKey = GlobalKey<FormState>();
   final AuthService _authService = AuthService.instance;
+  final _usersRepo = UsersRepo();
 
   final TextEditingController _usernameCtrl = TextEditingController();
   final TextEditingController _emailCtrl = TextEditingController();
@@ -63,6 +65,10 @@ class _SignupScreenState extends State<SignupScreen> {
 
     // 2️⃣ Logged in immediately (email confirmation OFF)
     if (result.session != null) {
+      await _usersRepo.upsertCurrentUserProfile(
+        username: _usernameCtrl.text.trim(),
+      );
+      if (!mounted) return;
       Navigator.pushReplacementNamed(context, '/home');
       return;
     }

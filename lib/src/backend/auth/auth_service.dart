@@ -115,12 +115,46 @@ class AuthService {
     return response.user;
   }
 
+  /// Update the current user's profile metadata (avatar, visibility, etc.)
+  Future<User?> updateProfile({
+    String? avatarUrl,
+    bool? isPublicProfile,
+  }) async {
+    final data = <String, dynamic>{};
+    if (avatarUrl != null) data['avatar_url'] = avatarUrl;
+    if (isPublicProfile != null) data['is_public_profile'] = isPublicProfile;
+    if (data.isEmpty) return currentUser;
+
+    try {
+      final response = await _client.auth.updateUser(
+        UserAttributes(data: data),
+      );
+      return response.user;
+    } catch (e) {
+      debugPrint('updateProfile error: $e');
+      return null;
+    }
+  }
+
   /// Refresh the current session
   ///
   /// Useful for keeping the user logged in
   Future<Session?> refreshSession() async {
     final response = await _client.auth.refreshSession();
     return response.session;
+  }
+
+  /// Permanently deletes the current user's account via a Postgres RPC function.
+  /// Requires the `delete_user` function to exist in the database (see docs).
+  Future<bool> deleteAccount() async {
+    try {
+      await _client.rpc('delete_user');
+      await _client.auth.signOut();
+      return true;
+    } catch (e) {
+      debugPrint('deleteAccount error: $e');
+      return false;
+    }
   }
 }
 

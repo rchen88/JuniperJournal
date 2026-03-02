@@ -30,7 +30,7 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
   bool _isLoading = true;
   List<Project> _projects = const [];
   bool _isFriendsLoading = false;
-  bool _isFriendActionLoading = false;
+  final Map<String, bool> _actionLoadingByUserId = {};
   String? _friendsErrorMessage;
   List<UserProfile> _friends = const [];
   Map<String, String> _friendStatuses = const {};
@@ -361,7 +361,7 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
     required String userId,
     required String status,
   }) {
-    if (_isFriendActionLoading) {
+    if (_actionLoadingByUserId[userId] == true) {
       return const SizedBox(
         width: 18,
         height: 18,
@@ -381,9 +381,29 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
     }
 
     if (status == 'pending_incoming') {
-      return FilledButton(
-        onPressed: () => _acceptRequest(userId),
-        child: const Text('Accept'),
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          OutlinedButton(
+            onPressed: () => _declineRequest(userId),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.red,
+              side: const BorderSide(color: Colors.red),
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+            ),
+            child: const Text('Decline'),
+          ),
+          const SizedBox(width: 6),
+          FilledButton(
+            onPressed: () => _acceptRequest(userId),
+            style: FilledButton.styleFrom(
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+            ),
+            child: const Text('Accept'),
+          ),
+        ],
       );
     }
 
@@ -395,11 +415,11 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
 
   Future<void> _sendRequest(String userId) async {
     if (userId.isEmpty) return;
-    setState(() => _isFriendActionLoading = true);
+    setState(() => _actionLoadingByUserId[userId] = true);
     final ok = await _friendsRepo.sendFriendRequest(addresseeId: userId);
     if (!mounted) return;
 
-    setState(() => _isFriendActionLoading = false);
+    setState(() => _actionLoadingByUserId.remove(userId));
     if (!ok) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Failed to send friend request')),
@@ -411,15 +431,32 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
 
   Future<void> _acceptRequest(String requesterId) async {
     if (requesterId.isEmpty) return;
-    setState(() => _isFriendActionLoading = true);
+    setState(() => _actionLoadingByUserId[requesterId] = true);
     final ok = await _friendsRepo.acceptFriendRequest(requesterId: requesterId);
     if (!mounted) return;
 
-    setState(() => _isFriendActionLoading = false);
+    setState(() => _actionLoadingByUserId.remove(requesterId));
     if (!ok) {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Failed to accept request')));
+      return;
+    }
+    _searchFriends();
+  }
+
+  Future<void> _declineRequest(String requesterId) async {
+    if (requesterId.isEmpty) return;
+    setState(() => _actionLoadingByUserId[requesterId] = true);
+    final ok =
+        await _friendsRepo.declineFriendRequest(requesterId: requesterId);
+    if (!mounted) return;
+
+    setState(() => _actionLoadingByUserId.remove(requesterId));
+    if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to decline request')),
+      );
       return;
     }
     _searchFriends();

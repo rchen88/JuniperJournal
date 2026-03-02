@@ -6,7 +6,10 @@ class MediaService {
   final StorageService _storage = StorageService();
 
   /// Handles picking and uploading in one flow
-  Future<String?> pickAndUploadImage(ImageSource source) async {
+  Future<String?> pickAndUploadImage(
+    ImageSource source, {
+    String folder = 'journal-log',
+  }) async {
     try {
       final XFile? image = await _picker.pickImage(
         source: source,
@@ -21,7 +24,7 @@ class MediaService {
       return await _storage.uploadImage(
         image,
         bucketName: 'images',
-        folder: 'journal-log',
+        folder: folder,
       );
     } catch (e) {
       print('MediaService Error: $e');

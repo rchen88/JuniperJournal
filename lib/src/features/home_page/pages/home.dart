@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:juniper_journal/src/backend/auth/auth_service.dart';
+import 'package:juniper_journal/src/backend/db/models/friend_request.dart';
 import 'package:juniper_journal/src/backend/db/models/project.dart';
 import 'package:juniper_journal/src/shared/styling/app_colors.dart';
 import 'package:juniper_journal/src/backend/db/repositories/friends_repo.dart';
@@ -19,10 +20,12 @@ class HomeShellScreen extends StatefulWidget {
 
 class _HomeShellScreenState extends State<HomeShellScreen> {
   int _selectedIndex = 0;
+  final _profileKey = GlobalKey<UserProfilePageState>();
   final ProjectsRepo _projectsRepo = ProjectsRepo();
   final FriendsRepo _friendsRepo = FriendsRepo();
   final ChatRepo _chatRepo = ChatRepo();
   int _unreadCount = 0;
+  int _pendingRequestCount = 0;
   final Map<String, String> _ownerLabelByUserId = {};
   final Map<String, String?> _ownerAvatarByUserId = {};
   final Set<String> _likedProjectIds = {};
@@ -33,6 +36,26 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
     super.initState();
     _projectsFuture = _loadFeedProjects();
     _loadUnreadCount();
+    _loadPendingRequestCount();
+  }
+
+  Future<void> _loadPendingRequestCount() async {
+    final requests = await _friendsRepo.getIncomingFriendRequests();
+    if (!mounted) return;
+    setState(() => _pendingRequestCount = requests?.length ?? 0);
+  }
+
+  Future<void> _showNotifications() async {
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _NotificationsSheet(friendsRepo: _friendsRepo),
+    );
+    if (!mounted) return;
+    _loadPendingRequestCount();
   }
 
   Future<void> _loadUnreadCount() async {
@@ -237,7 +260,10 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
               _BottomNavIcon(
                 icon: Icons.person_outline,
                 isActive: _selectedIndex == 3,
-                onTap: () => setState(() => _selectedIndex = 3),
+                onTap: () {
+                  setState(() => _selectedIndex = 3);
+                  _profileKey.currentState?.reload();
+                },
               ),
             ],
           ),
@@ -246,52 +272,137 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
 
       // ---------- BODY ----------
       body: SafeArea(
+        // On the profile tab the green bar extends into the status-bar area,
+        // so we disable the top safe-area inset and add it manually below.
+        top: _selectedIndex != 3,
         child: Column(
           children: [
             // ---------- FIXED TOP BAR ----------
-            Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16.0,
-                vertical: 8,
+            Container(
+              color: _selectedIndex == 3 ? AppColors.primary : null,
+              padding: EdgeInsets.fromLTRB(
+                16.0,
+                _selectedIndex == 3
+                    ? MediaQuery.of(context).padding.top + 8
+                    : 8,
+                16.0,
+                8,
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  IconButton(
-                    padding: EdgeInsets.zero,
-                    onPressed: _openSearch,
-                    icon: const Icon(Icons.search, size: 28),
-                  ),
-                  Text(
-                    _tabTitle(),
-                    style: const TextStyle(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  IconButton(
-                    padding: EdgeInsets.zero,
-                    onPressed: () async {
-                      await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const ChatsListScreen(),
+              child: _selectedIndex == 3
+                  ? Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const SettingsScreen(),
+                            ),
+                          ),
+                          style: TextButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            padding: EdgeInsets.zero,
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: const Text(
+                            'Settings',
+                            style: TextStyle(fontSize: 16),
+                          ),
                         ),
-                      );
-                      if (!mounted) return;
-                      _loadUnreadCount();
-                    },
-                    icon: Badge(
-                      isLabelVisible: _unreadCount > 0,
-                      label: Text(
-                        _unreadCount > 99 ? '99+' : '$_unreadCount',
-                        style: const TextStyle(fontSize: 10),
-                      ),
-                      child: const Icon(Icons.chat_bubble_outline, size: 26),
+                        const Text(
+                          'Profile',
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                        TextButton(
+                          onPressed: _handleSignOut,
+                          style: TextButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            padding: EdgeInsets.zero,
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: const Text(
+                            'Logout',
+                            style: TextStyle(fontSize: 16),
+                          ),
+                        ),
+                      ],
+                    )
+                  : Row(
+                      children: [
+                        Expanded(
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: IconButton(
+                              padding: EdgeInsets.zero,
+                              onPressed: _openSearch,
+                              icon: const Icon(Icons.search, size: 28),
+                            ),
+                          ),
+                        ),
+                        Text(
+                          _tabTitle(),
+                          style: const TextStyle(
+                            fontSize: 28,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        Expanded(
+                          child: Align(
+                            alignment: Alignment.centerRight,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                IconButton(
+                                  padding: EdgeInsets.zero,
+                                  onPressed: _showNotifications,
+                                  icon: Badge(
+                                    isLabelVisible: _pendingRequestCount > 0,
+                                    label: Text(
+                                      '$_pendingRequestCount',
+                                      style: const TextStyle(fontSize: 10),
+                                    ),
+                                    child: const Icon(
+                                      Icons.notifications_outlined,
+                                      size: 26,
+                                    ),
+                                  ),
+                                ),
+                                IconButton(
+                                  padding: EdgeInsets.zero,
+                                  onPressed: () async {
+                                    await Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => const ChatsListScreen(),
+                                      ),
+                                    );
+                                    if (!mounted) return;
+                                    _loadUnreadCount();
+                                  },
+                                  icon: Badge(
+                                    isLabelVisible: _unreadCount > 0,
+                                    label: Text(
+                                      _unreadCount > 99 ? '99+' : '$_unreadCount',
+                                      style: const TextStyle(fontSize: 10),
+                                    ),
+                                    child: const Icon(
+                                      Icons.chat_bubble_outline,
+                                      size: 26,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
-              ),
             ),
 
             Expanded(
@@ -311,7 +422,7 @@ class _HomeShellScreenState extends State<HomeShellScreen> {
                       style: TextStyle(color: Colors.black54, fontSize: 16),
                     ),
                   ),
-                  UserProfilePage(onSignOut: _handleSignOut),
+                  UserProfilePage(key: _profileKey),
                 ],
               ),
             ),
@@ -740,6 +851,169 @@ class _ProjectCardState extends State<_ProjectCard> {
           size: 30,
           color: Color(0xFF5A7A62),
         ),
+      ),
+    );
+  }
+}
+
+class _NotificationsSheet extends StatefulWidget {
+  final FriendsRepo friendsRepo;
+
+  const _NotificationsSheet({required this.friendsRepo});
+
+  @override
+  State<_NotificationsSheet> createState() => _NotificationsSheetState();
+}
+
+class _NotificationsSheetState extends State<_NotificationsSheet> {
+  bool _isLoading = true;
+  List<FriendRequest> _requests = const [];
+  final Map<String, bool> _loadingByUserId = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRequests();
+  }
+
+  Future<void> _loadRequests() async {
+    final result = await widget.friendsRepo.getIncomingFriendRequests();
+    if (!mounted) return;
+    setState(() {
+      _requests = result ?? [];
+      _isLoading = false;
+    });
+  }
+
+  Future<void> _accept(FriendRequest request) async {
+    setState(() => _loadingByUserId[request.requesterId] = true);
+    final ok = await widget.friendsRepo.acceptFriendRequest(
+      requesterId: request.requesterId,
+    );
+    if (!mounted) return;
+    setState(() => _loadingByUserId.remove(request.requesterId));
+    if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to accept request')),
+      );
+      return;
+    }
+    _loadRequests();
+  }
+
+  Future<void> _decline(FriendRequest request) async {
+    setState(() => _loadingByUserId[request.requesterId] = true);
+    final ok = await widget.friendsRepo.declineFriendRequest(
+      requesterId: request.requesterId,
+    );
+    if (!mounted) return;
+    setState(() => _loadingByUserId.remove(request.requesterId));
+    if (!ok) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to decline request')),
+      );
+      return;
+    }
+    _loadRequests();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text(
+            'Friend Requests',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          if (_isLoading)
+            const Center(child: CircularProgressIndicator())
+          else if (_requests.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 24),
+              child: Text(
+                'No pending friend requests.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.black54),
+              ),
+            )
+          else
+            ..._requests.map((request) {
+              final isActionLoading =
+                  _loadingByUserId[request.requesterId] == true;
+              final displayName =
+                  (request.displayName?.trim().isNotEmpty == true)
+                  ? request.displayName!.trim()
+                  : (request.username?.trim().isNotEmpty == true
+                      ? '@${request.username!.trim()}'
+                      : 'User');
+              return ListTile(
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 4,
+                  vertical: 2,
+                ),
+                leading: CircleAvatar(
+                  backgroundColor: const Color(0xFFE6F2E9),
+                  backgroundImage:
+                      (request.avatarUrl != null &&
+                          request.avatarUrl!.isNotEmpty)
+                      ? NetworkImage(request.avatarUrl!)
+                      : null,
+                  child:
+                      (request.avatarUrl == null || request.avatarUrl!.isEmpty)
+                      ? const Icon(
+                          Icons.person_outline,
+                          color: AppColors.primary,
+                        )
+                      : null,
+                ),
+                title: Text(
+                  displayName,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                trailing: isActionLoading
+                    ? const SizedBox(
+                        width: 24,
+                        height: 24,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          OutlinedButton(
+                            onPressed: () => _decline(request),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: Colors.red,
+                              side: const BorderSide(color: Colors.red),
+                              visualDensity: VisualDensity.compact,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                              ),
+                            ),
+                            child: const Text('Decline'),
+                          ),
+                          const SizedBox(width: 6),
+                          FilledButton(
+                            onPressed: () => _accept(request),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              visualDensity: VisualDensity.compact,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 10,
+                              ),
+                            ),
+                            child: const Text('Accept'),
+                          ),
+                        ],
+                      ),
+              );
+            }),
+        ],
       ),
     );
   }

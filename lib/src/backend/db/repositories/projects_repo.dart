@@ -52,7 +52,7 @@ class ProjectsRepo {
       final rows = await _client
           .from(table)
           .select(
-            'id, user_id, project_name, tags, project_image_url, created_at',
+            'id, user_id, project_name, problem_statement, tags, project_image_url, created_at, likes',
           )
           .inFilter('user_id', ownerIds)
           .order('created_at', ascending: false);
@@ -88,6 +88,44 @@ class ProjectsRepo {
     } catch (e, st) {
       debugPrint('createProject error: $e\n$st');
       return null;
+    }
+  }
+
+  Future<bool> likeProject({required String id}) async {
+    try {
+      await _client.rpc('like_project', params: {'p_project_id': id});
+      return true;
+    } catch (e, st) {
+      debugPrint('likeProject error: $e\n$st');
+      return false;
+    }
+  }
+
+  Future<bool> unlikeProject({required String id}) async {
+    try {
+      await _client.rpc('unlike_project', params: {'p_project_id': id});
+      return true;
+    } catch (e, st) {
+      debugPrint('unlikeProject error: $e\n$st');
+      return false;
+    }
+  }
+
+  Future<Set<String>> getLikedProjectIds({required List<String> projectIds}) async {
+    final user = _client.auth.currentUser;
+    if (user == null || projectIds.isEmpty) return {};
+    try {
+      final rows = await _client
+          .from('project_likes')
+          .select('project_id')
+          .eq('user_id', user.id)
+          .inFilter('project_id', projectIds);
+      return Set<String>.from(
+        List<Map<String, dynamic>>.from(rows).map((r) => r['project_id'].toString()),
+      );
+    } catch (e, st) {
+      debugPrint('getLikedProjectIds error: $e\n$st');
+      return {};
     }
   }
 

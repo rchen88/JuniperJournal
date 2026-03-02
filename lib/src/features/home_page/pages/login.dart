@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../backend/auth/auth_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:juniper_journal/src/backend/db/repositories/users_repo.dart';
 import 'package:juniper_journal/src/shared/widgets/widgets.dart';
 import 'package:juniper_journal/src/shared/styling/theme.dart';
 import 'package:juniper_journal/src/features/home_page/home_page.dart';
@@ -17,6 +18,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _emailCtrl = TextEditingController();
   final TextEditingController _passwordCtrl = TextEditingController();
   final AuthService _authService = AuthService.instance;
+  final _usersRepo = UsersRepo();
 
   // Create nodes for easy flow
   final _usernameFocus = FocusNode();
@@ -47,8 +49,9 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       if (user != null && mounted) {
-        // Navigate to home page on successful login
-        // Clear entire navigation stack and replace with home screen
+        // Ensure a profile row exists (creates one for users who signed up
+        // before the profiles table was introduced). Fire-and-forget.
+        _usersRepo.ensureProfileExists();
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (context) => const HomeShellScreen()),
           (route) => false,

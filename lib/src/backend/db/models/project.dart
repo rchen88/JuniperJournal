@@ -6,6 +6,7 @@ class Project {
   final String? userId;
   final DateTime? createdAt;
   final String? problemStatement;
+  final int likes;
 
   const Project({
     required this.id,
@@ -15,6 +16,7 @@ class Project {
     this.userId,
     this.createdAt,
     this.problemStatement,
+    this.likes = 0,
   });
 
   factory Project.fromMap(Map<String, dynamic> map) => Project(
@@ -30,5 +32,6 @@ class Project {
     userId: map['user_id']?.toString(),
     createdAt: DateTime.tryParse(map['created_at']?.toString() ?? ''),
     problemStatement: map['problem_statement']?.toString(),
+    likes: (map['likes'] as num?)?.toInt() ?? 0,
   );
 }
