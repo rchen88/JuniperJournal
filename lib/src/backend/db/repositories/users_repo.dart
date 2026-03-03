@@ -29,7 +29,11 @@ class UsersRepo {
 
   /// Creates or updates the current user's profile row.
   /// Call this after a successful signup to store the username.
-  Future<void> upsertCurrentUserProfile({String? username}) async {
+  Future<void> upsertCurrentUserProfile({
+    String? username,
+    String? displayName,
+    DateTime? birthday,
+  }) async {
     final user = _client.auth.currentUser;
     if (user == null) return;
 
@@ -41,9 +45,31 @@ class UsersRepo {
       if (username != null && username.trim().isNotEmpty) {
         data['username'] = username.trim();
       }
+      if (displayName != null && displayName.trim().isNotEmpty) {
+        data['display_name'] = displayName.trim();
+      }
+      if (birthday != null) {
+        data['birthday'] = birthday.toIso8601String().split('T').first;
+      }
       await _client.from(profilesTable).upsert(data, onConflict: 'id');
     } catch (e, st) {
       debugPrint('upsertCurrentUserProfile error: $e\n$st');
+    }
+  }
+
+  /// Returns true if [username] is not already taken.
+  /// Fails open (returns true) on errors to avoid blocking signup.
+  Future<bool> isUsernameAvailable(String username) async {
+    try {
+      final rows = await _client
+          .from(profilesTable)
+          .select('id')
+          .eq('username', username.trim().toLowerCase())
+          .limit(1);
+      return rows.isEmpty;
+    } catch (e, st) {
+      debugPrint('isUsernameAvailable error: $e\n$st');
+      return true;
     }
   }
 

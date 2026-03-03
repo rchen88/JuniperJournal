@@ -4,6 +4,7 @@ class UserProfile {
   final String? username;
   final String? avatarUrl;
   final bool isPublicProfile;
+  final DateTime? birthday;
 
   const UserProfile({
     required this.id,
@@ -11,6 +12,7 @@ class UserProfile {
     this.username,
     this.avatarUrl,
     this.isPublicProfile = true,
+    this.birthday,
   });
 
   factory UserProfile.fromMap(Map<String, dynamic> map) => UserProfile(
@@ -19,6 +21,9 @@ class UserProfile {
     username: map['username']?.toString(),
     avatarUrl: map['avatar_url']?.toString(),
     isPublicProfile: map['is_public_profile'] as bool? ?? true,
+    birthday: map['birthday'] != null
+        ? DateTime.tryParse(map['birthday'].toString())
+        : null,
   );
 
   String get resolvedDisplayName {

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:juniper_journal/src/features/project/project.dart';
 import 'package:juniper_journal/src/shared/styling/theme.dart';
 import '../../../backend/db/repositories/projects_repo.dart';
 import 'dart:math';
@@ -24,6 +23,9 @@ class _MaterialsCostPageState extends State<MaterialsCostPage> {
   final List<Map<String, dynamic>> _materials = [];
   final _projectsRepo = ProjectsRepo();
 
+  bool _isSaving = false;
+  DateTime? _lastSavedAt;
+
   @override
   void initState() {
     super.initState();
@@ -41,10 +43,24 @@ class _MaterialsCostPageState extends State<MaterialsCostPage> {
   }
 
   Future<void> _saveMaterials() async {
+    setState(() => _isSaving = true);
     await _projectsRepo.updateMaterialsCost(
       id: widget.projectId,
       materials: _materials,
     );
+    if (!mounted) return;
+    setState(() {
+      _lastSavedAt = DateTime.now();
+      _isSaving = false;
+    });
+  }
+
+  String? get _savedLabel {
+    if (_lastSavedAt == null) return null;
+    final h = _lastSavedAt!.hour % 12 == 0 ? 12 : _lastSavedAt!.hour % 12;
+    final m = _lastSavedAt!.minute.toString().padLeft(2, '0');
+    final ampm = _lastSavedAt!.hour < 12 ? 'AM' : 'PM';
+    return 'Saved $h:$m $ampm';
   }
 
   void _addMaterialDialog() {
@@ -86,6 +102,7 @@ class _MaterialsCostPageState extends State<MaterialsCostPage> {
                 );
                 return;
               }
+              final navigator = Navigator.of(context);
               setState(() {
                 _materials.add({
                   "id": Random().nextInt(9999),
@@ -94,7 +111,7 @@ class _MaterialsCostPageState extends State<MaterialsCostPage> {
                 });
               });
               await _saveMaterials();
-              Navigator.pop(context);
+              navigator.pop();
             },
             child: const Text("Add"),
           ),
@@ -143,248 +160,232 @@ class _MaterialsCostPageState extends State<MaterialsCostPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (!didPop) {
+          final navigator = Navigator.of(context);
+          await _saveMaterials();
+          if (mounted) navigator.pop();
+        }
+      },
+      child: Scaffold(
         backgroundColor: AppColors.background,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, size: 18, color: AppColors.border),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(widget.projectName, 
-          style: TextStyle(color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w700)),
-        centerTitle: true,
-        actions: [
-            PopupMenuButton<String>(
-              icon: const Icon(Icons.save, color: AppColors.textPrimary),
-              onSelected: (value) async {
-                if (value == 'save') {
-                  await _saveMaterials();
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Progress saved')),
-                    );
-                  }
-                } else if (value == 'save_continue') {
-                  final navigator = Navigator.of(context);
-                  await _saveMaterials();
-                  if (mounted) {
-                    navigator.pushReplacement(
-                      MaterialPageRoute(
-                        builder: (context) => MaterialsCostPage(
-                          projectId: widget.projectId,
-                          projectName: widget.projectName,
-                          tags: widget.tags,
-                        ),
-                      ),
-                    );
-                  }
-                }
-              },
-              itemBuilder: (BuildContext context) => [
-                const PopupMenuItem<String>(
-                  value: 'save',
-                  child: Row(
-                    children: [
-                      Icon(Icons.save_outlined, color: Colors.black54, size: 20),
-                      SizedBox(width: 8),
-                      Text('Save Draft'),
-                    ],
-                  ),
+        appBar: AppBar(
+          backgroundColor: AppColors.background,
+          elevation: 0,
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios, size: 18, color: AppColors.border),
+            onPressed: () async {
+              final navigator = Navigator.of(context);
+              await _saveMaterials();
+              if (mounted) navigator.pop();
+            },
+          ),
+          title: Text(widget.projectName,
+              style: TextStyle(color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w700)),
+          centerTitle: true,
+          actions: [
+            if (_isSaving)
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
                 ),
-                const PopupMenuItem<String>(
-                  value: 'save_continue',
-                  child: Row(
-                    children: [
-                      Icon(Icons.arrow_forward_outlined, color: AppColors.primary, size: 20),
-                      SizedBox(width: 8),
-                      Text('Save & Continue'),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ],
-        shape: const Border(bottom: BorderSide(color: Color(0xFFE5E5EA), width: 0.6)),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 🔹 Project Header with Tags
-            Text(
-              widget.projectName,
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: AppColors.textPrimary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: widget.tags.map((tag) {
-                return Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFDCF7E4),
-                    borderRadius: BorderRadius.circular(24),
-                  ),
+              )
+            else if (_savedLabel != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Center(
                   child: Text(
-                    tag,
-                    style: const TextStyle(
-                      color: AppColors.primary,
-                      fontSize: 10,
-                      fontFamily: 'Inter',
-                      fontWeight: FontWeight.w600,
-                    ),
+                    _savedLabel!,
+                    style: const TextStyle(fontSize: 12, color: Colors.black38),
                   ),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 24),
-
-            // 🔹 Total Cost Circle (Bigger)
-            Center(
-              child: TweenAnimationBuilder<double>(
-                tween: Tween<double>(begin: 0, end: _totalCost),
-                duration: const Duration(milliseconds: 500),
-                curve: Curves.easeOut,
-                builder: (context, value, child) {
-                  return AnimatedContainer(
-                    duration: const Duration(milliseconds: 500),
-                    curve: Curves.easeInOut,
-                    width: 180,
-                    height: 180,
+                ),
+              ),
+          ],
+          shape: const Border(bottom: BorderSide(color: Color(0xFFE5E5EA), width: 0.6)),
+        ),
+        body: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Project Header with Tags
+              Text(
+                widget.projectName,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: widget.tags.map((tag) {
+                  return Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: _totalColor.withOpacity(0.15),
-                      border: Border.all(color: _totalColor, width: 6),
+                      color: const Color(0xFFDCF7E4),
+                      borderRadius: BorderRadius.circular(24),
                     ),
-                    child: Center(
-                      child: Text(
-                        "\$${value.toStringAsFixed(2)}",
-                        style: TextStyle(
-                          fontSize: 40,
-                          fontFamily: 'Inter',
-                          fontWeight: FontWeight.w500,
-                          color: _totalColor,
-                        ),
+                    child: Text(
+                      tag,
+                      style: const TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 10,
+                        fontFamily: 'Inter',
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   );
-                },
+                }).toList(),
               ),
-            ),
+              const SizedBox(height: 24),
 
-            const SizedBox(height: 20),
+              // Total Cost Circle (Bigger)
+              Center(
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween<double>(begin: 0, end: _totalCost),
+                  duration: const Duration(milliseconds: 500),
+                  curve: Curves.easeOut,
+                  builder: (context, value, child) {
+                    return AnimatedContainer(
+                      duration: const Duration(milliseconds: 500),
+                      curve: Curves.easeInOut,
+                      width: 180,
+                      height: 180,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: _totalColor.withValues(alpha: 0.15),
+                        border: Border.all(color: _totalColor, width: 6),
+                      ),
+                      child: Center(
+                        child: Text(
+                          "\$${value.toStringAsFixed(2)}",
+                          style: TextStyle(
+                            fontSize: 40,
+                            fontFamily: 'Inter',
+                            fontWeight: FontWeight.w500,
+                            color: _totalColor,
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
 
-            // 🔹 Range Container (styled like your button)
-            Center(
-              child: Container(
-                width: 251,
-                height: 40,
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                decoration: ShapeDecoration(
-                  color: _totalColor,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+              const SizedBox(height: 20),
+
+              // Range Container
+              Center(
+                child: Container(
+                  width: 251,
+                  height: 40,
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  decoration: ShapeDecoration(
+                    color: _totalColor,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: Center(
+                    child: Text(
+                      _costRangeLabel,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontFamily: 'Inter',
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
                 ),
-                child: Center(
-                  child: Text(
-                    _costRangeLabel,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontFamily: 'Inter',
+              ),
+
+              const SizedBox(height: 24),
+
+              // Materials List
+              Expanded(
+                child: _materials.isEmpty
+                    ? const Center(
+                        child: Text(
+                          "No materials added yet.",
+                          style: TextStyle(color: AppColors.textSecondary),
+                        ),
+                      )
+                    : ListView.builder(
+                        itemCount: _materials.length,
+                        itemBuilder: (context, index) {
+                          final material = _materials[index];
+                          return Card(
+                            margin: const EdgeInsets.symmetric(vertical: 8),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: const BorderSide(color: AppColors.borderLight),
+                            ),
+                            child: ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor:
+                                    _getIndicatorColor(material["cost"]),
+                                radius: 8,
+                              ),
+                              title: Text(
+                                material["name"],
+                                style: const TextStyle(
+                                  color: Colors.black,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              trailing: Text(
+                                "\$${material["cost"].toStringAsFixed(2)}",
+                                style: const TextStyle(
+                                  color: Colors.black,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+
+              const SizedBox(height: 20),
+
+              // Add Item Button
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton.icon(
+                  onPressed: _addMaterialDialog,
+                  icon: const Icon(Icons.add, size: 26),
+                  label: const Text(
+                    "Add Item",
+                    style: TextStyle(
+                      fontSize: 18,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // 🔹 Materials List
-            Expanded(
-              child: _materials.isEmpty
-                  ? const Center(
-                      child: Text(
-                        "No materials added yet.",
-                        style: TextStyle(color: AppColors.textSecondary),
-                      ),
-                    )
-                  : ListView.builder(
-                      itemCount: _materials.length,
-                      itemBuilder: (context, index) {
-                        final material = _materials[index];
-                        return Card(
-                          margin: const EdgeInsets.symmetric(vertical: 8),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            side: const BorderSide(color: AppColors.borderLight),
-                          ),
-                          child: ListTile(
-                            leading: CircleAvatar(
-                              backgroundColor:
-                                  _getIndicatorColor(material["cost"]),
-                              radius: 8,
-                            ),
-                            title: Text(
-                              material["name"],
-                              style: const TextStyle(
-                                color: Colors.black,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                            trailing: Text(
-                              "\$${material["cost"].toStringAsFixed(2)}",
-                              style: const TextStyle(
-                                color: Colors.black,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        );
-                      },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.buttonPrimary,
+                    foregroundColor: AppColors.buttonText,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
                     ),
-            ),
-
-            const SizedBox(height: 20),
-
-            // 🔹 Add Item Button
-            SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: ElevatedButton.icon(
-                onPressed: _addMaterialDialog,
-                icon: const Icon(Icons.add, size: 26),
-                label: const Text(
-                  "Add Item",
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.buttonPrimary,
-                  foregroundColor: AppColors.buttonText,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
-          ],
+              const SizedBox(height: 16),
+            ],
+          ),
         ),
       ),
     );

@@ -82,6 +82,25 @@ class AuthService {
     }
   }
 
+  /// Checks if an email address is available for registration.
+  ///
+  /// Calls the `check-email-available` Edge Function server-side.
+  /// Returns true if available, false if taken.
+  /// Fails open (returns true) on network errors to avoid blocking signup.
+  Future<bool> checkEmailAvailable(String email) async {
+    try {
+      final response = await _client.functions.invoke(
+        'check-email-available',
+        body: {'email': email.trim()},
+      );
+      final data = response.data as Map<String, dynamic>;
+      return data['available'] as bool? ?? true;
+    } catch (e) {
+      debugPrint('checkEmailAvailable error: $e');
+      return true;
+    }
+  }
+
   /// Resend the confirmation email for a pending signup.
   Future<bool> resendVerificationEmail(String email) async {
     try {

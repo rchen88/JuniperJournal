@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:juniper_journal/src/features/project/project.dart';
 import 'package:juniper_journal/src/shared/styling/theme.dart';
 import 'package:juniper_journal/src/shared/widgets/widgets.dart';
-import 'package:juniper_journal/src/backend/db/repositories/projects_repo.dart';
 
 class CreateProjectScreen extends StatefulWidget {
   const CreateProjectScreen({super.key});
@@ -14,8 +13,6 @@ class CreateProjectScreen extends StatefulWidget {
 class _CreateProjectScreenState extends State<CreateProjectScreen> {
   final _formKey = GlobalKey<FormState>();
   final _projectNameController = TextEditingController();
-  final _projectsRepo = ProjectsRepo();
-  bool _isLoading = false;
   
   // TODO: should eventually come from constant file/allow for new tags
   final List<String> _availableTags = [
@@ -69,7 +66,7 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
               
               SubmitButton(
                 label: 'Continue',
-                isLoading: _isLoading, 
+                isLoading: false,
                 backgroundColor: const Color(0xFF5DB075),
                 onPressed: _handleCreateProject,
               ),
@@ -138,33 +135,17 @@ class _CreateProjectScreenState extends State<CreateProjectScreen> {
   // Logic Helper
 
   // TODO: require tags?
-  Future<void> _handleCreateProject() async {
+  void _handleCreateProject() {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() => _isLoading = true);
-    final result = await _projectsRepo.createProject(
-      projectName: _projectNameController.text.trim(),
-      problemStatement: '',
-      tags: List<String>.from(_selectedTags),
-    );
-
-    if (!mounted) return;
-    setState(() => _isLoading = false);
-
-    if (result != null) {
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (context) => DefineProblemStatementScreen(
-            projectId: result.id,
-            projectName: _projectNameController.text,
-            tags: _selectedTags,
-          ),
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => DefineProblemStatementScreen(
+          projectName: _projectNameController.text.trim(),
+          tags: List<String>.from(_selectedTags),
+          isNewProject: true,
         ),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to create project.')),
-      );
-    }
+      ),
+    );
   }
 }

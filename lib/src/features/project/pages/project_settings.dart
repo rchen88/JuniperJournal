@@ -22,6 +22,46 @@ class ProjectSettingsScreen extends StatefulWidget {
   State<ProjectSettingsScreen> createState() => _ProjectSettingsScreenState();
 }
 
+class _SettingsPicker extends StatelessWidget {
+  const _SettingsPicker({
+    required this.value,
+    required this.placeholder,
+    required this.onTap,
+  });
+
+  final String? value;
+  final String placeholder;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.grey.shade400),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                value ?? placeholder,
+                style: TextStyle(
+                  fontSize: 14,
+                  color: value != null ? Colors.black87 : Colors.grey.shade500,
+                ),
+              ),
+            ),
+            Icon(Icons.keyboard_arrow_down, color: Colors.grey.shade600),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _ProjectSettingsScreenState extends State<ProjectSettingsScreen> {
   late final ProjectsRepo _projectsRepo;
   late final MediaService _mediaService;
@@ -33,6 +73,25 @@ class _ProjectSettingsScreenState extends State<ProjectSettingsScreen> {
   bool _isLoading = true;
   bool _isSaving = false;
   String? _projectImageUrl;
+
+  String? _selectedDifficulty;
+  String? _selectedDomain;
+  String? _selectedProgress;
+
+  static const _difficultyLevels = ['Basic', 'Intermediate', 'Advanced'];
+  static const _subjectDomains = [
+    'Environment & Sustainability',
+    'Engineering & Design',
+    'Energy & Systems',
+    'Community & The Built Environment',
+  ];
+  static const _progressOptions = [
+    'Discovering',
+    'Ideating',
+    'Prototyping',
+    'Testing & Iterating',
+    'Implemented',
+  ];
 
   final List<String> _availableTags = const [
     'EDUCATIONAL IMPACT',
@@ -77,7 +136,12 @@ class _ProjectSettingsScreenState extends State<ProjectSettingsScreen> {
       ..clear()
       ..addAll(project.tags);
 
-    setState(() => _isLoading = false);
+    setState(() {
+      _selectedDifficulty = project.difficulty;
+      _selectedDomain = project.subjectDomain;
+      _selectedProgress = project.progress;
+      _isLoading = false;
+    });
   }
 
   Future<void> _pickProjectImage(ImageSource source) async {
@@ -120,6 +184,47 @@ class _ProjectSettingsScreenState extends State<ProjectSettingsScreen> {
     );
   }
 
+  Future<void> _showPicker(
+    List<String> items,
+    String? current,
+    ValueChanged<String?> onChanged,
+  ) async {
+    await showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: 12),
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 8),
+          ...items.map(
+            (item) => ListTile(
+              title: Text(item),
+              trailing: current == item
+                  ? const Icon(Icons.check, color: AppColors.primary)
+                  : null,
+              onTap: () {
+                onChanged(item);
+                Navigator.pop(context);
+              },
+            ),
+          ),
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+
   Future<void> _saveSettings() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
@@ -131,6 +236,9 @@ class _ProjectSettingsScreenState extends State<ProjectSettingsScreen> {
       problemStatement: _problemStatementController.text.trim(),
       tags: List<String>.from(_selectedTags),
       projectImageUrl: _projectImageUrl,
+      difficulty: _selectedDifficulty,
+      subjectDomain: _selectedDomain,
+      progress: _selectedProgress,
     );
 
     if (!mounted) return;
@@ -334,6 +442,60 @@ class _ProjectSettingsScreenState extends State<ProjectSettingsScreen> {
                     ),
                     const SizedBox(height: 12),
                     _buildTagSelector(),
+                    const SizedBox(height: 24),
+                    const Text(
+                      'Subject Domain',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    _SettingsPicker(
+                      value: _selectedDomain,
+                      placeholder: 'Select Domain',
+                      onTap: () => _showPicker(
+                        _subjectDomains,
+                        _selectedDomain,
+                        (v) => setState(() => _selectedDomain = v),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    const Text(
+                      'Difficulty',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    _SettingsPicker(
+                      value: _selectedDifficulty,
+                      placeholder: 'Select Difficulty',
+                      onTap: () => _showPicker(
+                        _difficultyLevels,
+                        _selectedDifficulty,
+                        (v) => setState(() => _selectedDifficulty = v),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    const Text(
+                      'Progress',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    _SettingsPicker(
+                      value: _selectedProgress,
+                      placeholder: 'Select Progress',
+                      onTap: () => _showPicker(
+                        _progressOptions,
+                        _selectedProgress,
+                        (v) => setState(() => _selectedProgress = v),
+                      ),
+                    ),
                     const SizedBox(height: 32),
                     SubmitButton(
                       label: 'Save Settings',

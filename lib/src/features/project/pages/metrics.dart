@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:juniper_journal/src/features/project/project.dart';
 import 'package:juniper_journal/src/shared/styling/theme.dart';
 
 class MetricsPage extends StatefulWidget {
@@ -249,57 +248,7 @@ class _MetricsPageState extends State<MetricsPage> {
         title: Text(widget.projectName, 
           style: TextStyle(color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w700)),
         centerTitle: true,
-        actions: [
-            PopupMenuButton<String>(
-              icon: const Icon(Icons.save, color: AppColors.textPrimary),
-              onSelected: (value) async {
-                if (value == 'save') {
-                  // await _saveDocument();
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Progress saved')),
-                    );
-                  }
-                } else if (value == 'save_continue') {
-                  final navigator = Navigator.of(context);
-                  // await _saveDocument();
-                  if (mounted) {
-                    navigator.pushReplacement(
-                      MaterialPageRoute(
-                        builder: (context) => MaterialsCostPage(
-                          projectId: widget.projectId,
-                          projectName: widget.projectName,
-                          tags: widget.tags,
-                        ),
-                      ),
-                    );
-                  }
-                }
-              },
-              itemBuilder: (BuildContext context) => [
-                const PopupMenuItem<String>(
-                  value: 'save',
-                  child: Row(
-                    children: [
-                      Icon(Icons.save_outlined, color: Colors.black54, size: 20),
-                      SizedBox(width: 8),
-                      Text('Save Draft'),
-                    ],
-                  ),
-                ),
-                const PopupMenuItem<String>(
-                  value: 'save_continue',
-                  child: Row(
-                    children: [
-                      Icon(Icons.arrow_forward_outlined, color: AppColors.primary, size: 20),
-                      SizedBox(width: 8),
-                      Text('Save & Continue'),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ],
+        actions: const [],
         shape: const Border(bottom: BorderSide(color: Color(0xFFE5E5EA), width: 0.6)),
       ),
 
@@ -334,7 +283,7 @@ class _MetricsPageState extends State<MetricsPage> {
 
             // SELECT METRIC
             DropdownButtonFormField<Map<String, dynamic>>(
-              value: selectedMetric,
+              initialValue: selectedMetric,
               decoration: InputDecoration(
                 labelText: "Select Impact Metric",
                 border: OutlineInputBorder(

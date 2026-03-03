@@ -1,9 +1,13 @@
+import 'dart:async';
+
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:juniper_journal/src/backend/auth/auth_service.dart';
 import 'package:juniper_journal/src/backend/db/repositories/users_repo.dart';
-import 'package:juniper_journal/src/shared/widgets/widgets.dart';
-import 'package:juniper_journal/src/shared/styling/theme.dart';
 import 'package:juniper_journal/src/features/home_page/home_page.dart';
+import 'package:juniper_journal/src/shared/styling/theme.dart';
+import 'package:juniper_journal/src/shared/widgets/widgets.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -13,277 +17,709 @@ class SignupScreen extends StatefulWidget {
 }
 
 class _SignupScreenState extends State<SignupScreen> {
-  final _formKey = GlobalKey<FormState>();
+  int _step = 0;
+  int _prevStep = 0;
+
   final _usersRepo = UsersRepo();
 
-  final TextEditingController _usernameCtrl = TextEditingController();
-  final TextEditingController _emailCtrl = TextEditingController();
-  final TextEditingController _passwordCtrl = TextEditingController();
+  // Step 0 — Email
+  final _step0Key = GlobalKey<FormState>();
+  final _emailCtrl = TextEditingController();
+  bool _emailChecking = false;
+  String? _emailError;
 
-  // Create nodes for easy flow
-  final _usernameFocus = FocusNode();
-  final _emailFocus = FocusNode();
-  final _passwordFocus = FocusNode();
-
+  // Step 1 — Password
+  final _step1Key = GlobalKey<FormState>();
+  final _passwordCtrl = TextEditingController();
+  final _confirmPasswordCtrl = TextEditingController();
   bool _obscurePassword = true;
-  bool _isLoading = false;
+  bool _obscureConfirm = true;
+
+  // Step 2 — Profile
+  final _step2Key = GlobalKey<FormState>();
+  final _firstNameCtrl = TextEditingController();
+  final _lastNameCtrl = TextEditingController();
+  final _usernameCtrl = TextEditingController();
+  bool? _usernameAvailable; // null = unchecked, true = available, false = taken
+  bool _usernameChecking = false;
+  Timer? _usernameDebounce;
+
+  // Step 3 — Birthday
+  DateTime? _birthday;
+  bool _isSubmitting = false;
 
   @override
   void dispose() {
-    _usernameCtrl.dispose();
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
-
-    _usernameFocus.dispose();
-    _emailFocus.dispose();
-    _passwordFocus.dispose();
+    _confirmPasswordCtrl.dispose();
+    _firstNameCtrl.dispose();
+    _lastNameCtrl.dispose();
+    _usernameCtrl.dispose();
+    _usernameDebounce?.cancel();
     super.dispose();
   }
 
-  /// Handles email/password signup
-  Future<void> _handleSignup() async {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
+  // ---------------------------------------------------------------------------
+  // Navigation helpers
+  // ---------------------------------------------------------------------------
 
-    setState(() => _isLoading = true);
+  void _goBack() {
+    if (_step > 0) {
+      setState(() {
+        _prevStep = _step;
+        _step--;
+      });
+    } else {
+      Navigator.maybePop(context);
+    }
+  }
+
+  void _advance() {
+    setState(() {
+      _prevStep = _step;
+      _step++;
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Step actions
+  // ---------------------------------------------------------------------------
+
+  Future<void> _onStep0Next() async {
+    if (!(_step0Key.currentState?.validate() ?? false)) return;
+
+    setState(() {
+      _emailChecking = true;
+      _emailError = null;
+    });
+
+    final available = await AuthService.instance
+        .checkEmailAvailable(_emailCtrl.text.trim());
+
+    if (!mounted) return;
+    setState(() => _emailChecking = false);
+
+    if (!available) {
+      setState(() => _emailError = 'An account with this email already exists.');
+      return;
+    }
+
+    _advance();
+  }
+
+  void _onStep1Next() {
+    if (!(_step1Key.currentState?.validate() ?? false)) return;
+    _advance();
+  }
+
+  void _onStep2Next() {
+    if (!(_step2Key.currentState?.validate() ?? false)) return;
+
+    final uname = _usernameCtrl.text.trim();
+    if (uname.length >= 3) {
+      if (_usernameChecking) {
+        _showError('Checking username availability, please wait…');
+        return;
+      }
+      if (_usernameAvailable != true) {
+        _showError('Please choose an available username.');
+        return;
+      }
+    }
+
+    _advance();
+  }
+
+  Future<void> _onSubmit() async {
+    if (_birthday == null) {
+      _showError('Please select your birthday.');
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
 
     final result = await AuthService.instance.signUpWithEmail(
-      email: _emailCtrl.text,
+      email: _emailCtrl.text.trim(),
       password: _passwordCtrl.text,
-      username: _usernameCtrl.text,
     );
 
     if (!mounted) return;
-    setState(() => _isLoading = false);
 
-    // 1️⃣ Signup failed
     if (!result.isSuccess) {
+      setState(() => _isSubmitting = false);
       _showError(result.friendlyErrorMessage ?? 'Signup failed.');
       return;
     }
 
-    // 2️⃣ Logged in immediately (email confirmation OFF)
-    if (result.session != null) {
-      await _usersRepo.upsertCurrentUserProfile(
-        username: _usernameCtrl.text.trim(),
-      );
-      if (!mounted) return;
-      Navigator.pushReplacementNamed(context, '/home');
-      return;
-    }
-
-    // 3️⃣ Duplicate email — Supabase silently accepts it but returns empty identities
     if (result.user?.identities?.isEmpty == true) {
-      _showError('Signup failed. Please try again.');
+      setState(() => _isSubmitting = false);
+      _showError('Signup failed.');
       return;
     }
 
-    // 4️⃣ Email confirmation required
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => EmailVerificationPendingScreen(
-          email: _emailCtrl.text.trim(),
-        ),
-      ),
+    final displayName =
+        '${_firstNameCtrl.text.trim()} ${_lastNameCtrl.text.trim()}'.trim();
+
+    await _usersRepo.upsertCurrentUserProfile(
+      username: _usernameCtrl.text.trim(),
+      displayName: displayName,
+      birthday: _birthday,
+    );
+
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const HomeShellScreen()),
+      (route) => false,
     );
   }
 
+  // ---------------------------------------------------------------------------
+  // Username availability check (debounced)
+  // ---------------------------------------------------------------------------
 
-  /// Shows error message as SnackBar
+  void _onUsernameChanged(String value) {
+    _usernameDebounce?.cancel();
+    final trimmed = value.trim();
+
+    if (trimmed.length < 3) {
+      setState(() {
+        _usernameAvailable = null;
+        _usernameChecking = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _usernameChecking = true;
+      _usernameAvailable = null;
+    });
+
+    _usernameDebounce = Timer(const Duration(milliseconds: 500), () async {
+      final available = await _usersRepo.isUsernameAvailable(trimmed);
+      if (!mounted) return;
+      setState(() {
+        _usernameAvailable = available;
+        _usernameChecking = false;
+      });
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Birthday picker
+  // ---------------------------------------------------------------------------
+
+  Future<void> _pickBirthday() async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _birthday ?? DateTime(2000, 1, 1),
+      firstDate: DateTime(1900),
+      lastDate: DateTime.now(),
+    );
+    if (picked != null) {
+      setState(() => _birthday = picked);
+    }
+  }
+
+  String _formatBirthday(DateTime date) {
+    return DateFormat('MMMM d, yyyy').format(date);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Utility
+  // ---------------------------------------------------------------------------
+
   void _showError(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-      ),
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
     );
   }
+
+  // ---------------------------------------------------------------------------
+  // Build
+  // ---------------------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          color: Colors.black87,
-          onPressed: _isLoading
-          ? null
-          : () => Navigator.maybePop(context),
-        ),
+    return PopScope(
+      canPop: _step == 0,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _goBack();
+      },
+      child: Scaffold(
         backgroundColor: Colors.white,
-        elevation: 0,
-      ),
-      body: SafeArea(
-        child: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8),
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            color: Colors.black87,
+            onPressed: (_emailChecking || _isSubmitting) ? null : _goBack,
+          ),
+          backgroundColor: Colors.white,
+          elevation: 0,
+        ),
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24.0),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                const SizedBox(height: 8),
-
-                // Title
-                const Text(
-                  'Sign up',
-                  style: TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 32),
-
-                // Username
-                TextFormField(
-                  controller: _usernameCtrl,
-                  focusNode: _usernameFocus,
-                  decoration: authInputDecoration('Enter Your Username'),
-                  validator: (v) {
-                    final value = (v ?? '').trim();
-                    if (value.isEmpty) return 'Enter a username';
-                    if (value.length < 3) return 'Username must be at least 3 characters';
-                    if (value.length > 30) return 'Username must be 30 characters or fewer';
-                    if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(value)) {
-                      return 'Only letters, numbers, and underscores allowed';
-                    }
-                    return null;
-                  },
-                  textInputAction: TextInputAction.next,
-                  onFieldSubmitted: (_) {
-                    FocusScope.of(context).requestFocus(_emailFocus);
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // Email
-                TextFormField(
-                  controller: _emailCtrl,
-                  focusNode: _emailFocus,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: authInputDecoration('Enter Your Email'),
-                  validator: (v) {
-                    final value = (v ?? '').trim();
-                    if (value.isEmpty) return 'Enter your email';
-                    if (!value.contains('@')) return 'Enter a valid email';
-                    return null;
-                  },
-                  textInputAction: TextInputAction.next,
-                  onFieldSubmitted: (_) {
-                    FocusScope.of(context).requestFocus(_passwordFocus);
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // Password
-                TextFormField(
-                  controller: _passwordCtrl,
-                  focusNode: _passwordFocus,
-                  obscureText: _obscurePassword,
-                  decoration: authInputDecoration('Enter Your Password').copyWith(
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _obscurePassword = !_obscurePassword;
-                        });
-                      },
-                    ),
-                  ),
-                  validator: (v) {
-                    final value = v ?? '';
-                    if (value.isEmpty) return 'Enter a password';
-                    if (value.contains(RegExp(r'\s'))) return 'Password cannot contain spaces';
-                    if (value.length < 8) return 'Password must be at least 8 characters';
-                    return null;
-                  },
-                  textInputAction: TextInputAction.done,
-                  onFieldSubmitted: (_) {
-                    if (!_isLoading) {
-                      _handleSignup();
-                    }
-                  },
-                ),
+                const SizedBox(height: 4),
+                _StepDots(current: _step, total: 4),
                 const SizedBox(height: 24),
-
-                // Sign up button
-                SubmitButton(
-                  label: 'Sign up',
-                  isLoading: _isLoading,
-                  onPressed: _handleSignup,
-                  backgroundColor: AppColors.submitButton,
-                ),
-                const SizedBox(height: 20),
-
-                // Already have account
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text('Already have an account?  '),
-                    GestureDetector(
-                      onTap: () {
-                        Navigator.pushNamed(context, '/login');
-                      },
-                      child: const Text(
-                        'Login',
-                        style: TextStyle(
-                          color: AppColors.submitButton ,
-                          fontWeight: FontWeight.w600,
+                Expanded(
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 280),
+                    transitionBuilder: (child, animation) {
+                      final isForward = _step > _prevStep;
+                      final incomingOffset = Offset(
+                        isForward ? 1.0 : -1.0,
+                        0.0,
+                      );
+                      final outgoingOffset = Offset(
+                        isForward ? -1.0 : 1.0,
+                        0.0,
+                      );
+                      final isIncoming = child.key == ValueKey(_step);
+                      final offset =
+                          isIncoming ? incomingOffset : outgoingOffset;
+                      return SlideTransition(
+                        position: Tween<Offset>(
+                          begin: offset,
+                          end: Offset.zero,
+                        ).animate(
+                          CurvedAnimation(
+                            parent: animation,
+                            curve: Curves.easeOut,
+                          ),
                         ),
+                        child: child,
+                      );
+                    },
+                    layoutBuilder: (currentChild, previousChildren) => Stack(
+                      alignment: Alignment.topLeft,
+                      children: [
+                        ...previousChildren,
+                        if (currentChild != null) currentChild,
+                      ],
+                    ),
+                    child: KeyedSubtree(
+                      key: ValueKey(_step),
+                      child: SingleChildScrollView(
+                        child: _buildCurrentStep(),
                       ),
                     ),
-                  ],
+                  ),
                 ),
-                // Uncomment below to enable Google OAuth signup
-                // const SizedBox(height: 24),
-                // Row(
-                //   children: const [
-                //     Expanded(child: Divider(thickness: 0.8)),
-                //     Padding(
-                //       padding: EdgeInsets.symmetric(horizontal: 8.0),
-                //       child: Text('Or'),
-                //     ),
-                //     Expanded(child: Divider(thickness: 0.8)),
-                //   ],
-                // ),
-                // const SizedBox(height: 24),
-                // SizedBox(
-                //   width: double.infinity,
-                //   height: 48,
-                //   child: OutlinedButton(
-                //     onPressed: _isLoading ? null : _handleGoogleSignup,
-                //     style: OutlinedButton.styleFrom(
-                //       side: const BorderSide(color: Colors.black12),
-                //       shape: RoundedRectangleBorder(
-                //         borderRadius: BorderRadius.circular(10),
-                //       ),
-                //     ),
-                //     child: Row(
-                //       mainAxisAlignment: MainAxisAlignment.center,
-                //       children: [
-                //         const SizedBox(width: 10),
-                //         const Text(
-                //           'Sign up with Google',
-                //           style: TextStyle(
-                //             color: Colors.black87,
-                //             fontSize: 15,
-                //             fontWeight: FontWeight.w500,
-                //           ),
-                //         ),
-                //       ],
-                //     ),
-                //   ),
-                // ),
               ],
             ),
           ),
-        )
+        ),
       ),
+    );
+  }
+
+  Widget _buildCurrentStep() {
+    switch (_step) {
+      case 0:
+        return _buildStep0();
+      case 1:
+        return _buildStep1();
+      case 2:
+        return _buildStep2();
+      case 3:
+        return _buildStep3();
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Step 0 — Email
+  // ---------------------------------------------------------------------------
+
+  Widget _buildStep0() {
+    return Form(
+      key: _step0Key,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _StepHeading(title: "What's your email?"),
+          const SizedBox(height: 32),
+          TextFormField(
+            controller: _emailCtrl,
+            keyboardType: TextInputType.emailAddress,
+            decoration: authInputDecoration('Enter your email'),
+            textInputAction: TextInputAction.done,
+            onChanged: (_) {
+              if (_emailError != null) {
+                setState(() => _emailError = null);
+              }
+            },
+            onFieldSubmitted: (_) => _onStep0Next(),
+            validator: (v) {
+              final value = (v ?? '').trim();
+              if (value.isEmpty) return 'Enter your email';
+              if (!value.contains('@') || !value.contains('.')) {
+                return 'Enter a valid email';
+              }
+              return null;
+            },
+          ),
+          if (_emailError != null) ...[
+            const SizedBox(height: 8),
+            RichText(
+              text: TextSpan(
+                style: const TextStyle(fontSize: 13, color: Colors.red),
+                children: [
+                  TextSpan(text: _emailError),
+                  const TextSpan(text: '  '),
+                  TextSpan(
+                    text: 'Log in instead?',
+                    style: const TextStyle(
+                      color: AppColors.submitButton,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    recognizer: TapGestureRecognizer()
+                      ..onTap = () => Navigator.pushNamed(context, '/login'),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 32),
+          SubmitButton(
+            label: 'Next',
+            isLoading: _emailChecking,
+            onPressed: _onStep0Next,
+            backgroundColor: AppColors.submitButton,
+          ),
+          const SizedBox(height: 20),
+          _LoginLink(),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Step 1 — Password
+  // ---------------------------------------------------------------------------
+
+  Widget _buildStep1() {
+    return Form(
+      key: _step1Key,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _StepHeading(title: 'Create a password'),
+          const SizedBox(height: 32),
+          TextFormField(
+            controller: _passwordCtrl,
+            obscureText: _obscurePassword,
+            decoration: authInputDecoration('Password').copyWith(
+              suffixIcon: _VisibilityToggle(
+                obscure: _obscurePassword,
+                onToggle: () =>
+                    setState(() => _obscurePassword = !_obscurePassword),
+              ),
+            ),
+            textInputAction: TextInputAction.next,
+            validator: (v) {
+              final value = v ?? '';
+              if (value.isEmpty) return 'Enter a password';
+              if (value.contains(RegExp(r'\s'))) {
+                return 'Password cannot contain spaces';
+              }
+              if (value.length < 8) {
+                return 'Password must be at least 8 characters';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: _confirmPasswordCtrl,
+            obscureText: _obscureConfirm,
+            decoration: authInputDecoration('Confirm password').copyWith(
+              suffixIcon: _VisibilityToggle(
+                obscure: _obscureConfirm,
+                onToggle: () =>
+                    setState(() => _obscureConfirm = !_obscureConfirm),
+              ),
+            ),
+            textInputAction: TextInputAction.done,
+            onFieldSubmitted: (_) => _onStep1Next(),
+            validator: (v) {
+              if ((v ?? '') != _passwordCtrl.text) {
+                return 'Passwords do not match';
+              }
+              return null;
+            },
+          ),
+          const SizedBox(height: 32),
+          SubmitButton(
+            label: 'Next',
+            isLoading: false,
+            onPressed: _onStep1Next,
+            backgroundColor: AppColors.submitButton,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Step 2 — Profile
+  // ---------------------------------------------------------------------------
+
+  Widget _buildStep2() {
+    return Form(
+      key: _step2Key,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _StepHeading(title: 'Set up your profile'),
+          const SizedBox(height: 32),
+          TextFormField(
+            controller: _firstNameCtrl,
+            decoration: authInputDecoration('First name'),
+            textInputAction: TextInputAction.next,
+            textCapitalization: TextCapitalization.words,
+            validator: (v) =>
+                (v ?? '').trim().isEmpty ? 'Enter your first name' : null,
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: _lastNameCtrl,
+            decoration: authInputDecoration('Last name'),
+            textInputAction: TextInputAction.next,
+            textCapitalization: TextCapitalization.words,
+            validator: (v) =>
+                (v ?? '').trim().isEmpty ? 'Enter your last name' : null,
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
+            controller: _usernameCtrl,
+            decoration: authInputDecoration('Username'),
+            textInputAction: TextInputAction.done,
+            onChanged: _onUsernameChanged,
+            onFieldSubmitted: (_) => _onStep2Next(),
+            validator: (v) {
+              final value = (v ?? '').trim();
+              if (value.isEmpty) return 'Enter a username';
+              if (value.length < 3) {
+                return 'Username must be at least 3 characters';
+              }
+              if (value.length > 30) {
+                return 'Username must be 30 characters or fewer';
+              }
+              if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(value)) {
+                return 'Only letters, numbers, and underscores allowed';
+              }
+              return null;
+            },
+          ),
+          _UsernameStatus(
+            checking: _usernameChecking,
+            available: _usernameAvailable,
+            hasInput: _usernameCtrl.text.trim().length >= 3,
+          ),
+          const SizedBox(height: 32),
+          SubmitButton(
+            label: 'Next',
+            isLoading: false,
+            onPressed: _onStep2Next,
+            backgroundColor: AppColors.submitButton,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Step 3 — Birthday
+  // ---------------------------------------------------------------------------
+
+  Widget _buildStep3() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _StepHeading(title: 'When were you born?'),
+        const SizedBox(height: 32),
+        ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+            side: const BorderSide(color: Colors.grey),
+          ),
+          title: Text(
+            _birthday != null
+                ? _formatBirthday(_birthday!)
+                : 'Select your birthday',
+            style: TextStyle(
+              color: _birthday != null ? Colors.black87 : Colors.grey,
+            ),
+          ),
+          trailing: const Icon(Icons.calendar_today_outlined, size: 20),
+          onTap: _pickBirthday,
+        ),
+        const SizedBox(height: 12),
+        const Text(
+          'We use your birthday to help keep younger users safe.',
+          style: TextStyle(fontSize: 12, color: Colors.grey),
+        ),
+        const SizedBox(height: 32),
+        SubmitButton(
+          label: 'Create Account',
+          isLoading: _isSubmitting,
+          onPressed: _onSubmit,
+          backgroundColor: AppColors.submitButton,
+        ),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Private helper widgets
+// ---------------------------------------------------------------------------
+
+class _StepDots extends StatelessWidget {
+  const _StepDots({required this.current, required this.total});
+
+  final int current;
+  final int total;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: List.generate(total, (i) {
+        final active = i <= current;
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            width: current == i ? 20 : 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: active ? AppColors.submitButton : Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(4),
+            ),
+          ),
+        );
+      }),
+    );
+  }
+}
+
+class _StepHeading extends StatelessWidget {
+  const _StepHeading({required this.title});
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      title,
+      style: const TextStyle(
+        fontSize: 26,
+        fontWeight: FontWeight.w700,
+        color: Colors.black87,
+      ),
+    );
+  }
+}
+
+class _VisibilityToggle extends StatelessWidget {
+  const _VisibilityToggle({required this.obscure, required this.onToggle});
+
+  final bool obscure;
+  final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      icon: Icon(
+        obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+      ),
+      onPressed: onToggle,
+    );
+  }
+}
+
+class _UsernameStatus extends StatelessWidget {
+  const _UsernameStatus({
+    required this.checking,
+    required this.available,
+    required this.hasInput,
+  });
+
+  final bool checking;
+  final bool? available;
+  final bool hasInput;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!hasInput) return const SizedBox.shrink();
+
+    if (checking) {
+      return const Padding(
+        padding: EdgeInsets.only(top: 8, left: 4),
+        child: SizedBox(
+          height: 16,
+          width: 16,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+      );
+    }
+
+    if (available == true) {
+      return const Padding(
+        padding: EdgeInsets.only(top: 8, left: 4),
+        child: Row(
+          children: [
+            Icon(Icons.check_circle_outline, color: Colors.green, size: 16),
+            SizedBox(width: 4),
+            Text(
+              'Available',
+              style: TextStyle(color: Colors.green, fontSize: 12),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (available == false) {
+      return const Padding(
+        padding: EdgeInsets.only(top: 8, left: 4),
+        child: Text(
+          'Already taken',
+          style: TextStyle(color: Colors.red, fontSize: 12),
+        ),
+      );
+    }
+
+    return const SizedBox.shrink();
+  }
+}
+
+class _LoginLink extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Text('Already have an account?  '),
+        GestureDetector(
+          onTap: () => Navigator.pushNamed(context, '/login'),
+          child: const Text(
+            'Login',
+            style: TextStyle(
+              color: AppColors.submitButton,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

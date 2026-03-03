@@ -68,7 +68,7 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } catch (e) {
         debugPrint('Unknown error: $e');
-        _showError('Something went wrong. Please try again.');
+        _showError('Invalid username or password');
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);

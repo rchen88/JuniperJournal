@@ -225,72 +225,48 @@ class _ProjectDashboardState extends State<ProjectDashboard> {
           ),
           const SizedBox(height: 24),
 
-          // Section entry rows
-          _buildSectionRow(
-            'Problem Statement',
-            () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => DefineProblemStatementScreen(
-                  projectId: widget.projectId,
-                  projectName: _projectName,
-                  tags: _tags,
+          // Section entry rows (owner only)
+          if (widget.isOwner) ...[
+            _buildSectionRow(
+              'Metrics',
+              () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => MetricsPage(
+                    projectId: widget.projectId,
+                    projectName: _projectName,
+                    tags: _tags,
+                  ),
                 ),
               ),
             ),
-          ),
-          _buildSectionRow(
-            'Journal Entries',
-            () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => JournalLogScreen(
-                  projectId: widget.projectId,
-                  projectName: _projectName,
-                  tags: _tags,
+            _buildSectionRow(
+              'Timeline',
+              () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => InteractiveTimelinePage(
+                    projectId: widget.projectId,
+                    projectName: _projectName,
+                    tags: _tags,
+                  ),
                 ),
               ),
             ),
-          ),
-          _buildSectionRow(
-            'Metrics',
-            () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => MetricsPage(
-                  projectId: widget.projectId,
-                  projectName: _projectName,
-                  tags: _tags,
+            _buildSectionRow(
+              'Materials & Cost',
+              () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => MaterialsCostPage(
+                    projectId: widget.projectId,
+                    projectName: _projectName,
+                    tags: _tags,
+                  ),
                 ),
               ),
             ),
-          ),
-          _buildSectionRow(
-            'Timeline',
-            () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => InteractiveTimelinePage(
-                  projectId: widget.projectId,
-                  projectName: _projectName,
-                  tags: _tags,
-                ),
-              ),
-            ),
-          ),
-          _buildSectionRow(
-            'Materials & Cost',
-            () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => MaterialsCostPage(
-                  projectId: widget.projectId,
-                  projectName: _projectName,
-                  tags: _tags,
-                ),
-              ),
-            ),
-          ),
+          ],
         ],
       ),
     );
@@ -438,6 +414,7 @@ class _ProjectDashboardState extends State<ProjectDashboard> {
       projectName: _projectName,
       tags: _tags,
       embedded: true,
+      isOwner: widget.isOwner,
     );
   }
 

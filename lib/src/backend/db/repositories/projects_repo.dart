@@ -68,6 +68,9 @@ class ProjectsRepo {
     required String projectName,
     required String problemStatement,
     required List<String> tags,
+    String? difficulty,
+    String? subjectDomain,
+    String? progress,
   }) async {
     final user = _client.auth.currentUser;
     if (user == null) {
@@ -79,8 +82,11 @@ class ProjectsRepo {
           .insert({
             'project_name': projectName,
             'problem_statement': problemStatement,
-            'tags': tags.isEmpty ? null : tags, // avoid [] issues
+            'tags': tags.isEmpty ? null : tags,
             'user_id': user.id,
+            'difficulty': difficulty,
+            'subject_domain': subjectDomain,
+            'progress': progress,
           })
           .select()
           .single();
@@ -129,18 +135,26 @@ class ProjectsRepo {
     }
   }
 
-  Future<bool> updateProblemStatement({
+  Future<bool> updateProjectConfiguration({
     required String id,
     required String problemStatement,
+    String? difficulty,
+    String? subjectDomain,
+    String? progress,
   }) async {
     try {
       await _client
           .from(table)
-          .update({'problem_statement': problemStatement})
+          .update({
+            'problem_statement': problemStatement,
+            'difficulty': difficulty,
+            'subject_domain': subjectDomain,
+            'progress': progress,
+          })
           .eq('id', id);
       return true;
     } catch (e, st) {
-      debugPrint('updateProblemStatement error: $e\n$st');
+      debugPrint('updateProjectConfiguration error: $e\n$st');
       return false;
     }
   }
@@ -160,7 +174,7 @@ class ProjectsRepo {
       final row = await _client
           .from(table)
           .select(
-            'id, project_name, problem_statement, tags, project_image_url, created_at',
+            'id, project_name, problem_statement, tags, project_image_url, created_at, difficulty, subject_domain, progress',
           )
           .eq('id', id)
           .single();
@@ -177,6 +191,9 @@ class ProjectsRepo {
     required String problemStatement,
     required List<String> tags,
     String? projectImageUrl,
+    String? difficulty,
+    String? subjectDomain,
+    String? progress,
   }) async {
     try {
       await _client
@@ -186,6 +203,9 @@ class ProjectsRepo {
             'problem_statement': problemStatement,
             'tags': tags,
             'project_image_url': projectImageUrl,
+            'difficulty': difficulty,
+            'subject_domain': subjectDomain,
+            'progress': progress,
           })
           .eq('id', id);
       return true;

@@ -15,6 +15,8 @@ class JournalLogScreen extends StatefulWidget {
   /// When true, skips the Scaffold/AppBar so this widget can be embedded
   /// directly inside a TabBarView or other parent scaffold.
   final bool embedded;
+  /// When false, hides create/delete controls and prevents editing.
+  final bool isOwner;
 
   const JournalLogScreen({
     super.key,
@@ -22,6 +24,7 @@ class JournalLogScreen extends StatefulWidget {
     required this.projectName,
     required this.tags,
     this.embedded = false,
+    this.isOwner = true,
   });
 
   @override
@@ -158,15 +161,17 @@ class _JournalLogScreenState extends State<JournalLogScreen> {
                   'No journal entries yet.',
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 12),
-                FilledButton.icon(
-                  onPressed: _createEntry,
-                  icon: const Icon(Icons.add),
-                  label: const Text('New Entry'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.primary,
+                if (widget.isOwner) ...[
+                  const SizedBox(height: 12),
+                  FilledButton.icon(
+                    onPressed: _createEntry,
+                    icon: const Icon(Icons.add),
+                    label: const Text('New Entry'),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           )
@@ -180,7 +185,7 @@ class _JournalLogScreenState extends State<JournalLogScreen> {
                 final entry = _entries[index];
                 return InkWell(
                   borderRadius: BorderRadius.circular(12),
-                  onTap: () => _openEntry(entry),
+                  onTap: widget.isOwner ? () => _openEntry(entry) : null,
                   child: Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
@@ -221,14 +226,15 @@ class _JournalLogScreenState extends State<JournalLogScreen> {
                             ],
                           ),
                         ),
-                        IconButton(
-                          tooltip: 'Delete entry',
-                          onPressed: () => _deleteEntry(entry),
-                          icon: const Icon(
-                            Icons.delete_outline,
-                            color: Colors.black45,
+                        if (widget.isOwner)
+                          IconButton(
+                            tooltip: 'Delete entry',
+                            onPressed: () => _deleteEntry(entry),
+                            icon: const Icon(
+                              Icons.delete_outline,
+                              color: Colors.black45,
+                            ),
                           ),
-                        ),
                       ],
                     ),
                   ),
@@ -247,7 +253,7 @@ class _JournalLogScreenState extends State<JournalLogScreen> {
       return Stack(
         children: [
           _buildBody(),
-          if (!_isLoading && _entries.isNotEmpty)
+          if (widget.isOwner && !_isLoading && _entries.isNotEmpty)
             Positioned(
               bottom: 16,
               right: 16,
@@ -288,12 +294,14 @@ class _JournalLogScreenState extends State<JournalLogScreen> {
           bottom: BorderSide(color: Color(0xFFE5E5EA), width: 0.6),
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        backgroundColor: AppColors.primary,
-        onPressed: _createEntry,
-        icon: const Icon(Icons.add),
-        label: const Text('New Entry'),
-      ),
+      floatingActionButton: widget.isOwner
+          ? FloatingActionButton.extended(
+              backgroundColor: AppColors.primary,
+              onPressed: _createEntry,
+              icon: const Icon(Icons.add),
+              label: const Text('New Entry'),
+            )
+          : null,
       body: SafeArea(child: _buildBody()),
     );
   }

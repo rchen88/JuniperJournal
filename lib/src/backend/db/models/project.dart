@@ -7,6 +7,9 @@ class Project {
   final DateTime? createdAt;
   final String? problemStatement;
   final int likes;
+  final String? difficulty;
+  final String? subjectDomain;
+  final String? progress;
 
   const Project({
     required this.id,
@@ -17,6 +20,9 @@ class Project {
     this.createdAt,
     this.problemStatement,
     this.likes = 0,
+    this.difficulty,
+    this.subjectDomain,
+    this.progress,
   });
 
   factory Project.fromMap(Map<String, dynamic> map) => Project(
@@ -33,5 +39,8 @@ class Project {
     createdAt: DateTime.tryParse(map['created_at']?.toString() ?? ''),
     problemStatement: map['problem_statement']?.toString(),
     likes: (map['likes'] as num?)?.toInt() ?? 0,
+    difficulty: map['difficulty']?.toString(),
+    subjectDomain: map['subject_domain']?.toString(),
+    progress: map['progress']?.toString(),
   );
 }
