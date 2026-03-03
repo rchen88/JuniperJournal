@@ -111,6 +111,8 @@ flutter pub get
 
 3. **Set Up Database Tables**
 
+   *OUTDATED*
+
    Run these SQL commands in the Supabase SQL Editor (**SQL Editor** in the sidebar):
 
    ```sql
@@ -175,7 +177,7 @@ flutter pub get
      USING (auth.uid() = user_id);
    ```
 
-4. **Create Storage Bucket** (for images)
+5. **Create Storage Bucket** (for images)
    - Go to **Storage** in the Supabase dashboard
    - Create a new bucket called `images`
    - Set it to **Public** for now (or configure policies as needed)
