@@ -33,7 +33,5 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
-  # Include environment variables file
   assets:
-    - .env
     - assets/
