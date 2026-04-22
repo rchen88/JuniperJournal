@@ -9,12 +9,44 @@ class ChatRepo {
 
   Future<List<ConversationPreview>?> getConversations() async {
     try {
-      final data = await _client.rpc('get_my_conversations');
-      return List<Map<String, dynamic>>.from(data as List)
+      final results = await Future.wait([
+        _client.rpc('get_my_conversations'),
+        _client.rpc('get_group_dms'),
+      ]);
+
+      final dms = List<Map<String, dynamic>>.from(results[0] as List)
           .map(ConversationPreview.fromMap)
           .toList();
+
+      final groups = List<Map<String, dynamic>>.from(results[1] as List)
+          .map(ConversationPreview.fromGroupDmMap)
+          .toList();
+
+      final merged = [...dms, ...groups];
+      merged.sort((a, b) {
+        final aTime = a.lastMessageAt ?? DateTime(0);
+        final bTime = b.lastMessageAt ?? DateTime(0);
+        return bTime.compareTo(aTime);
+      });
+      return merged;
     } catch (e, st) {
       debugPrint('getConversations error: $e\n$st');
+      return null;
+    }
+  }
+
+  Future<String?> createGroupDm({
+    required String name,
+    required List<String> memberIds,
+  }) async {
+    try {
+      final data = await _client.rpc('create_group_dm', params: {
+        'p_name': name,
+        'p_member_ids': memberIds,
+      });
+      return data?.toString();
+    } catch (e, st) {
+      debugPrint('createGroupDm error: $e\n$st');
       return null;
     }
   }
@@ -62,7 +94,7 @@ class ChatRepo {
   }
 
   Stream<List<Message>> streamMessages(String conversationId) async* {
-    while (true) {
+    while (_client.auth.currentUser != null) {
       final messages = await getMessages(conversationId);
       if (messages != null) yield messages;
       await Future.delayed(const Duration(seconds: 3));
@@ -93,6 +125,44 @@ class ChatRepo {
       );
     } catch (e, st) {
       debugPrint('markAsRead error: $e\n$st');
+    }
+  }
+
+  Future<int> getUnreadCount(String conversationId) async {
+    try {
+      final data = await _client.rpc(
+        'get_conversation_unread_count',
+        params: {'p_conv_id': conversationId},
+      );
+      return (data as num?)?.toInt() ?? 0;
+    } catch (e, st) {
+      debugPrint('getUnreadCount error: $e\n$st');
+      return 0;
+    }
+  }
+
+  // ── Group / community chat ──────────────────────────────────────────────────
+
+  Future<List<Message>?> getCommunityMessages(String conversationId) async {
+    try {
+      final data = await _client.rpc(
+        'get_community_messages',
+        params: {'p_conv_id': conversationId},
+      );
+      return List<Map<String, dynamic>>.from(data as List)
+          .map(Message.fromMap)
+          .toList();
+    } catch (e, st) {
+      debugPrint('getCommunityMessages error: $e\n$st');
+      return null;
+    }
+  }
+
+  Stream<List<Message>> streamCommunityMessages(String conversationId) async* {
+    while (true) {
+      final messages = await getCommunityMessages(conversationId);
+      if (messages != null) yield messages;
+      await Future.delayed(const Duration(seconds: 3));
     }
   }
 }

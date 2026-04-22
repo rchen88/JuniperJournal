@@ -33,7 +33,9 @@ class _SummaryScreenState extends State<Summary> {
   @override
   void initState() {
     super.initState();
-    _loadExistingData();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _loadExistingData();
+    });
   }
 
   String? _stringFromListOrSingle(dynamic value) {
@@ -249,7 +251,7 @@ By focusing on the anchoring phenomenon "$anch", this lesson encourages learners
                         width: double.infinity,
                         padding: const EdgeInsets.all(18),
                         decoration: BoxDecoration(
-                          color: Colors.green[100],
+                          color: AppColors.accent,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
@@ -333,7 +335,7 @@ By focusing on the anchoring phenomenon "$anch", this lesson encourages learners
     height: 28,
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
       decoration: BoxDecoration(
-        color: Colors.green[100],
+        color: AppColors.accent,
         borderRadius: BorderRadius.circular(20),
       ),
     child: DropdownButtonHideUnderline(
@@ -342,22 +344,22 @@ By focusing on the anchoring phenomenon "$anch", this lesson encourages learners
         icon: const Icon(
           Icons.keyboard_arrow_down,
           size: 20,
-          color: Colors.green,
+          color: AppColors.primary,
         ),
         style: const TextStyle(
-          color: Colors.green,
+          color: AppColors.primary,
           fontSize: 11,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.5,
         ),
-        dropdownColor: Colors.green[50],
+        dropdownColor: AppColors.accent.withValues(alpha: 0.5),
         items: const [
           DropdownMenuItem(
             value: 'TITLE',
             child: Text(
               'TITLE',
               style: TextStyle(
-                color: Colors.green,
+                color: AppColors.primary,
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0.5,
@@ -369,7 +371,7 @@ By focusing on the anchoring phenomenon "$anch", this lesson encourages learners
             child: Text(
               'ANCHORING PHENOMENON',
               style: TextStyle(
-                color: Colors.green,
+                color: AppColors.primary,
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0.5,
@@ -381,7 +383,7 @@ By focusing on the anchoring phenomenon "$anch", this lesson encourages learners
             child: Text(
               'OBJECTIVE',
               style: TextStyle(
-                color: Colors.green,
+                color: AppColors.primary,
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0.5,
@@ -393,7 +395,7 @@ By focusing on the anchoring phenomenon "$anch", this lesson encourages learners
             child: Text(
               'LEARNING',
               style: TextStyle(
-                color: Colors.green,
+                color: AppColors.primary,
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0.5,
@@ -405,7 +407,7 @@ By focusing on the anchoring phenomenon "$anch", this lesson encourages learners
             child: Text(
               'CONCEPT EXPLORATION',
               style: TextStyle(
-                color: Colors.green,
+                color: AppColors.primary,
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0.5,
@@ -417,7 +419,7 @@ By focusing on the anchoring phenomenon "$anch", this lesson encourages learners
             child: Text(
               'ACTIVITY',
               style: TextStyle(
-                color: Colors.green,
+                color: AppColors.primary,
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0.5,
@@ -429,7 +431,7 @@ By focusing on the anchoring phenomenon "$anch", this lesson encourages learners
             child: Text(
               'ASSESSMENT',
               style: TextStyle(
-                color: Colors.green,
+                color: AppColors.primary,
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0.5,
@@ -441,7 +443,7 @@ By focusing on the anchoring phenomenon "$anch", this lesson encourages learners
             child: Text(
               'SUMMARY',
               style: TextStyle(
-                color: Colors.green,
+                color: AppColors.primary,
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0.5,

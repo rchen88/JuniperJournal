@@ -32,7 +32,6 @@ class AuthService {
   /// Returns null if no active session
   Session? get currentSession => _client.auth.currentSession;
 
-
   /// Returns true if a user is currently logged in
   bool get isLoggedIn => currentUser != null;
 
@@ -42,6 +41,7 @@ class AuthService {
       return true;
     }());
   }
+
   /// Sign up a new user with email and password
   ///
   /// Returns a [SignUpResult] with a friendly error message on failure.
@@ -49,12 +49,25 @@ class AuthService {
     required String email,
     required String password,
     String? username,
+    String? displayName,
+    DateTime? birthday,
   }) async {
     try {
+      final data = <String, dynamic>{};
+      if (username != null && username.trim().isNotEmpty) {
+        data['username'] = username.trim().toLowerCase();
+      }
+      if (displayName != null && displayName.trim().isNotEmpty) {
+        data['display_name'] = displayName.trim();
+      }
+      if (birthday != null) {
+        data['birthday'] = birthday.toIso8601String().split('T').first;
+      }
+
       final response = await _client.auth.signUp(
         email: email,
         password: password,
-        data: username != null ? {'username': username} : null,
+        data: data.isEmpty ? null : data,
       );
       return SignUpResult(
         user: response.user,
@@ -63,11 +76,16 @@ class AuthService {
       );
     } on AuthApiException catch (e) {
       final code = e.code ?? '';
+      debugPrint(
+        'signUpWithEmail AuthApiException: code=$code status=${e.statusCode} message=${e.message}',
+      );
       String message;
       if (code == 'email_address_invalid') {
         message = 'Please enter a valid email address.';
       } else if (code == 'email_exists' || code == 'user_already_exists') {
         message = 'Signup failed. Please try again.';
+      } else if (code == 'unexpected_failure') {
+        message = 'Signup failed. Check your Supabase profiles trigger/schema.';
       } else {
         message = 'Signup failed. Please try again.';
       }
@@ -122,7 +140,10 @@ class AuthService {
     final email = currentUser?.email;
     if (email == null) return 'You must be logged in to change your password.';
     try {
-      await _client.auth.signInWithPassword(email: email, password: currentPassword);
+      await _client.auth.signInWithPassword(
+        email: email,
+        password: currentPassword,
+      );
     } on AuthApiException catch (e) {
       final code = e.code ?? '';
       if (code == 'invalid_credentials') {

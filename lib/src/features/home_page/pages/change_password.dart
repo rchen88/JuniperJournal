@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:juniper_journal/src/backend/auth/auth_service.dart';
 import 'package:juniper_journal/src/shared/styling/theme.dart';
+import 'package:juniper_journal/src/shared/widgets/top_snack_bar.dart';
 
 class ChangePasswordScreen extends StatefulWidget {
   const ChangePasswordScreen({super.key});
@@ -41,16 +42,12 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     setState(() => _isLoading = false);
 
     if (error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error), backgroundColor: Colors.red),
-      );
+      showTopSnackBar(context, error, isError: true);
       return;
     }
 
     Navigator.pop(context);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Password updated')),
-    );
+    showTopSnackBar(context, 'Password updated');
   }
 
   @override
@@ -74,7 +71,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         ),
         centerTitle: true,
         shape: const Border(
-          bottom: BorderSide(color: Color(0xFFE5E5EA), width: 0.6),
+          bottom: BorderSide(color: AppColors.divider, width: 0.6),
         ),
       ),
       body: Form(

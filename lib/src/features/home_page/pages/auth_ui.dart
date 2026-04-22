@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-
-const authGreen = Color(0xFF6BB578);
+import 'package:juniper_journal/src/shared/styling/app_colors.dart';
 
 InputDecoration authInputDecoration(String hint) {
   return InputDecoration(
@@ -14,11 +13,11 @@ InputDecoration authInputDecoration(String hint) {
     ),
     enabledBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(14),
-      borderSide: const BorderSide(color: Colors.grey),
+      borderSide: const BorderSide(color: AppColors.borderLight),
     ),
     focusedBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(14),
-      borderSide: const BorderSide(color: authGreen, width: 1.4),
+      borderSide: const BorderSide(color: AppColors.primary, width: 1.4),
     ),
   );
 }

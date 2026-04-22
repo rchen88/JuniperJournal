@@ -5,6 +5,7 @@ import 'package:juniper_journal/src/backend/db/repositories/learning_module_repo
 import 'package:juniper_journal/src/features/home_page/home_page.dart';
 import 'package:juniper_journal/src/features/learning_module/learning_module.dart';
 import 'package:juniper_journal/src/shared/styling/theme.dart';
+import 'package:juniper_journal/src/shared/widgets/top_snack_bar.dart';
 
 
 
@@ -26,7 +27,9 @@ class _CallToActionScreenState extends State<CallToAction> {
   @override
   void initState() {
     super.initState();
-    _loadExistingData();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _loadExistingData();
+    });
   }
 
   @override
@@ -190,20 +193,13 @@ class _CallToActionScreenState extends State<CallToAction> {
                     ),
                     onPressed: () async {
   if (_formKey.currentState!.validate()) {
-    final messenger = ScaffoldMessenger.of(context);
-
     try {
       final repo = LearningModuleRepo();
       final widgetModule = widget.existingModule ?? {};
       final moduleId = widgetModule['id']?.toString();
 
       if (moduleId == null || moduleId == 'null') {
-        messenger.showSnackBar(
-          const SnackBar(
-            content: Text('Module ID missing – cannot save call to action'),
-            backgroundColor: AppColors.error,
-          ),
-        );
+        showTopSnackBar(context, 'Module ID missing – cannot save call to action', isError: true);
         return;
       }
 
@@ -221,23 +217,13 @@ class _CallToActionScreenState extends State<CallToAction> {
           (route) => false,
         );
       } else {
-        messenger.showSnackBar(
-          const SnackBar(
-            content: Text('Failed to save call to action'),
-            backgroundColor: AppColors.error,
-          ),
-        );
+        showTopSnackBar(context, 'Failed to save call to action', isError: true);
       }
     } catch (e, st) {
       debugPrint('Error saving call to action: $e');
       debugPrint('Stack trace: $st');
 
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text('Error saving call to action: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      showTopSnackBar(context, 'Error saving call to action: $e', isError: true);
     }
   }
 },
@@ -259,7 +245,7 @@ class _CallToActionScreenState extends State<CallToAction> {
     height: 28,
     padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
     decoration: BoxDecoration(
-      color: Colors.green[100],
+      color: AppColors.accent,
       borderRadius: BorderRadius.circular(20),
     ),
     child: DropdownButtonHideUnderline(
@@ -268,15 +254,15 @@ class _CallToActionScreenState extends State<CallToAction> {
         icon: const Icon(
           Icons.keyboard_arrow_down,
           size: 20,
-          color: Colors.green,
+          color: AppColors.primary,
         ),
         style: const TextStyle(
-          color: Colors.green,
+          color: AppColors.primary,
           fontSize: 11,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.5,
         ),
-        dropdownColor: Colors.green[50],
+        dropdownColor: AppColors.accent.withValues(alpha: 0.5),
         items: const [
           DropdownMenuItem(
             value: 'TITLE',

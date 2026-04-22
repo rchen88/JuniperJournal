@@ -5,17 +5,21 @@ import 'package:juniper_journal/src/backend/db/models/message.dart';
 import 'package:juniper_journal/src/backend/db/repositories/chat_repo.dart';
 import 'package:juniper_journal/src/shared/styling/app_colors.dart';
 import 'package:juniper_journal/src/shared/widgets/user_avatar.dart';
+import 'package:juniper_journal/src/shared/widgets/top_snack_bar.dart';
 
 class ChatScreen extends StatefulWidget {
   final String conversationId;
   final String otherUserName;
   final String? otherAvatarUrl;
+  /// When true, uses per-message sender names and the community message RPC.
+  final bool isGroup;
 
   const ChatScreen({
     super.key,
     required this.conversationId,
     required this.otherUserName,
     this.otherAvatarUrl,
+    this.isGroup = false,
   });
 
   @override
@@ -76,9 +80,7 @@ class _ChatScreenState extends State<ChatScreen> {
     if (!mounted) return;
     if (!success) {
       _inputController.text = text;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to send. Try again.')),
-      );
+      showTopSnackBar(context, 'Failed to send. Try again.', isError: true);
     }
     setState(() => _sending = false);
   }
@@ -86,12 +88,12 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.black, size: 20),
+          icon: const Icon(Icons.arrow_back_ios, color: AppColors.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
         centerTitle: true,
@@ -105,7 +107,7 @@ class _ChatScreenState extends State<ChatScreen> {
               style: const TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w700,
-                color: Colors.black,
+                color: AppColors.textPrimary,
               ),
             ),
           ],
@@ -115,7 +117,9 @@ class _ChatScreenState extends State<ChatScreen> {
         children: [
           Expanded(
             child: StreamBuilder<List<Message>>(
-              stream: _chatRepo.streamMessages(widget.conversationId),
+              stream: widget.isGroup
+                  ? _chatRepo.streamCommunityMessages(widget.conversationId)
+                  : _chatRepo.streamMessages(widget.conversationId),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting &&
                     !snapshot.hasData) {
@@ -166,11 +170,14 @@ class _ChatScreenState extends State<ChatScreen> {
                         messages[index - 1].senderId != msg.senderId;
                     final showSenderName = !isSent && isFirstInGroup;
 
+                    final senderName = widget.isGroup
+                        ? msg.resolvedSenderName.split(' ').first
+                        : widget.otherUserName.split(' ').first;
                     return _MessageBubble(
                       message: msg,
                       isSent: isSent,
                       showSenderName: showSenderName,
-                      senderFirstName: widget.otherUserName.split(' ').first,
+                      senderFirstName: senderName,
                     );
                   },
                 );
@@ -235,8 +242,8 @@ class _MessageBubble extends StatelessWidget {
                 ),
                 decoration: BoxDecoration(
                   color: isSent
-                      ? AppColors.submitButton
-                      : const Color(0xFFF0F0F0),
+                      ? AppColors.primary
+                      : AppColors.surfaceInput,
                   borderRadius: BorderRadius.only(
                     topLeft: const Radius.circular(18),
                     topRight: const Radius.circular(18),
@@ -282,17 +289,11 @@ class _InputBar extends StatelessWidget {
         bottom: MediaQuery.of(context).viewInsets.bottom + 12,
       ),
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border(top: BorderSide(color: Colors.grey.shade200)),
+        color: AppColors.white,
+        border: Border(top: BorderSide(color: AppColors.borderLight)),
       ),
       child: Row(
         children: [
-          // TODO: Implement media attachment
-          IconButton(
-            icon: const Icon(Icons.add_circle_outline, size: 28),
-            color: Colors.black54,
-            onPressed: null,
-          ),
           Expanded(
             child: Focus(
               onKeyEvent: (_, event) {
@@ -325,7 +326,7 @@ class _InputBar extends StatelessWidget {
                   hintText: 'Message',
                   hintStyle: const TextStyle(color: Colors.black38),
                   filled: true,
-                  fillColor: const Color(0xFFF2F2F2),
+                  fillColor: AppColors.surfaceInput,
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 14,
                     vertical: 10,
@@ -346,7 +347,7 @@ class _InputBar extends StatelessWidget {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: sending ? Colors.grey.shade300 : AppColors.submitButton,
+                color: sending ? AppColors.borderLight : AppColors.primary,
                 shape: BoxShape.circle,
               ),
               child: const Icon(

@@ -30,7 +30,9 @@ class _FriendProjectsPageState extends State<FriendProjectsPage> {
   @override
   void initState() {
     super.initState();
-    _load();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _load();
+    });
   }
 
   Future<void> _load() async {
@@ -131,7 +133,7 @@ class _FriendProjectsPageState extends State<FriendProjectsPage> {
                       vertical: 4,
                     ),
                     leading: CircleAvatar(
-                      backgroundColor: const Color(0xFFE6F2E9),
+                      backgroundColor: AppColors.primaryTint,
                       child: const Icon(
                         Icons.folder_outlined,
                         color: AppColors.primary,

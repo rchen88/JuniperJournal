@@ -9,6 +9,7 @@ import 'package:juniper_journal/src/backend/db/repositories/projects_repo.dart';
 import 'package:juniper_journal/src/backend/db/repositories/users_repo.dart';
 import 'package:juniper_journal/src/features/project/project.dart';
 import 'package:juniper_journal/src/shared/styling/theme.dart';
+import 'package:juniper_journal/src/shared/widgets/top_snack_bar.dart';
 
 enum SearchScope { projects, friends }
 
@@ -39,7 +40,9 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
   void initState() {
     super.initState();
     _queryController.addListener(_onQueryChanged);
-    _loadProjects();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _loadProjects();
+    });
   }
 
   @override
@@ -330,7 +333,7 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
             vertical: 4,
           ),
           leading: CircleAvatar(
-            backgroundColor: const Color(0xFFE6F2E9),
+            backgroundColor: AppColors.primaryTint,
             backgroundImage: (avatarUrl != null && avatarUrl.isNotEmpty)
                 ? NetworkImage(avatarUrl)
                 : null,
@@ -420,9 +423,7 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
 
     setState(() => _actionLoadingByUserId.remove(userId));
     if (!ok) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to send friend request')),
-      );
+      showTopSnackBar(context, 'Failed to send friend request', isError: true);
       return;
     }
     _searchFriends();
@@ -436,9 +437,7 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
 
     setState(() => _actionLoadingByUserId.remove(requesterId));
     if (!ok) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Failed to accept request')));
+      showTopSnackBar(context, 'Failed to accept request', isError: true);
       return;
     }
     _searchFriends();
@@ -453,9 +452,7 @@ class _HomeSearchScreenState extends State<HomeSearchScreen> {
 
     setState(() => _actionLoadingByUserId.remove(requesterId));
     if (!ok) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to decline request')),
-      );
+      showTopSnackBar(context, 'Failed to decline request', isError: true);
       return;
     }
     _searchFriends();

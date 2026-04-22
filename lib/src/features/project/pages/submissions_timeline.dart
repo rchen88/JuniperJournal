@@ -3,18 +3,22 @@ import 'package:flutter/services.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
 import 'package:juniper_journal/src/shared/styling/theme.dart';
+import 'package:juniper_journal/src/shared/widgets/date_time_pickers.dart';
+import 'package:juniper_journal/src/shared/widgets/top_snack_bar.dart';
 import '../../../backend/db/repositories/projects_repo.dart';
 
 class InteractiveTimelinePage extends StatefulWidget {
   final String projectId;
   final String projectName;
   final List<String> tags;
+  final bool isOwner;
 
   const InteractiveTimelinePage({
     super.key,
     required this.projectId,
     required this.projectName,
     required this.tags,
+    this.isOwner = true,
   });
 
   @override
@@ -95,199 +99,297 @@ class _InteractiveTimelinePageState extends State<InteractiveTimelinePage> {
 
   void _showEventSheet({Map<String, String>? existing, int? editIndex}) {
     final isEditing = existing != null;
-    final selectedDate = _selectedDay;
 
     final eventCtrl = TextEditingController(text: existing?['event'] ?? '');
     final descCtrl = TextEditingController(text: existing?['description'] ?? '');
     final locationCtrl = TextEditingController(text: existing?['location'] ?? '');
 
-    // Parse stored time (e.g. "2:30 PM" or "All Day") back into parts.
-    final stored = existing?['time'] ?? '';
-    bool allDay = stored.toLowerCase() == 'all day';
-    String amPm = stored.toUpperCase().contains('PM') ? 'PM' : 'AM';
-    final timeDigits = stored.replaceAll(RegExp(r'[^0-9:]'), '').trim();
-    final timeCtrl = TextEditingController(text: allDay ? '' : timeDigits);
+    // Parse existing start date/time
+    DateTime startDate = DateTime.tryParse(existing?['startDate'] ?? '') ??
+        DateTime.tryParse(existing?['date'] ?? '') ??
+        _selectedDay;
+    DateTime endDate =
+        DateTime.tryParse(existing?['endDate'] ?? '') ?? startDate;
+
+    bool allDay = existing?['allDay'] == 'true' ||
+        (existing?['time'] ?? '').toLowerCase() == 'all day';
+
+    int startHour = 8, startMinute = 0;
+    String startAmPm = 'AM';
+    int endHour = 9, endMinute = 0;
+    String endAmPm = 'AM';
+
+    void parseTime(String raw, void Function(int h, int m, String ap) cb) {
+      final isPm = raw.toUpperCase().contains('PM');
+      final digits = raw.replaceAll(RegExp(r'[^0-9:]'), '').trim();
+      final parts = digits.split(':');
+      final h = int.tryParse(parts.isNotEmpty ? parts[0] : '') ?? 8;
+      final m = int.tryParse(parts.length > 1 ? parts[1] : '') ?? 0;
+      cb(h.clamp(1, 12), m.clamp(0, 59), isPm ? 'PM' : 'AM');
+    }
+
+    if (!allDay) {
+      parseTime(existing?['startTime'] ?? existing?['time'] ?? '',
+          (h, m, ap) {
+        startHour = h;
+        startMinute = m;
+        startAmPm = ap;
+      });
+      parseTime(existing?['endTime'] ?? '', (h, m, ap) {
+        endHour = h;
+        endMinute = m;
+        endAmPm = ap;
+      });
+    }
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (sheetContext) => StatefulBuilder(
-        builder: (sheetContext, setSheetState) => Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
-          ),
-          child: Container(
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-            ),
-            padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Drag handle
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade300,
-                      borderRadius: BorderRadius.circular(2),
+      builder: (sheetCtx) => StatefulBuilder(
+        builder: (sheetCtx, setSheetState) {
+          String formatDate(DateTime d) =>
+              '${d.month}/${d.day}/${d.year.toString().substring(2)}';
+          String formatTime(int h, int m) =>
+              '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}';
+
+          Widget pillButton(String label, VoidCallback onTap) =>
+              GestureDetector(
+                onTap: onTap,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceInput,
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(label,
+                          style: const TextStyle(
+                              fontSize: 13, color: AppColors.textPrimary)),
+                      const SizedBox(width: 4),
+                      const Icon(Icons.keyboard_arrow_down,
+                          size: 16, color: AppColors.textSecondary),
+                    ],
+                  ),
+                ),
+              );
+
+          return Padding(
+            padding: EdgeInsets.only(
+                bottom: MediaQuery.of(sheetCtx).viewInsets.bottom),
+            child: Container(
+              decoration: const BoxDecoration(
+                color: AppColors.white,
+                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+              ),
+              padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Drag handle
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: AppColors.borderLight,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 20),
-                Text(
-                  isEditing ? 'Edit Event' : 'New Event',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: Colors.black87,
+                  const SizedBox(height: 20),
+                  Text(
+                    isEditing ? 'Edit Event' : 'New Event',
+                    style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 20),
+                  const SizedBox(height: 20),
 
-                _sheetField(eventCtrl, 'Event name',
-                    autofocus: !isEditing),
-                const SizedBox(height: 14),
-                _sheetField(descCtrl, 'Description', optional: true),
-                const SizedBox(height: 14),
-                _sheetField(locationCtrl, 'Location', optional: true),
-                const SizedBox(height: 14),
+                  _sheetField(eventCtrl, 'Event Name', autofocus: !isEditing),
+                  const SizedBox(height: 14),
+                  _sheetField(descCtrl, 'Description', optional: true),
+                  const SizedBox(height: 14),
+                  _sheetField(locationCtrl, 'Location', optional: true),
+                  const SizedBox(height: 18),
 
-                // All Day toggle
-                Row(
-                  children: [
-                    const Text(
-                      'All Day',
+                  // Start
+                  const Text('Start',
                       style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.black87),
-                    ),
-                    const Spacer(),
-                    Switch.adaptive(
-                      value: allDay,
-                      activeTrackColor: AppColors.primary,
-                      onChanged: (v) =>
-                          setSheetState(() => allDay = v),
-                    ),
-                  ],
-                ),
-
-                // Time row — hidden when All Day is on
-                if (!allDay) ...[
-                  const SizedBox(height: 10),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primary)),
+                  const SizedBox(height: 8),
                   Row(
                     children: [
-                      Expanded(
-                        child: _sheetField(
-                          timeCtrl,
-                          'Time',
-                          optional: true,
-                          keyboardType: TextInputType.number,
-                          inputFormatters: [_TimeInputFormatter()],
-                        ),
-                      ),
+                      pillButton(formatDate(startDate), () async {
+                        final result =
+                            await showWheelDatePicker(sheetCtx, startDate);
+                        if (result != null) {
+                          setSheetState(() => startDate = result);
+                        }
+                      }),
                       const SizedBox(width: 10),
-                      // AM / PM toggle
-                      _AmPmToggle(
-                        value: amPm,
-                        onChanged: (v) =>
-                            setSheetState(() => amPm = v),
+                      if (!allDay)
+                        pillButton(formatTime(startHour, startMinute),
+                            () async {
+                          final result = await showWheelTimePicker(
+                              sheetCtx, startHour, startMinute, startAmPm);
+                          if (result != null) {
+                            setSheetState(() {
+                              startHour = result['hour'] as int;
+                              startMinute = result['minute'] as int;
+                              startAmPm = result['amPm'] as String;
+                            });
+                          }
+                        }),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // End
+                  const Text('End',
+                      style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.primary)),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      pillButton(formatDate(endDate), () async {
+                        final result =
+                            await showWheelDatePicker(sheetCtx, endDate);
+                        if (result != null) {
+                          setSheetState(() => endDate = result);
+                        }
+                      }),
+                      const SizedBox(width: 10),
+                      if (!allDay)
+                        pillButton(formatTime(endHour, endMinute), () async {
+                          final result = await showWheelTimePicker(
+                              sheetCtx, endHour, endMinute, endAmPm);
+                          if (result != null) {
+                            setSheetState(() {
+                              endHour = result['hour'] as int;
+                              endMinute = result['minute'] as int;
+                              endAmPm = result['amPm'] as String;
+                            });
+                          }
+                        }),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+
+                  // All Day toggle
+                  Row(
+                    children: [
+                      const Text('All Day',
+                          style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.textPrimary)),
+                      const Spacer(),
+                      Switch.adaptive(
+                        value: allDay,
+                        activeTrackColor: AppColors.primary,
+                        onChanged: (v) => setSheetState(() => allDay = v),
                       ),
                     ],
                   ),
-                ],
 
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    onPressed: () async {
-                      if (eventCtrl.text.trim().isEmpty) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text('Event name is required')),
-                        );
-                        return;
-                      }
-                      final navigator = Navigator.of(sheetContext);
-                      String storedTime = '';
-                      if (allDay) {
-                        storedTime = 'All Day';
-                      } else if (timeCtrl.text.trim().isNotEmpty) {
-                        storedTime = '${timeCtrl.text.trim()} $amPm';
-                      }
-                      final entry = {
-                        'date': existing?['date'] ??
-                            DateFormat('yyyy-MM-dd').format(selectedDate),
-                        'time': storedTime,
-                        'event': eventCtrl.text.trim(),
-                        'description': descCtrl.text.trim(),
-                        'location': locationCtrl.text.trim(),
-                      };
-                      setState(() {
-                        if (isEditing && editIndex != null) {
-                          _timeline[editIndex] = entry;
-                        } else {
-                          _timeline.add(entry);
-                        }
-                      });
-                      await _saveTimeline();
-                      navigator.pop();
-                    },
-                    child: Text(
-                      isEditing ? 'Save Changes' : 'Add Event',
-                      style: const TextStyle(
-                          fontSize: 15, fontWeight: FontWeight.w600),
-                    ),
-                  ),
-                ),
-                if (isEditing) ...[
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 24),
                   SizedBox(
                     width: double.infinity,
-                    height: 48,
-                    child: TextButton(
+                    height: 50,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: AppColors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14)),
+                      ),
                       onPressed: () async {
-                        final navigator = Navigator.of(sheetContext);
-                        setState(() => _timeline.removeAt(editIndex!));
+                        if (eventCtrl.text.trim().isEmpty) {
+                          showTopSnackBar(context, 'Event name is required');
+                          return;
+                        }
+                        final navigator = Navigator.of(sheetCtx);
+                        final startTimeStr = allDay
+                            ? 'All Day'
+                            : '$startHour:${startMinute.toString().padLeft(2, '0')} $startAmPm';
+                        final endTimeStr = allDay
+                            ? ''
+                            : '$endHour:${endMinute.toString().padLeft(2, '0')} $endAmPm';
+                        final entry = {
+                          'date': DateFormat('yyyy-MM-dd').format(startDate),
+                          'startDate':
+                              DateFormat('yyyy-MM-dd').format(startDate),
+                          'endDate': DateFormat('yyyy-MM-dd').format(endDate),
+                          'time': startTimeStr,
+                          'startTime': startTimeStr,
+                          'endTime': endTimeStr,
+                          'allDay': allDay.toString(),
+                          'event': eventCtrl.text.trim(),
+                          'description': descCtrl.text.trim(),
+                          'location': locationCtrl.text.trim(),
+                        };
+                        setState(() {
+                          if (isEditing && editIndex != null) {
+                            _timeline[editIndex] = entry;
+                          } else {
+                            _timeline.add(entry);
+                          }
+                        });
                         await _saveTimeline();
                         navigator.pop();
                       },
-                      style: TextButton.styleFrom(
-                        foregroundColor: Colors.red.shade600,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                      ),
-                      child: const Text(
-                        'Delete Event',
-                        style: TextStyle(
-                            fontSize: 15, fontWeight: FontWeight.w500),
+                      child: Text(
+                        isEditing ? 'Save Changes' : 'Add Event',
+                        style: const TextStyle(
+                            fontSize: 15, fontWeight: FontWeight.w600),
                       ),
                     ),
                   ),
+                  if (isEditing) ...[
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 48,
+                      child: TextButton(
+                        onPressed: () async {
+                          final navigator = Navigator.of(sheetCtx);
+                          setState(() => _timeline.removeAt(editIndex!));
+                          await _saveTimeline();
+                          navigator.pop();
+                        },
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.error,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14)),
+                        ),
+                        child: const Text('Delete Event',
+                            style: TextStyle(
+                                fontSize: 15, fontWeight: FontWeight.w500)),
+                      ),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }
+
+
 
   Widget _sheetField(
     TextEditingController controller,
@@ -297,37 +399,39 @@ class _InteractiveTimelinePageState extends State<InteractiveTimelinePage> {
     TextInputType keyboardType = TextInputType.text,
     List<TextInputFormatter>? inputFormatters,
   }) {
-    final displayLabel = optional ? '$label (optional)' : label;
+    final displayLabel = optional ? '$label (Optional)' : label;
     return TextField(
       controller: controller,
       autofocus: autofocus,
       keyboardType: keyboardType,
       inputFormatters: inputFormatters,
-      style: const TextStyle(fontSize: 15, color: Colors.black87),
+      style: const TextStyle(fontSize: 15, color: AppColors.textPrimary),
       decoration: InputDecoration(
-        labelText: displayLabel,
-        labelStyle: TextStyle(color: Colors.grey.shade500, fontSize: 14),
-        filled: true,
-        fillColor: const Color(0xFFF7F7F7),
+        hintText: displayLabel,
+        hintStyle:
+            const TextStyle(color: AppColors.hintText, fontSize: 14),
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
+          borderSide: const BorderSide(color: AppColors.primary),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.primary),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide:
-              const BorderSide(color: AppColors.primary, width: 1.5),
+          borderSide: const BorderSide(color: AppColors.primary, width: 1.8),
         ),
       ),
     );
   }
 
   Widget _buildEventRow(Map<String, String> item, bool isHighlighted, int originalIndex) {
-    final cardBg = isHighlighted ? AppColors.primary : const Color(0xFFF2F2F7);
-    final titleColor = isHighlighted ? Colors.white : Colors.black87;
-    final subColor = isHighlighted ? Colors.white70 : Colors.grey.shade600;
+    final cardBg = isHighlighted ? AppColors.primary : AppColors.surfaceInput;
+    final titleColor = isHighlighted ? AppColors.white : AppColors.textPrimary;
+    final subColor = isHighlighted ? AppColors.white.withValues(alpha: 0.7) : AppColors.textSecondary;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
@@ -345,14 +449,14 @@ class _InteractiveTimelinePageState extends State<InteractiveTimelinePage> {
                   style: const TextStyle(
                     fontWeight: FontWeight.w700,
                     fontSize: 14,
-                    color: Colors.black87,
+                    color: AppColors.textPrimary,
                   ),
                 ),
                 Text(
                   _shortDate(item['date'] ?? ''),
-                  style: TextStyle(
+                  style: const TextStyle(
                     fontSize: 12,
-                    color: Colors.grey.shade500,
+                    color: AppColors.textSecondary,
                   ),
                 ),
               ],
@@ -383,13 +487,14 @@ class _InteractiveTimelinePageState extends State<InteractiveTimelinePage> {
                           ),
                         ),
                       ),
-                      GestureDetector(
-                        onTap: () => _showEventSheet(
-                          existing: item,
-                          editIndex: originalIndex,
+                      if (widget.isOwner)
+                        GestureDetector(
+                          onTap: () => _showEventSheet(
+                            existing: item,
+                            editIndex: originalIndex,
+                          ),
+                          child: Icon(Icons.more_vert, size: 18, color: subColor),
                         ),
-                        child: Icon(Icons.more_vert, size: 18, color: subColor),
-                      ),
                     ],
                   ),
                   if ((item['description'] ?? '').isNotEmpty) ...[
@@ -429,21 +534,21 @@ class _InteractiveTimelinePageState extends State<InteractiveTimelinePage> {
       onPopInvokedWithResult: (didPop, _) async {
         if (!didPop) {
           final navigator = Navigator.of(context);
-          await _saveTimeline();
+          if (widget.isOwner) await _saveTimeline();
           if (mounted) navigator.pop();
         }
       },
       child: Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.white,
         appBar: AppBar(
-          backgroundColor: Colors.white,
+          backgroundColor: AppColors.white,
           elevation: 0,
           scrolledUnderElevation: 0,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
             onPressed: () async {
               final navigator = Navigator.of(context);
-              await _saveTimeline();
+              if (widget.isOwner) await _saveTimeline();
               if (mounted) navigator.pop();
             },
           ),
@@ -472,7 +577,7 @@ class _InteractiveTimelinePageState extends State<InteractiveTimelinePage> {
                 child: Center(
                   child: Text(
                     _savedLabel!,
-                    style: const TextStyle(fontSize: 12, color: Colors.black38),
+                    style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
                   ),
                 ),
               ),
@@ -513,11 +618,11 @@ class _InteractiveTimelinePageState extends State<InteractiveTimelinePage> {
               ),
               daysOfWeekStyle: const DaysOfWeekStyle(
                 weekdayStyle: TextStyle(
-                    color: Colors.grey,
+                    color: AppColors.textSecondary,
                     fontSize: 12,
                     fontWeight: FontWeight.w500),
                 weekendStyle: TextStyle(
-                    color: Colors.grey,
+                    color: AppColors.textSecondary,
                     fontSize: 12,
                     fontWeight: FontWeight.w500),
               ),
@@ -531,11 +636,11 @@ class _InteractiveTimelinePageState extends State<InteractiveTimelinePage> {
                 todayDecoration: BoxDecoration(),
                 selectedDecoration: BoxDecoration(),
                 defaultTextStyle: TextStyle(
-                    color: Colors.black87,
+                    color: AppColors.textPrimary,
                     fontWeight: FontWeight.w600,
                     fontSize: 15),
                 weekendTextStyle: TextStyle(
-                    color: Colors.black87,
+                    color: AppColors.textPrimary,
                     fontWeight: FontWeight.w600,
                     fontSize: 15),
                 outsideDaysVisible: false,
@@ -553,7 +658,7 @@ class _InteractiveTimelinePageState extends State<InteractiveTimelinePage> {
                   child: Text(
                     '${day.day}',
                     style: const TextStyle(
-                      color: Colors.black87,
+                      color: AppColors.textPrimary,
                       fontWeight: FontWeight.w600,
                       fontSize: 15,
                     ),
@@ -578,7 +683,7 @@ class _InteractiveTimelinePageState extends State<InteractiveTimelinePage> {
                       child: Text(
                         '${day.day}',
                         style: const TextStyle(
-                          color: Colors.white,
+                          color: AppColors.white,
                           fontWeight: FontWeight.w700,
                           fontSize: 15,
                         ),
@@ -589,7 +694,7 @@ class _InteractiveTimelinePageState extends State<InteractiveTimelinePage> {
               ),
             ),
 
-            const Divider(height: 1, color: Color(0xFFE5E5EA)),
+            const Divider(height: 1, color: AppColors.divider),
 
             // ── Column header ──────────────────────────────────────────────
             Padding(
@@ -604,7 +709,7 @@ class _InteractiveTimelinePageState extends State<InteractiveTimelinePage> {
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
-                        color: Colors.grey,
+                        color: AppColors.textSecondary,
                         letterSpacing: 0.5,
                       ),
                     ),
@@ -616,7 +721,7 @@ class _InteractiveTimelinePageState extends State<InteractiveTimelinePage> {
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w500,
-                        color: Colors.grey,
+                        color: AppColors.textSecondary,
                       ),
                     ),
                   ),
@@ -628,14 +733,14 @@ class _InteractiveTimelinePageState extends State<InteractiveTimelinePage> {
                           ? Icons.arrow_upward_rounded
                           : Icons.arrow_downward_rounded,
                       size: 18,
-                      color: Colors.grey,
+                      color: AppColors.textSecondary,
                     ),
                   ),
                 ],
               ),
             ),
 
-            const Divider(height: 1, color: Color(0xFFE5E5EA)),
+            const Divider(height: 1, color: AppColors.divider),
 
             // ── Timeline list ──────────────────────────────────────────────
             Expanded(
@@ -658,7 +763,8 @@ class _InteractiveTimelinePageState extends State<InteractiveTimelinePage> {
                     ),
             ),
 
-            // ── Add button ─────────────────────────────────────────────────
+            // ── Add button (owner only) ─────────────────────────────────────
+            if (widget.isOwner)
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
               child: GestureDetector(
@@ -674,7 +780,7 @@ class _InteractiveTimelinePageState extends State<InteractiveTimelinePage> {
                         shape: BoxShape.circle,
                       ),
                       child: const Icon(Icons.add,
-                          color: Colors.white, size: 22),
+                          color: AppColors.white, size: 22),
                     ),
                     const SizedBox(width: 12),
                     const Text(
@@ -682,7 +788,7 @@ class _InteractiveTimelinePageState extends State<InteractiveTimelinePage> {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
-                        color: Colors.black87,
+                        color: AppColors.textPrimary,
                       ),
                     ),
                   ],
@@ -691,77 +797,6 @@ class _InteractiveTimelinePageState extends State<InteractiveTimelinePage> {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-// ── Helpers ────────────────────────────────────────────────────────────────
-
-/// Sliding AM / PM segmented control.
-class _AmPmToggle extends StatelessWidget {
-  const _AmPmToggle({required this.value, required this.onChanged});
-
-  final String value;
-  final ValueChanged<String> onChanged;
-
-  static const _pillW = 46.0;
-  static const _height = 50.0;
-  static const _pad = 4.0;
-
-  @override
-  Widget build(BuildContext context) {
-    final isPm = value == 'PM';
-    return Container(
-      height: _height,
-      width: _pillW * 2 + _pad * 2,
-      padding: const EdgeInsets.all(_pad),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF7F7F7),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Stack(
-        children: [
-          // Sliding green pill
-          AnimatedAlign(
-            duration: const Duration(milliseconds: 220),
-            curve: Curves.easeInOut,
-            alignment:
-                isPm ? Alignment.centerRight : Alignment.centerLeft,
-            child: Container(
-              width: _pillW,
-              height: _height - _pad * 2,
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-          ),
-          // Labels on top
-          Row(
-            children: ['AM', 'PM'].map((label) {
-              final selected = value == label;
-              return Expanded(
-                child: GestureDetector(
-                  onTap: () => onChanged(label),
-                  behavior: HitTestBehavior.opaque,
-                  child: Center(
-                    child: Text(
-                      label,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                        color: selected
-                            ? Colors.white
-                            : Colors.grey.shade500,
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-        ],
       ),
     );
   }

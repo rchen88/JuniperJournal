@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:juniper_journal/src/features/learning_module/learning_module.dart';
 import 'package:juniper_journal/src/shared/styling/theme.dart';
+import 'package:juniper_journal/src/shared/widgets/top_snack_bar.dart';
 import '../../../backend/db/repositories/learning_module_repo.dart';
 import 'package:intl/intl.dart';
 import 'dart:convert';
@@ -65,7 +66,9 @@ class _LearningObjectiveScreenState extends State<LearningObjectiveScreen> {
   @override
   void initState() {
     super.initState();
-    _loadFreshModuleData();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _loadFreshModuleData();
+    });
   }
 
   void _loadFreshModuleData() async {
@@ -191,12 +194,7 @@ class _LearningObjectiveScreenState extends State<LearningObjectiveScreen> {
     if (!objectivesSuccess || !domainsSuccess || !performanceSuccess) {
       // Check if widget is still mounted before using context
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to save learning objectives'),
-            backgroundColor: AppColors.error,
-          ),
-        );
+        showTopSnackBar(context, 'Failed to save learning objectives', isError: true);
       }
     }
   }
@@ -346,7 +344,7 @@ class _LearningObjectiveScreenState extends State<LearningObjectiveScreen> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                     decoration: BoxDecoration(
-                      color: Colors.green[100],
+                      color: AppColors.accent,
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: DropdownButtonHideUnderline(
@@ -354,22 +352,22 @@ class _LearningObjectiveScreenState extends State<LearningObjectiveScreen> {
                         value: _currentSection,
                         icon: const Icon(
                           Icons.keyboard_arrow_down,
-                          color: Colors.green,
+                          color: AppColors.primary,
                           size: 16,
                         ),
                         style: const TextStyle(
-                          color: Colors.green,
+                          color: AppColors.primary,
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
                         ),
-                        dropdownColor: Colors.green[50],
+                        dropdownColor: AppColors.accent.withValues(alpha: 0.5),
                         items: const [
                           DropdownMenuItem(
                             value: 'TITLE',
                             child: Text(
                               'TITLE',
                               style: TextStyle(
-                                color: Colors.green,
+                                color: AppColors.primary,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -379,7 +377,7 @@ class _LearningObjectiveScreenState extends State<LearningObjectiveScreen> {
                             child: Text(
                               'ANCHORING PHENOMENON',
                               style: TextStyle(
-                                color: Colors.green,
+                                color: AppColors.primary,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -389,7 +387,7 @@ class _LearningObjectiveScreenState extends State<LearningObjectiveScreen> {
                             child: Text(
                               'OBJECTIVE',
                               style: TextStyle(
-                                color: Colors.green,
+                                color: AppColors.primary,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -515,9 +513,9 @@ class _LearningObjectiveScreenState extends State<LearningObjectiveScreen> {
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                               decoration: BoxDecoration(
-                                color: Colors.green[50],
+                                color: AppColors.accent.withValues(alpha: 0.5),
                                 borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: AppColors.inputBorder),
+                                border: Border.all(color: AppColors.border),
                               ),
                               child: Text(
                                 '${combination['objective']}: ${combination['domain']}',
@@ -562,7 +560,7 @@ class _LearningObjectiveScreenState extends State<LearningObjectiveScreen> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
                   decoration: BoxDecoration(
-                    color: Colors.green[50],
+                    color: AppColors.accent.withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Column(
@@ -570,7 +568,7 @@ class _LearningObjectiveScreenState extends State<LearningObjectiveScreen> {
                       Text(
                         learningObjectiveHeader,
                         style: TextStyle(
-                          color: Colors.green[800],
+                          color: AppColors.primary,
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
                           letterSpacing: 0.5,
@@ -599,17 +597,11 @@ class _LearningObjectiveScreenState extends State<LearningObjectiveScreen> {
                   height: 50,
                   child: ElevatedButton(
                     onPressed: () async {
-                      final messenger = ScaffoldMessenger.of(context);
                       final navigator = Navigator.of(context);
 
                       // Check if at least one combination has been added
                       if (_addedCombinations.isEmpty) {
-                        messenger.showSnackBar(
-                          const SnackBar(
-                            content: Text('Please add at least one learning objective and subject domain combination'),
-                            backgroundColor: AppColors.error,
-                          ),
-                        );
+                        showTopSnackBar(context, 'Please add at least one learning objective and subject domain combination', isError: true);
                         return;
                       }
 
@@ -620,7 +612,7 @@ class _LearningObjectiveScreenState extends State<LearningObjectiveScreen> {
                       );
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green[500],
+                      backgroundColor: AppColors.primary,
                       foregroundColor: Colors.white,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
@@ -661,21 +653,21 @@ class _LearningObjectiveScreenState extends State<LearningObjectiveScreen> {
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(25),
         borderSide: const BorderSide(
-          color: AppColors.inputBorder,
+          color: AppColors.border,
           width: 1.5,
         ),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(25),
         borderSide: const BorderSide(
-          color: AppColors.inputBorder,
+          color: AppColors.border,
           width: 1.5,
         ),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(25),
         borderSide: const BorderSide(
-          color: AppColors.inputBorder,
+          color: AppColors.border,
           width: 1.5,
         ),
       ),
@@ -694,7 +686,7 @@ class _LearningObjectiveScreenState extends State<LearningObjectiveScreen> {
         ),
       ),
       filled: true,
-      fillColor: AppColors.inputBackground,
+      fillColor: AppColors.white,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
     ),
     hint: Text(
@@ -709,7 +701,7 @@ class _LearningObjectiveScreenState extends State<LearningObjectiveScreen> {
               opt,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                color: AppColors.inputText,
+                color: AppColors.textPrimary,
                 fontSize: 16,
               ),
             ),
@@ -718,7 +710,7 @@ class _LearningObjectiveScreenState extends State<LearningObjectiveScreen> {
         .toList(),
     onChanged: onChanged,
     validator: validator,
-    dropdownColor: AppColors.inputBackground,
+    dropdownColor: AppColors.white,
   );
 }
 

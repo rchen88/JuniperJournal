@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:juniper_journal/src/shared/styling/theme.dart';
+import 'package:juniper_journal/src/shared/widgets/top_snack_bar.dart';
 import '../../../backend/db/repositories/projects_repo.dart';
 import 'dart:math';
 
@@ -7,12 +8,14 @@ class MaterialsCostPage extends StatefulWidget {
   final String projectId;
   final String projectName;
   final List<String> tags;
+  final bool isOwner;
 
   const MaterialsCostPage({
     super.key,
     required this.projectId,
     required this.projectName,
     required this.tags,
+    this.isOwner = true,
   });
 
   @override
@@ -37,7 +40,10 @@ class _MaterialsCostPageState extends State<MaterialsCostPage> {
     if (materials != null && mounted) {
       setState(() {
         _materials.clear();
-        _materials.addAll(materials);
+        _materials.addAll(materials.map((m) => {
+          ...m,
+          'cost': (m['cost'] as num).toDouble(),
+        }));
       });
     }
   }
@@ -70,9 +76,9 @@ class _MaterialsCostPageState extends State<MaterialsCostPage> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text("Add Material"),
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text("Add Material"),
         content: SingleChildScrollView(
           child: Column(
             children: [
@@ -88,18 +94,19 @@ class _MaterialsCostPageState extends State<MaterialsCostPage> {
             child: const Text("Cancel",
                 style: TextStyle(color: AppColors.textSecondary)),
           ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.buttonPrimary,
-              foregroundColor: AppColors.buttonText,
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: AppColors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             ),
             onPressed: () async {
               final name = nameController.text.trim();
               final cost = double.tryParse(costController.text.trim()) ?? 0.0;
               if (name.isEmpty || cost <= 0) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text("Please enter valid item and cost.")),
-                );
+                showTopSnackBar(context, 'Please enter valid item and cost.');
                 return;
               }
               final navigator = Navigator.of(context);
@@ -126,13 +133,18 @@ class _MaterialsCostPageState extends State<MaterialsCostPage> {
       keyboardType: isNumber ? TextInputType.number : TextInputType.text,
       decoration: InputDecoration(
         labelText: label,
-        focusedBorder: OutlineInputBorder(
-          borderSide: const BorderSide(color: AppColors.inputBorder),
-          borderRadius: BorderRadius.circular(8),
-        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         enabledBorder: OutlineInputBorder(
           borderSide: const BorderSide(color: AppColors.borderLight),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        border: OutlineInputBorder(
+          borderSide: const BorderSide(color: AppColors.borderLight),
+          borderRadius: BorderRadius.circular(12),
         ),
       ),
     );
@@ -141,9 +153,9 @@ class _MaterialsCostPageState extends State<MaterialsCostPage> {
   double get _totalCost => _materials.fold(0.0, (sum, item) => sum + item["cost"]);
 
   Color get _totalColor {
-    if (_totalCost < 19.99) return const Color(0xFF5DB075); // Green (Low)
-    if (_totalCost < 100) return const Color(0xFFFFC93D); // Yellow (Medium)
-    return Colors.red; // High
+    if (_totalCost < 19.99) return AppColors.primary;
+    if (_totalCost < 100) return AppColors.warning;
+    return AppColors.error;
   }
 
   String get _costRangeLabel {
@@ -153,9 +165,9 @@ class _MaterialsCostPageState extends State<MaterialsCostPage> {
   }
 
   Color _getIndicatorColor(double cost) {
-    if (cost < 19.99) return const Color(0xFF5DB075); // Green
-    if (cost < 100) return const Color(0xFFFFC93D); // Yellow
-    return Colors.red; // Red
+    if (cost < 19.99) return AppColors.primary;
+    if (cost < 100) return AppColors.warning;
+    return AppColors.error;
   }
 
   @override
@@ -165,7 +177,7 @@ class _MaterialsCostPageState extends State<MaterialsCostPage> {
       onPopInvokedWithResult: (didPop, _) async {
         if (!didPop) {
           final navigator = Navigator.of(context);
-          await _saveMaterials();
+          if (widget.isOwner) await _saveMaterials();
           if (mounted) navigator.pop();
         }
       },
@@ -178,7 +190,7 @@ class _MaterialsCostPageState extends State<MaterialsCostPage> {
             icon: const Icon(Icons.arrow_back_ios, size: 18, color: AppColors.border),
             onPressed: () async {
               final navigator = Navigator.of(context);
-              await _saveMaterials();
+              if (widget.isOwner) await _saveMaterials();
               if (mounted) navigator.pop();
             },
           ),
@@ -206,7 +218,7 @@ class _MaterialsCostPageState extends State<MaterialsCostPage> {
                 ),
               ),
           ],
-          shape: const Border(bottom: BorderSide(color: Color(0xFFE5E5EA), width: 0.6)),
+          shape: const Border(bottom: BorderSide(color: AppColors.divider, width: 0.6)),
         ),
         body: Padding(
           padding: const EdgeInsets.all(16),
@@ -231,7 +243,7 @@ class _MaterialsCostPageState extends State<MaterialsCostPage> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFDCF7E4),
+                      color: AppColors.primaryTint,
                       borderRadius: BorderRadius.circular(24),
                     ),
                     child: Text(
@@ -266,13 +278,19 @@ class _MaterialsCostPageState extends State<MaterialsCostPage> {
                         border: Border.all(color: _totalColor, width: 6),
                       ),
                       child: Center(
-                        child: Text(
-                          "\$${value.toStringAsFixed(2)}",
-                          style: TextStyle(
-                            fontSize: 40,
-                            fontFamily: 'Inter',
-                            fontWeight: FontWeight.w500,
-                            color: _totalColor,
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            child: Text(
+                              "\$${value.toStringAsFixed(2)}",
+                              style: TextStyle(
+                                fontSize: 40,
+                                fontFamily: 'Inter',
+                                fontWeight: FontWeight.w500,
+                                color: _totalColor,
+                              ),
+                            ),
                           ),
                         ),
                       ),
@@ -360,7 +378,8 @@ class _MaterialsCostPageState extends State<MaterialsCostPage> {
 
               const SizedBox(height: 20),
 
-              // Add Item Button
+              // Add Item Button (owner only)
+              if (widget.isOwner)
               SizedBox(
                 width: double.infinity,
                 height: 56,

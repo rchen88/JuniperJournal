@@ -26,8 +26,10 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
   @override
   void initState() {
     super.initState();
-    _loadConversations();
     _searchController.addListener(_onSearchChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _loadConversations();
+    });
   }
 
   @override
@@ -60,49 +62,59 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
   }
 
   Future<void> _openNewChat() async {
-    final friends = await _friendsRepo.getFriends();
-    if (!mounted) return;
-    if (friends == null || friends.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No friends yet. Add friends to start a chat.'),
+    final selected = await Navigator.push<List<UserProfile>>(
+      context,
+      MaterialPageRoute(builder: (_) => const _NewMessageScreen()),
+    );
+    if (selected == null || selected.isEmpty || !mounted) return;
+
+    if (selected.length == 1) {
+      final conversationId =
+          await _chatRepo.getOrCreateDm(selected.first.id);
+      if (!mounted || conversationId == null) return;
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ChatScreen(
+            conversationId: conversationId,
+            otherUserName: selected.first.resolvedDisplayName,
+            otherAvatarUrl: selected.first.avatarUrl,
+          ),
         ),
       );
-      return;
-    }
-    final picked = await showModalBottomSheet<UserProfile>(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => _FriendPickerSheet(friends: friends),
-    );
-    if (picked == null || !mounted) return;
-
-    final conversationId = await _chatRepo.getOrCreateDm(picked.id);
-    if (!mounted || conversationId == null) return;
-
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => ChatScreen(
-          conversationId: conversationId,
-          otherUserName: picked.resolvedDisplayName,
-          otherAvatarUrl: picked.avatarUrl,
+    } else {
+      final name = selected
+          .map((f) => f.resolvedDisplayName.split(' ').first)
+          .join(', ');
+      final conversationId = await _chatRepo.createGroupDm(
+        name: name,
+        memberIds: selected.map((f) => f.id).toList(),
+      );
+      if (!mounted || conversationId == null) return;
+      await Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ChatScreen(
+            conversationId: conversationId,
+            otherUserName: name,
+            isGroup: true,
+          ),
         ),
-      ),
-    );
+      );
+    }
+
     if (!mounted) return;
     _loadConversations();
   }
 
+
   Future<bool> _confirmAndDelete(String conversationId) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => AlertDialog(backgroundColor: AppColors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Delete Conversation'),
         content: const Text(
-          'This will hide the conversation for you. The other person will still be able to see it.',
+          'This will hide the conversation for you. Others will still see it.',
         ),
         actions: [
           TextButton(
@@ -111,10 +123,8 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text(
-              'Delete',
-              style: TextStyle(color: Colors.red),
-            ),
+            child:
+                const Text('Delete', style: TextStyle(color: AppColors.error)),
           ),
         ],
       ),
@@ -126,22 +136,19 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.white,
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.white,
         elevation: 0,
         centerTitle: true,
         title: const Text(
           'Chats',
           style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            color: Colors.black,
-          ),
+              fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.add, color: Colors.black),
+            icon: const Icon(Icons.add, color: AppColors.textPrimary),
             onPressed: _openNewChat,
           ),
         ],
@@ -155,9 +162,10 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
               decoration: InputDecoration(
                 hintText: 'Search',
                 hintStyle: const TextStyle(color: Colors.black38),
-                prefixIcon: const Icon(Icons.search, color: Colors.black38),
+                prefixIcon:
+                    const Icon(Icons.search, color: Colors.black38),
                 filled: true,
-                fillColor: const Color(0xFFF2F2F2),
+                fillColor: AppColors.surfaceInput,
                 contentPadding: EdgeInsets.zero,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -183,11 +191,8 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Icons.chat_bubble_outline,
-            size: 48,
-            color: Colors.grey.shade300,
-          ),
+          Icon(Icons.chat_bubble_outline,
+              size: 48, color: Colors.grey.shade300),
           const SizedBox(height: 12),
           Text(
             _conversations.isEmpty ? 'No conversations yet' : 'No results',
@@ -197,7 +202,8 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
             const SizedBox(height: 6),
             Text(
               'Tap + to start a chat',
-              style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
+              style:
+                  TextStyle(fontSize: 13, color: Colors.grey.shade400),
             ),
           ],
         ],
@@ -219,21 +225,16 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
               color: Colors.red,
               alignment: Alignment.centerRight,
               padding: const EdgeInsets.only(right: 24),
-              child: const Icon(
-                Icons.delete_outline,
-                color: Colors.white,
-                size: 26,
-              ),
+              child: const Icon(Icons.delete_outline,
+                  color: Colors.white, size: 26),
             ),
             confirmDismiss: (_) => _confirmAndDelete(c.conversationId),
             onDismissed: (_) {
               setState(() {
                 _conversations.removeWhere(
-                  (x) => x.conversationId == c.conversationId,
-                );
+                    (x) => x.conversationId == c.conversationId);
                 _filtered.removeWhere(
-                  (x) => x.conversationId == c.conversationId,
-                );
+                    (x) => x.conversationId == c.conversationId);
               });
             },
             child: Column(
@@ -248,7 +249,9 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
                         builder: (_) => ChatScreen(
                           conversationId: c.conversationId,
                           otherUserName: c.resolvedDisplayName,
-                          otherAvatarUrl: c.otherAvatarUrl,
+                          otherAvatarUrl:
+                              c.isGroup ? null : c.otherAvatarUrl,
+                          isGroup: c.isGroup,
                         ),
                       ),
                     );
@@ -267,11 +270,14 @@ class _ChatsListScreenState extends State<ChatsListScreen> {
   }
 }
 
+// ── _ConversationTile ──────────────────────────────────────────────────────────
+
 class _ConversationTile extends StatelessWidget {
   final ConversationPreview conversation;
   final VoidCallback onTap;
 
-  const _ConversationTile({required this.conversation, required this.onTap});
+  const _ConversationTile(
+      {required this.conversation, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -284,7 +290,17 @@ class _ConversationTile extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
           children: [
-            UserAvatar(avatarUrl: c.otherAvatarUrl, radius: 26),
+            // Avatar — group shows a people icon, DM shows user avatar
+            if (c.isGroup)
+              CircleAvatar(
+                radius: 26,
+                backgroundColor:
+                    AppColors.primary.withValues(alpha: 0.15),
+                child: const Icon(Icons.group,
+                    color: AppColors.primary, size: 24),
+              )
+            else
+              UserAvatar(avatarUrl: c.otherAvatarUrl, radius: 26),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -294,12 +310,14 @@ class _ConversationTile extends StatelessWidget {
                     c.resolvedDisplayName,
                     style: TextStyle(
                       fontSize: 15,
-                      fontWeight:
-                          hasUnread ? FontWeight.w700 : FontWeight.w600,
-                      color: Colors.black,
+                      fontWeight: hasUnread
+                          ? FontWeight.w700
+                          : FontWeight.w600,
+                      color: AppColors.textPrimary,
                     ),
                   ),
-                  if (c.lastMessage != null && c.lastMessage!.isNotEmpty) ...[
+                  if (c.lastMessage != null &&
+                      c.lastMessage!.isNotEmpty) ...[
                     const SizedBox(height: 2),
                     Text(
                       c.lastMessage!,
@@ -307,9 +325,12 @@ class _ConversationTile extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 13,
-                        color: hasUnread ? Colors.black87 : Colors.black54,
-                        fontWeight:
-                            hasUnread ? FontWeight.w500 : FontWeight.normal,
+                        color: hasUnread
+                            ? Colors.black87
+                            : Colors.black54,
+                        fontWeight: hasUnread
+                            ? FontWeight.w500
+                            : FontWeight.normal,
                       ),
                     ),
                   ],
@@ -320,14 +341,13 @@ class _ConversationTile extends StatelessWidget {
               const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 7,
-                  vertical: 3,
-                ),
+                    horizontal: 7, vertical: 3),
                 decoration: const BoxDecoration(
-                  color: AppColors.submitButton,
+                  color: AppColors.primary,
                   shape: BoxShape.circle,
                 ),
-                constraints: const BoxConstraints(minWidth: 22, minHeight: 22),
+                constraints:
+                    const BoxConstraints(minWidth: 22, minHeight: 22),
                 child: Center(
                   child: Text(
                     c.unreadCount > 99 ? '99+' : '${c.unreadCount}',
@@ -347,46 +367,249 @@ class _ConversationTile extends StatelessWidget {
   }
 }
 
-class _FriendPickerSheet extends StatelessWidget {
-  final List<UserProfile> friends;
+// ── _NewMessageScreen ─────────────────────────────────────────────────────────
 
-  const _FriendPickerSheet({required this.friends});
+class _NewMessageScreen extends StatefulWidget {
+  const _NewMessageScreen();
+
+  @override
+  State<_NewMessageScreen> createState() => _NewMessageScreenState();
+}
+
+class _NewMessageScreenState extends State<_NewMessageScreen> {
+  final FriendsRepo _friendsRepo = FriendsRepo();
+  final TextEditingController _searchController = TextEditingController();
+
+  List<UserProfile> _allFriends = [];
+  List<UserProfile> _filtered = [];
+  final Set<String> _selectedIds = {};
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadFriends();
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadFriends() async {
+    final friends = await _friendsRepo.getFriends();
+    if (!mounted) return;
+    setState(() {
+      _allFriends = friends ?? [];
+      _filtered = _allFriends;
+      _loading = false;
+    });
+  }
+
+  void _onSearchChanged() {
+    final q = _searchController.text.trim().toLowerCase();
+    setState(() {
+      _filtered = q.isEmpty
+          ? _allFriends
+          : _allFriends
+              .where((f) =>
+                  f.resolvedDisplayName.toLowerCase().contains(q) ||
+                  (f.username?.toLowerCase().contains(q) ?? false))
+              .toList();
+    });
+  }
+
+  List<UserProfile> get _selectedFriends =>
+      _allFriends.where((f) => _selectedIds.contains(f.id)).toList();
+
+  void _confirm() {
+    final selected = _selectedFriends;
+    if (selected.isEmpty) return;
+    Navigator.pop(context, selected);
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Padding(
-          padding: EdgeInsets.fromLTRB(20, 20, 20, 12),
-          child: Text(
-            'New Message',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-          ),
+    final selected = _selectedFriends;
+    final hasSelection = selected.isNotEmpty;
+
+    return Scaffold(
+      backgroundColor: AppColors.white,
+      appBar: AppBar(
+        backgroundColor: AppColors.white,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.close, color: AppColors.textPrimary),
+          onPressed: () => Navigator.pop(context),
         ),
-        Flexible(
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: friends.length,
-            itemBuilder: (_, index) {
-              final friend = friends[index];
-              return ListTile(
-                leading: UserAvatar(avatarUrl: friend.avatarUrl, radius: 22),
-                title: Text(
-                  friend.resolvedDisplayName,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                  ),
+        title: const Text(
+          'New Message',
+          style: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary),
+        ),
+        centerTitle: true,
+        actions: [
+          if (hasSelection)
+            TextButton(
+              onPressed: _confirm,
+              child: Text(
+                selected.length == 1 ? 'Message' : 'Create',
+                style: const TextStyle(
+                    color: AppColors.primary, fontWeight: FontWeight.w700),
+              ),
+            ),
+        ],
+      ),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Search bar
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+            child: TextField(
+              controller: _searchController,
+              autofocus: false,
+              decoration: InputDecoration(
+                hintText: 'Search friends',
+                hintStyle: const TextStyle(color: Colors.black38),
+                prefixIcon:
+                    const Icon(Icons.search, color: Colors.black38),
+                filled: true,
+                fillColor: AppColors.surfaceInput,
+                contentPadding: EdgeInsets.zero,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
                 ),
-                onTap: () => Navigator.pop(context, friend),
-              );
-            },
+              ),
+            ),
           ),
-        ),
-        const SizedBox(height: 16),
-      ],
+
+          // Selected chips row
+          if (hasSelection) ...[
+            SizedBox(
+              height: 72,
+              child: ListView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                children: selected
+                    .map((f) => Padding(
+                          padding: const EdgeInsets.only(right: 14),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Stack(
+                                children: [
+                                  UserAvatar(
+                                      avatarUrl: f.avatarUrl, radius: 22),
+                                  Positioned(
+                                    right: 0,
+                                    top: 0,
+                                    child: GestureDetector(
+                                      onTap: () => setState(
+                                          () => _selectedIds.remove(f.id)),
+                                      child: Container(
+                                        width: 18,
+                                        height: 18,
+                                        decoration: const BoxDecoration(
+                                          color: Colors.black54,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Icon(Icons.close,
+                                            size: 11, color: Colors.white),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                f.resolvedDisplayName.split(' ').first,
+                                style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500),
+                              ),
+                            ],
+                          ),
+                        ))
+                    .toList(),
+              ),
+            ),
+            const Divider(height: 1),
+          ],
+
+          // Suggestions label
+          if (!_loading)
+            Padding(
+              padding:
+                  const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              child: Text(
+                _searchController.text.isEmpty
+                    ? 'Suggested'
+                    : 'Results',
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade500,
+                    letterSpacing: 0.4),
+              ),
+            ),
+
+          // Friend list
+          Expanded(
+            child: _loading
+                ? const Center(child: CircularProgressIndicator())
+                : _filtered.isEmpty
+                    ? Center(
+                        child: Text(
+                          _allFriends.isEmpty
+                              ? 'No friends yet'
+                              : 'No results',
+                          style: const TextStyle(color: Colors.black45),
+                        ),
+                      )
+                    : ListView.builder(
+                        itemCount: _filtered.length,
+                        itemBuilder: (_, index) {
+                          final friend = _filtered[index];
+                          final isSelected =
+                              _selectedIds.contains(friend.id);
+                          return ListTile(
+                            leading: UserAvatar(
+                                avatarUrl: friend.avatarUrl, radius: 22),
+                            title: Text(
+                              friend.resolvedDisplayName,
+                              style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600),
+                            ),
+                            subtitle: friend.username != null
+                                ? Text('@${friend.username!}',
+                                    style: const TextStyle(fontSize: 12))
+                                : null,
+                            trailing: isSelected
+                                ? const Icon(Icons.check_circle,
+                                    color: AppColors.primary)
+                                : Icon(Icons.circle_outlined,
+                                    color: Colors.grey.shade300),
+                            onTap: () => setState(() {
+                              if (isSelected) {
+                                _selectedIds.remove(friend.id);
+                              } else {
+                                _selectedIds.add(friend.id);
+                              }
+                            }),
+                          );
+                        },
+                      ),
+          ),
+        ],
+      ),
     );
   }
 }

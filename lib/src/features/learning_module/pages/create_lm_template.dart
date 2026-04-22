@@ -3,6 +3,7 @@ import 'package:juniper_journal/src/backend/db/repositories/learning_module_repo
 import 'package:juniper_journal/src/backend/auth/auth_service.dart';
 import 'package:juniper_journal/src/features/learning_module/learning_module.dart';
 import 'package:juniper_journal/src/shared/styling/theme.dart';
+import 'package:juniper_journal/src/shared/widgets/top_snack_bar.dart';
 
 /// **Purpose:**  
 /// Provides a clear and engaging title for the learning experience.
@@ -100,14 +101,14 @@ class _CreateTemplateScreenState extends State<CreateTemplateScreen> {
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                     borderSide: const BorderSide(
-                      color: AppColors.inputBorder,
+                      color: AppColors.border,
                       width: 2,
                     ),
                   ),
                   filled: true,
-                  fillColor: AppColors.inputBackground,
+                  fillColor: AppColors.white,
                 ),
-                style: const TextStyle(color: AppColors.inputText),
+                style: const TextStyle(color: AppColors.textPrimary),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
                     return 'Module name must be completed';
@@ -136,12 +137,12 @@ class _CreateTemplateScreenState extends State<CreateTemplateScreen> {
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(8),
                     borderSide: const BorderSide(
-                      color: AppColors.inputBorder,
+                      color: AppColors.border,
                       width: 2,
                     ),
                   ),
                   filled: true,
-                  fillColor: AppColors.inputBackground,
+                  fillColor: AppColors.white,
                 ),
                 hint: const Text(
                   'Select difficulty level',
@@ -153,7 +154,7 @@ class _CreateTemplateScreenState extends State<CreateTemplateScreen> {
                         value: value,
                         child: Text(
                           value,
-                          style: const TextStyle(color: AppColors.inputText),
+                          style: const TextStyle(color: AppColors.textPrimary),
                         ),
                       ),
                     )
@@ -191,8 +192,6 @@ class _CreateTemplateScreenState extends State<CreateTemplateScreen> {
                         ecoPoints = 500;
                       }
 
-                      // Purpose here is to avoid using context across async gap later
-                      final messenger = ScaffoldMessenger.of(context);
                       final navigator = Navigator.of(context);
                       final repo = LearningModuleRepo();
                       final authService = AuthService.instance;
@@ -238,9 +237,7 @@ class _CreateTemplateScreenState extends State<CreateTemplateScreen> {
                           ),
                         );
                       } else {
-                        messenger.showSnackBar(
-                          const SnackBar(content: Text('Failed to save module')),
-                        );
+                        showTopSnackBar(context, 'Failed to save module', isError: true);
                       }
                     }
                   },

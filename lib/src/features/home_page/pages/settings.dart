@@ -3,6 +3,7 @@ import 'package:juniper_journal/src/backend/auth/auth_service.dart';
 import 'package:juniper_journal/src/backend/db/repositories/users_repo.dart';
 import 'package:juniper_journal/src/features/home_page/home_page.dart';
 import 'package:juniper_journal/src/shared/styling/theme.dart';
+import 'package:juniper_journal/src/shared/widgets/top_snack_bar.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -56,9 +57,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final ok = await _usersRepo.updateCurrentUserProfile(displayName: name);
     if (!mounted) return;
     setState(() => _isSaving = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(ok ? 'Name updated' : 'Failed to update name')),
-    );
+    showTopSnackBar(context, ok ? 'Name updated' : 'Failed to update name');
   }
 
   Future<void> _toggleVisibility(bool value) async {
@@ -81,7 +80,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _deleteAccount() async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => AlertDialog(backgroundColor: AppColors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Delete account?'),
         content: const Text(
           'This will permanently delete your account, profile, and all your data. This cannot be undone.',
@@ -105,7 +104,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final confirmController = TextEditingController();
     final doubleConfirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => AlertDialog(backgroundColor: AppColors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Type DELETE to confirm'),
         content: TextField(
           controller: confirmController,
@@ -138,9 +137,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     if (!ok) {
       setState(() => _isSaving = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to delete account. Please try again.')),
-      );
+      showTopSnackBar(context, 'Failed to delete account. Please try again.', isError: true);
       return;
     }
 
@@ -177,7 +174,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
         centerTitle: true,
         shape: const Border(
-          bottom: BorderSide(color: Color(0xFFE5E5EA), width: 0.6),
+          bottom: BorderSide(color: AppColors.divider, width: 0.6),
         ),
       ),
       body: _isLoading
@@ -340,9 +337,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _card(List<Widget> children) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppColors.white,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppColors.borderLight),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),

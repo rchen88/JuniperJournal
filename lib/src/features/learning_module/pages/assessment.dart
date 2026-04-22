@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:juniper_journal/src/shared/styling/app_colors.dart';
 import 'package:juniper_journal/src/backend/db/repositories/learning_module_repo.dart';
 import 'package:juniper_journal/src/features/learning_module/learning_module.dart';
+import 'package:juniper_journal/src/shared/widgets/top_snack_bar.dart';
 
 
 class Assessment extends StatefulWidget {
@@ -101,26 +103,14 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
 
       if (mounted) {
         if (success) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Assessment saved successfully!'),
-              backgroundColor: Color(0xFF6FA57A),
-            ),
-          );
+          showTopSnackBar(context, 'Assessment saved successfully!');
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to save assessment'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          showTopSnackBar(context, 'Failed to save assessment', isError: true);
         }
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error saving assessment: $e')),
-        );
+        showTopSnackBar(context, 'Error saving assessment: $e', isError: true);
       }
     }
   }
@@ -184,7 +174,7 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
                   'Done',
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
-                    color: Color(0xFF6FA57A),
+                    color: AppColors.primary,
                   ),
                 ),
               ),
@@ -217,7 +207,7 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
 
   Widget _buildTag(String text, {bool filled = false}) => Container(
         decoration: BoxDecoration(
-          color: filled ? const Color(0xFF7CAD84) : const Color(0xFFE7F0E9),
+          color: filled ? AppColors.primary : AppColors.primaryTint,
           borderRadius: BorderRadius.circular(24),
         ),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -233,10 +223,10 @@ class _AssessmentScreenState extends State<AssessmentScreen> {
 
   Widget _circleAdd({required VoidCallback onTap}) => Container(
         decoration:
-            const BoxDecoration(color: Color(0xFFE7F0E9), shape: BoxShape.circle),
+            const BoxDecoration(color: AppColors.primaryTint, shape: BoxShape.circle),
         child: IconButton(
           tooltip: 'Add question',
-          icon: const Icon(Icons.add, color: Color(0xFF6FA57A)),
+          icon: const Icon(Icons.add, color: AppColors.primary),
           onPressed: onTap,
         ),
       );
@@ -405,7 +395,7 @@ class _QuestionCardState extends State<QuestionCard> {
 
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFFEAF5EC),
+        color: AppColors.primaryTint,
         borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
@@ -414,7 +404,7 @@ class _QuestionCardState extends State<QuestionCard> {
           Container(
             width: 16,
             decoration: const BoxDecoration(
-              color: Color(0xFF6FA57A),
+              color: AppColors.primary,
               borderRadius: BorderRadius.only(
                 topLeft: Radius.circular(14),
                 bottomLeft: Radius.circular(14),
@@ -474,8 +464,8 @@ class _QuestionCardState extends State<QuestionCard> {
                     icon: const Icon(Icons.add),
                     label: const Text('Add another question'),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF6FA57A),
-                      side: const BorderSide(color: Color(0xFF6FA57A)),
+                      foregroundColor: AppColors.primary,
+                      side: const BorderSide(color: AppColors.primary),
                     ),
                   ),
                 ),
@@ -509,7 +499,7 @@ class _QuestionCardState extends State<QuestionCard> {
           ),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           child: Row(mainAxisSize: MainAxisSize.min, children: [
-            Icon(questionTypeIcon(m.type), size: 14, color: const Color(0xFF6FA57A)),
+            Icon(questionTypeIcon(m.type), size: 14, color: AppColors.primary),
             const SizedBox(width: 6),
             Text(questionTypeLabel(m.type),
                 style: const TextStyle(fontWeight: FontWeight.w600)),
@@ -653,9 +643,9 @@ class _QuestionCardState extends State<QuestionCard> {
             m.options.add(TextEditingController());
             m.correctAnswers.add(false);
           }),
-          icon: const Icon(Icons.add, color: Color(0xFF6FA57A)),
+          icon: const Icon(Icons.add, color: AppColors.primary),
           label: const Text('Add Option',
-              style: TextStyle(color: Color(0xFF6FA57A))),
+              style: TextStyle(color: AppColors.primary)),
         ),
         const Spacer(),
       ]));
@@ -761,8 +751,8 @@ class _QuestionCardState extends State<QuestionCard> {
         TextButton.icon(
           onPressed: () => setState(
               () => m.gridCols.add(TextEditingController(text: 'Col ${m.gridCols.length + 1}'))),
-          icon: const Icon(Icons.add, color: Color(0xFF6FA57A)),
-          label: const Text('Add column', style: TextStyle(color: Color(0xFF6FA57A))),
+          icon: const Icon(Icons.add, color: AppColors.primary),
+          label: const Text('Add column', style: TextStyle(color: AppColors.primary)),
         ),
         const SizedBox(height: 10),
 
@@ -779,8 +769,8 @@ class _QuestionCardState extends State<QuestionCard> {
         TextButton.icon(
           onPressed: () => setState(
               () => m.gridRows.add(TextEditingController(text: 'Row ${m.gridRows.length + 1}'))),
-          icon: const Icon(Icons.add, color: Color(0xFF6FA57A)),
-          label: const Text('Add row', style: TextStyle(color: Color(0xFF6FA57A))),
+          icon: const Icon(Icons.add, color: AppColors.primary),
+          label: const Text('Add row', style: TextStyle(color: AppColors.primary)),
         ),
         const SizedBox(height: 12),
 

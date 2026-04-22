@@ -152,7 +152,7 @@ class _SocialConnectionsPageState extends State<SocialConnectionsPage> {
                           ),
                           tileColor: Colors.white,
                           leading: CircleAvatar(
-                            backgroundColor: const Color(0xFFE8F4EC),
+                            backgroundColor: AppColors.avatarBackground,
                             backgroundImage:
                                 (avatarUrl != null && avatarUrl.isNotEmpty)
                                 ? NetworkImage(avatarUrl)
@@ -160,7 +160,7 @@ class _SocialConnectionsPageState extends State<SocialConnectionsPage> {
                             child: (avatarUrl == null || avatarUrl.isEmpty)
                                 ? const Icon(
                                     Icons.person,
-                                    color: Color(0xFF5B7B63),
+                                    color: AppColors.avatarIcon,
                                   )
                                 : null,
                           ),

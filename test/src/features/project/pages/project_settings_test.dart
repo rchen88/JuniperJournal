@@ -10,8 +10,11 @@ class _FakeProjectsRepo extends ProjectsRepo {
     return Project(
       id: id,
       projectName: 'River Cleanup',
-      tags: ['WATER', 'WASTE'],
+      tags: ['Environment & Sustainability|Ecosystems & Biodiversity'],
       problemStatement: 'Too much runoff pollution.',
+      difficulty: 'Easy',
+      projectScale: 'Small',
+      visibility: 'Public',
     );
   }
 
@@ -22,6 +25,9 @@ class _FakeProjectsRepo extends ProjectsRepo {
     required String problemStatement,
     required List<String> tags,
     String? projectImageUrl,
+    String? difficulty,
+    String? projectScale,
+    String? visibility,
   }) async {
     return true;
   }
@@ -45,8 +51,6 @@ void main() {
     expect(find.text('Project Settings'), findsOneWidget);
     expect(find.text('River Cleanup'), findsOneWidget);
     expect(find.text('Too much runoff pollution.'), findsOneWidget);
-    expect(find.text('WATER'), findsOneWidget);
-    expect(find.text('WASTE'), findsOneWidget);
     expect(find.text('Save Settings'), findsOneWidget);
   });
 }

@@ -72,7 +72,7 @@ class _MetricsPageState extends State<MetricsPage> {
   // Calculated values
   double? impactValue;
   String impactLabel = "LOW IMPACT";
-  Color impactColor = Colors.green;
+  Color impactColor = AppColors.primary;
 
   @override
   void initState() {
@@ -103,7 +103,7 @@ class _MetricsPageState extends State<MetricsPage> {
       impactColor = Colors.blue;
     } else {
       impactLabel = "LOW IMPACT";
-      impactColor = Colors.green;
+      impactColor = AppColors.primary;
     }
 
     setState(() {
@@ -119,7 +119,7 @@ class _MetricsPageState extends State<MetricsPage> {
         Text(label,
           style: const TextStyle(
             fontSize: 14,
-            color: Color(0xFF323639),
+            color: AppColors.textPrimary,
             fontWeight: FontWeight.w500,
           ),
         ),
@@ -131,8 +131,8 @@ class _MetricsPageState extends State<MetricsPage> {
                 height: 44,
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 decoration: BoxDecoration(
-                  border: Border.all(color: Color(0xFFE8EBEC)),
-                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.borderLight),
+                  borderRadius: BorderRadius.circular(12),
                   color: Colors.white,
                 ),
                 child: TextField(
@@ -150,8 +150,8 @@ class _MetricsPageState extends State<MetricsPage> {
               height: 44,
               padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
-                border: Border.all(color: Color(0xFFE8EBEC)),
-                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.borderLight),
+                borderRadius: BorderRadius.circular(12),
                 color: Colors.white,
               ),
               child: Center(
@@ -185,7 +185,7 @@ class _MetricsPageState extends State<MetricsPage> {
               height: 200,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                border: Border.all(color: Color(0xFFE7E7E7), width: 3),
+                border: Border.all(color: AppColors.divider, width: 3),
               ),
             ),
             Container(
@@ -202,7 +202,7 @@ class _MetricsPageState extends State<MetricsPage> {
                 Text(label,
                   style: const TextStyle(
                     fontSize: 15,
-                    color: Color(0xFF585462),
+                    color: AppColors.textSecondary,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -249,7 +249,7 @@ class _MetricsPageState extends State<MetricsPage> {
           style: TextStyle(color: AppColors.textPrimary, fontSize: 18, fontWeight: FontWeight.w700)),
         centerTitle: true,
         actions: const [],
-        shape: const Border(bottom: BorderSide(color: Color(0xFFE5E5EA), width: 0.6)),
+        shape: const Border(bottom: BorderSide(color: AppColors.divider, width: 0.6)),
       ),
 
       body: Padding(
@@ -264,7 +264,7 @@ class _MetricsPageState extends State<MetricsPage> {
                 return Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFDCF7E4),
+                    color: AppColors.primaryTint,
                     borderRadius: BorderRadius.circular(24),
                   ),
                   child: Text(
@@ -286,8 +286,18 @@ class _MetricsPageState extends State<MetricsPage> {
               initialValue: selectedMetric,
               decoration: InputDecoration(
                 labelText: "Select Impact Metric",
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: AppColors.borderLight),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                ),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: AppColors.borderLight),
                 ),
               ),
               items: metricOptions.map((opt) {

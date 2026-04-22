@@ -2,17 +2,19 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:juniper_journal/src/backend/auth/auth_service.dart';
-import 'package:juniper_journal/src/backend/db/models/achievement.dart';
 import 'package:juniper_journal/src/backend/db/models/user_profile.dart';
-import 'package:juniper_journal/src/backend/db/repositories/achievements_repo.dart';
 import 'package:juniper_journal/src/backend/db/repositories/friends_repo.dart';
+import 'package:juniper_journal/src/backend/db/repositories/projects_repo.dart';
 import 'package:juniper_journal/src/backend/db/repositories/users_repo.dart';
 import 'package:juniper_journal/src/features/home_page/pages/search.dart';
 import 'package:juniper_journal/src/services/media_service.dart';
 import 'package:juniper_journal/src/shared/styling/theme.dart';
+import 'package:juniper_journal/src/shared/widgets/top_snack_bar.dart';
 
 class UserProfilePage extends StatefulWidget {
-  const UserProfilePage({super.key});
+  const UserProfilePage({super.key, this.onProfileUpdated});
+
+  final Future<void> Function()? onProfileUpdated;
 
   @override
   State<UserProfilePage> createState() => UserProfilePageState();
@@ -22,7 +24,7 @@ class UserProfilePageState extends State<UserProfilePage> {
   final _authService = AuthService.instance;
   final _mediaService = MediaService();
   final _friendsRepo = FriendsRepo();
-  final _achievementsRepo = AchievementsRepo();
+  final _projectsRepo = ProjectsRepo();
   final _usersRepo = UsersRepo();
 
   String? _avatarUrl;
@@ -30,10 +32,8 @@ class UserProfilePageState extends State<UserProfilePage> {
   String _email = '';
   bool _isUploading = false;
   List<UserProfile> _friends = const [];
-  List<Achievement> _achievements = const [];
-  bool _isLoadingAchievements = false;
-  int _totalPoints = 0;
-  int _selectedTab = 0;
+  Map<String, double> _friendPoints = {};
+  double _totalPoints = 0;
 
   @override
   void initState() {
@@ -45,6 +45,7 @@ class UserProfilePageState extends State<UserProfilePage> {
 
   /// Called by the parent shell whenever the Profile tab becomes active.
   void reload() {
+    _loadUser();
     _loadFriends();
     _loadAchievements();
   }
@@ -57,8 +58,8 @@ class UserProfilePageState extends State<UserProfilePage> {
       _displayName = profile?.displayName?.trim().isNotEmpty == true
           ? profile!.displayName!
           : profile?.username?.trim().isNotEmpty == true
-              ? '@${profile!.username}'
-              : email.split('@').first;
+          ? '@${profile!.username}'
+          : email.split('@').first;
       _email = email;
       _avatarUrl = profile?.avatarUrl;
     });
@@ -67,15 +68,24 @@ class UserProfilePageState extends State<UserProfilePage> {
   Future<void> _loadFriends() async {
     final friends = await _friendsRepo.getFriends();
     if (!mounted) return;
+    setState(() => _friends = friends ?? const []);
+
+    if (_friends.isEmpty) return;
+    final points = await Future.wait(
+      _friends.map((f) => _projectsRepo.getTotalEcoPointsForUser(f.id)),
+    );
+    if (!mounted) return;
     setState(() {
-      _friends = friends ?? const [];
+      _friendPoints = {
+        for (var i = 0; i < _friends.length; i++) _friends[i].id: points[i],
+      };
     });
   }
 
   Future<void> _deleteFriend(UserProfile friend) async {
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
+      builder: (ctx) => AlertDialog(backgroundColor: AppColors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Remove friend?'),
         content: Text(
           '${friend.resolvedDisplayName} will be removed from your friends.',
@@ -98,26 +108,16 @@ class UserProfilePageState extends State<UserProfilePage> {
     final ok = await _friendsRepo.removeFriend(friendId: friend.id);
     if (!mounted) return;
     if (!ok) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to remove friend')),
-      );
+      showTopSnackBar(context, 'Failed to remove friend', isError: true);
       return;
     }
     _loadFriends();
   }
 
   Future<void> _loadAchievements() async {
-    setState(() => _isLoadingAchievements = true);
-    final results = await Future.wait([
-      _achievementsRepo.getCurrentUserAchievements(),
-      _achievementsRepo.getTotalPoints(),
-    ]);
+    final points = await _projectsRepo.getTotalEcoPoints();
     if (!mounted) return;
-    setState(() {
-      _achievements = (results[0] as List<Achievement>?) ?? const [];
-      _totalPoints = results[1] as int;
-      _isLoadingAchievements = false;
-    });
+    setState(() => _totalPoints = points);
   }
 
   Future<void> _pickProfileImage(ImageSource source) async {
@@ -129,20 +129,19 @@ class UserProfilePageState extends State<UserProfilePage> {
     if (!mounted) return;
     if (imageUrl == null) {
       setState(() => _isUploading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to upload profile image')),
-      );
+      showTopSnackBar(context, 'Failed to upload profile image', isError: true);
       return;
     }
     await _usersRepo.updateCurrentUserProfile(avatarUrl: imageUrl);
+    if (widget.onProfileUpdated != null) {
+      await widget.onProfileUpdated!();
+    }
     if (!mounted) return;
     setState(() {
       _avatarUrl = imageUrl;
       _isUploading = false;
     });
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Profile image updated')));
+    showTopSnackBar(context, 'Profile image updated');
   }
 
   void _showImageSourceSheet() {
@@ -188,21 +187,20 @@ class UserProfilePageState extends State<UserProfilePage> {
             height: 112,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 4),
+              border: Border.all(color: AppColors.white, width: 4),
             ),
             child: ClipOval(
               child: CircleAvatar(
                 radius: 52,
-                backgroundColor: const Color(0xFFE8F4EC),
-                backgroundImage:
-                    (_avatarUrl != null && _avatarUrl!.isNotEmpty)
+                backgroundColor: AppColors.avatarBackground,
+                backgroundImage: (_avatarUrl != null && _avatarUrl!.isNotEmpty)
                     ? NetworkImage(_avatarUrl!)
                     : null,
                 child: (_avatarUrl == null || _avatarUrl!.isEmpty)
                     ? const Icon(
                         Icons.person,
                         size: 50,
-                        color: Color(0xFF5B7B63),
+                        color: AppColors.avatarIcon,
                       )
                     : null,
               ),
@@ -223,7 +221,7 @@ class UserProfilePageState extends State<UserProfilePage> {
                       valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
                     ),
                   )
-                : const Icon(Icons.camera_alt, size: 14, color: Colors.white),
+                : const Icon(Icons.camera_alt, size: 14, color: AppColors.white),
           ),
         ],
       ),
@@ -245,12 +243,8 @@ class UserProfilePageState extends State<UserProfilePage> {
           _buildStatItem(
             Icons.star_border_outlined,
             'ECOPOINTS',
-            '$_totalPoints',
+            _totalPoints.toStringAsFixed(0),
           ),
-          _buildStatDivider(),
-          _buildStatItem(Icons.public_outlined, 'WORLD RANK', '—'),
-          _buildStatDivider(),
-          _buildStatItem(Icons.adjust, 'LOCAL RANK', '—'),
         ],
       ),
     );
@@ -286,166 +280,7 @@ class UserProfilePageState extends State<UserProfilePage> {
     );
   }
 
-  Widget _buildStatDivider() =>
-      Container(height: 40, width: 1, color: Colors.white38);
-
   // ── Tab bar ───────────────────────────────────────────────────────────────
-
-  Widget _buildTabBar() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20),
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.grey.shade200),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          _buildTabItem('Activity', 0),
-          Container(width: 1, height: 22, color: Colors.grey.shade300),
-          _buildTabItem('Friends', 1),
-          Container(width: 1, height: 22, color: Colors.grey.shade300),
-          _buildTabItem('Badge', 2),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTabItem(String label, int index) {
-    final isActive = _selectedTab == index;
-    return Expanded(
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () => setState(() => _selectedTab = index),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: isActive ? FontWeight.w700 : FontWeight.w400,
-              color: isActive ? Colors.black87 : Colors.black45,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ── Tab content ───────────────────────────────────────────────────────────
-
-  Widget _buildTabContent() {
-    switch (_selectedTab) {
-      case 1:
-        return _buildFriendsContent();
-      case 2:
-        return _buildBadgesContent();
-      default:
-        return _buildActivityContent();
-    }
-  }
-
-  Widget _buildActivityContent() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 14, 12, 10),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Showing last month activity',
-                style: TextStyle(fontSize: 13, color: Colors.black54),
-              ),
-              IconButton(
-                icon: const Icon(Icons.tune, size: 20, color: Colors.black45),
-                onPressed: () {},
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-              ),
-            ],
-          ),
-        ),
-        if (_isLoadingAchievements)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 32),
-            child: Center(child: CircularProgressIndicator()),
-          )
-        else if (_achievements.isEmpty)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 32, horizontal: 24),
-            child: Center(
-              child: Text(
-                'No activity yet.\nStart a project to earn points!',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.black54, fontSize: 15),
-              ),
-            ),
-          )
-        else
-          ..._achievements.map(_buildActivityCard),
-      ],
-    );
-  }
-
-  Widget _buildActivityCard(Achievement achievement) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(20, 0, 20, 10),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  achievement.title,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.blue,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  achievement.occurredAt != null
-                      ? _formatTimestamp(achievement.occurredAt!)
-                      : '',
-                  style: const TextStyle(fontSize: 12, color: Colors.black45),
-                ),
-              ],
-            ),
-          ),
-          Icon(Icons.arrow_upward, color: AppColors.primary, size: 22),
-        ],
-      ),
-    );
-  }
-
-  String _formatTimestamp(DateTime dt) {
-    final now = DateTime.now();
-    final local = dt.toLocal();
-    final diff = now.difference(local);
-    final h = local.hour % 12 == 0 ? 12 : local.hour % 12;
-    final m = local.minute.toString().padLeft(2, '0');
-    final ampm = local.hour < 12 ? 'AM' : 'PM';
-    if (diff.inDays == 0) return 'Today, $h:$m $ampm';
-    if (diff.inDays == 1) return 'Yesterday, $h:$m $ampm';
-    return '${diff.inDays} days ago';
-  }
 
   Widget _buildFriendsContent() {
     return Column(
@@ -506,14 +341,11 @@ class UserProfilePageState extends State<UserProfilePage> {
             final avatarUrl = friend.avatarUrl;
             return Container(
               margin: const EdgeInsets.fromLTRB(20, 0, 20, 10),
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 12,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: AppColors.white,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.grey.shade200),
+                border: Border.all(color: AppColors.borderLight),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withValues(alpha: 0.04),
@@ -526,15 +358,14 @@ class UserProfilePageState extends State<UserProfilePage> {
                 children: [
                   CircleAvatar(
                     radius: 22,
-                    backgroundColor: const Color(0xFFE8F4EC),
-                    backgroundImage:
-                        (avatarUrl != null && avatarUrl.isNotEmpty)
+                    backgroundColor: AppColors.avatarBackground,
+                    backgroundImage: (avatarUrl != null && avatarUrl.isNotEmpty)
                         ? NetworkImage(avatarUrl)
                         : null,
                     child: (avatarUrl == null || avatarUrl.isEmpty)
                         ? const Icon(
                             Icons.person,
-                            color: Color(0xFF5B7B63),
+                            color: AppColors.avatarIcon,
                             size: 22,
                           )
                         : null,
@@ -552,7 +383,7 @@ class UserProfilePageState extends State<UserProfilePage> {
                           ),
                         ),
                         Text(
-                          '0 Points',
+                          '${(_friendPoints[friend.id] ?? 0).toStringAsFixed(0)} Points',
                           style: TextStyle(
                             fontSize: 13,
                             color: Colors.grey.shade500,
@@ -579,19 +410,6 @@ class UserProfilePageState extends State<UserProfilePage> {
             );
           }),
       ],
-    );
-  }
-
-  Widget _buildBadgesContent() {
-    return const Padding(
-      padding: EdgeInsets.symmetric(vertical: 32, horizontal: 24),
-      child: Center(
-        child: Text(
-          'Badges coming soon!',
-          style: TextStyle(color: Colors.black54, fontSize: 15),
-          textAlign: TextAlign.center,
-        ),
-      ),
     );
   }
 
@@ -626,7 +444,7 @@ class UserProfilePageState extends State<UserProfilePage> {
           bottom: 0,
           child: Container(
             decoration: const BoxDecoration(
-              color: Colors.white,
+              color: AppColors.white,
               borderRadius: BorderRadius.only(
                 topLeft: Radius.circular(24),
                 topRight: Radius.circular(24),
@@ -662,9 +480,7 @@ class UserProfilePageState extends State<UserProfilePage> {
                   const SizedBox(height: 20),
                   _buildStatsCard(),
                   const SizedBox(height: 16),
-                  _buildTabBar(),
-                  const SizedBox(height: 8),
-                  _buildTabContent(),
+                  _buildFriendsContent(),
                 ],
               ),
             ),

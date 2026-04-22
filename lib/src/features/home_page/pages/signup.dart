@@ -94,14 +94,17 @@ class _SignupScreenState extends State<SignupScreen> {
       _emailError = null;
     });
 
-    final available = await AuthService.instance
-        .checkEmailAvailable(_emailCtrl.text.trim());
+    final available = await AuthService.instance.checkEmailAvailable(
+      _emailCtrl.text.trim(),
+    );
 
     if (!mounted) return;
     setState(() => _emailChecking = false);
 
     if (!available) {
-      setState(() => _emailError = 'An account with this email already exists.');
+      setState(
+        () => _emailError = 'An account with this email already exists.',
+      );
       return;
     }
 
@@ -142,6 +145,10 @@ class _SignupScreenState extends State<SignupScreen> {
     final result = await AuthService.instance.signUpWithEmail(
       email: _emailCtrl.text.trim(),
       password: _passwordCtrl.text,
+      username: _usernameCtrl.text.trim(),
+      displayName: '${_firstNameCtrl.text.trim()} ${_lastNameCtrl.text.trim()}'
+          .trim(),
+      birthday: _birthday,
     );
 
     if (!mounted) return;
@@ -152,22 +159,35 @@ class _SignupScreenState extends State<SignupScreen> {
       return;
     }
 
-    if (result.user?.identities?.isEmpty == true) {
+    if (result.user == null) {
       setState(() => _isSubmitting = false);
       _showError('Signup failed.');
       return;
     }
 
-    final displayName =
-        '${_firstNameCtrl.text.trim()} ${_lastNameCtrl.text.trim()}'.trim();
+    if (!result.requiresEmailConfirmation) {
+      final displayName =
+          '${_firstNameCtrl.text.trim()} ${_lastNameCtrl.text.trim()}'.trim();
 
-    await _usersRepo.upsertCurrentUserProfile(
-      username: _usernameCtrl.text.trim(),
-      displayName: displayName,
-      birthday: _birthday,
-    );
+      await _usersRepo.upsertCurrentUserProfile(
+        username: _usernameCtrl.text.trim(),
+        displayName: displayName,
+        birthday: _birthday,
+      );
+    }
 
     if (!mounted) return;
+    if (result.requiresEmailConfirmation) {
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(
+          builder: (_) =>
+              EmailVerificationPendingScreen(email: _emailCtrl.text.trim()),
+        ),
+        (route) => false,
+      );
+      return;
+    }
+
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute(builder: (_) => const HomeShellScreen()),
       (route) => false,
@@ -230,9 +250,7 @@ class _SignupScreenState extends State<SignupScreen> {
   // ---------------------------------------------------------------------------
 
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: Colors.red),
-    );
+    showTopSnackBar(context, message, isError: true);
   }
 
   // ---------------------------------------------------------------------------
@@ -247,14 +265,14 @@ class _SignupScreenState extends State<SignupScreen> {
         if (!didPop) _goBack();
       },
       child: Scaffold(
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.white,
         appBar: AppBar(
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
-            color: Colors.black87,
+            color: AppColors.textPrimary,
             onPressed: (_emailChecking || _isSubmitting) ? null : _goBack,
           ),
-          backgroundColor: Colors.white,
+          backgroundColor: AppColors.white,
           elevation: 0,
         ),
         body: SafeArea(
@@ -279,18 +297,17 @@ class _SignupScreenState extends State<SignupScreen> {
                         0.0,
                       );
                       final isIncoming = child.key == ValueKey(_step);
-                      final offset =
-                          isIncoming ? incomingOffset : outgoingOffset;
+                      final offset = isIncoming
+                          ? incomingOffset
+                          : outgoingOffset;
                       return SlideTransition(
-                        position: Tween<Offset>(
-                          begin: offset,
-                          end: Offset.zero,
-                        ).animate(
-                          CurvedAnimation(
-                            parent: animation,
-                            curve: Curves.easeOut,
-                          ),
-                        ),
+                        position: Tween<Offset>(begin: offset, end: Offset.zero)
+                            .animate(
+                              CurvedAnimation(
+                                parent: animation,
+                                curve: Curves.easeOut,
+                              ),
+                            ),
                         child: child,
                       );
                     },
@@ -303,9 +320,7 @@ class _SignupScreenState extends State<SignupScreen> {
                     ),
                     child: KeyedSubtree(
                       key: ValueKey(_step),
-                      child: SingleChildScrollView(
-                        child: _buildCurrentStep(),
-                      ),
+                      child: SingleChildScrollView(child: _buildCurrentStep()),
                     ),
                   ),
                 ),
@@ -368,14 +383,14 @@ class _SignupScreenState extends State<SignupScreen> {
             const SizedBox(height: 8),
             RichText(
               text: TextSpan(
-                style: const TextStyle(fontSize: 13, color: Colors.red),
+                style: const TextStyle(fontSize: 13, color: AppColors.error),
                 children: [
                   TextSpan(text: _emailError),
                   const TextSpan(text: '  '),
                   TextSpan(
                     text: 'Log in instead?',
                     style: const TextStyle(
-                      color: AppColors.submitButton,
+                      color: AppColors.primary,
                       fontWeight: FontWeight.w600,
                     ),
                     recognizer: TapGestureRecognizer()
@@ -390,7 +405,7 @@ class _SignupScreenState extends State<SignupScreen> {
             label: 'Next',
             isLoading: _emailChecking,
             onPressed: _onStep0Next,
-            backgroundColor: AppColors.submitButton,
+            backgroundColor: AppColors.primary,
           ),
           const SizedBox(height: 20),
           _LoginLink(),
@@ -459,7 +474,7 @@ class _SignupScreenState extends State<SignupScreen> {
             label: 'Next',
             isLoading: false,
             onPressed: _onStep1Next,
-            backgroundColor: AppColors.submitButton,
+            backgroundColor: AppColors.primary,
           ),
         ],
       ),
@@ -527,7 +542,7 @@ class _SignupScreenState extends State<SignupScreen> {
             label: 'Next',
             isLoading: false,
             onPressed: _onStep2Next,
-            backgroundColor: AppColors.submitButton,
+            backgroundColor: AppColors.primary,
           ),
         ],
       ),
@@ -548,14 +563,14 @@ class _SignupScreenState extends State<SignupScreen> {
           contentPadding: const EdgeInsets.symmetric(horizontal: 16),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
-            side: const BorderSide(color: Colors.grey),
+            side: const BorderSide(color: AppColors.borderLight),
           ),
           title: Text(
             _birthday != null
                 ? _formatBirthday(_birthday!)
                 : 'Select your birthday',
             style: TextStyle(
-              color: _birthday != null ? Colors.black87 : Colors.grey,
+              color: _birthday != null ? AppColors.textPrimary : AppColors.hintText,
             ),
           ),
           trailing: const Icon(Icons.calendar_today_outlined, size: 20),
@@ -564,14 +579,14 @@ class _SignupScreenState extends State<SignupScreen> {
         const SizedBox(height: 12),
         const Text(
           'We use your birthday to help keep younger users safe.',
-          style: TextStyle(fontSize: 12, color: Colors.grey),
+          style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
         ),
         const SizedBox(height: 32),
         SubmitButton(
           label: 'Create Account',
           isLoading: _isSubmitting,
           onPressed: _onSubmit,
-          backgroundColor: AppColors.submitButton,
+          backgroundColor: AppColors.primary,
         ),
       ],
     );
@@ -601,7 +616,7 @@ class _StepDots extends StatelessWidget {
             width: current == i ? 20 : 8,
             height: 8,
             decoration: BoxDecoration(
-              color: active ? AppColors.submitButton : Colors.grey.shade300,
+              color: active ? AppColors.primary : AppColors.borderLight,
               borderRadius: BorderRadius.circular(4),
             ),
           ),
@@ -623,7 +638,7 @@ class _StepHeading extends StatelessWidget {
       style: const TextStyle(
         fontSize: 26,
         fontWeight: FontWeight.w700,
-        color: Colors.black87,
+        color: AppColors.textPrimary,
       ),
     );
   }
@@ -677,11 +692,11 @@ class _UsernameStatus extends StatelessWidget {
         padding: EdgeInsets.only(top: 8, left: 4),
         child: Row(
           children: [
-            Icon(Icons.check_circle_outline, color: Colors.green, size: 16),
+            Icon(Icons.check_circle_outline, color: AppColors.primary, size: 16),
             SizedBox(width: 4),
             Text(
               'Available',
-              style: TextStyle(color: Colors.green, fontSize: 12),
+              style: TextStyle(color: AppColors.primary, fontSize: 12),
             ),
           ],
         ),
@@ -693,7 +708,7 @@ class _UsernameStatus extends StatelessWidget {
         padding: EdgeInsets.only(top: 8, left: 4),
         child: Text(
           'Already taken',
-          style: TextStyle(color: Colors.red, fontSize: 12),
+          style: TextStyle(color: AppColors.error, fontSize: 12),
         ),
       );
     }
@@ -714,7 +729,7 @@ class _LoginLink extends StatelessWidget {
           child: const Text(
             'Login',
             style: TextStyle(
-              color: AppColors.submitButton,
+              color: AppColors.primary,
               fontWeight: FontWeight.w600,
             ),
           ),

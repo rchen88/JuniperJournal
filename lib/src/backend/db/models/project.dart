@@ -10,6 +10,10 @@ class Project {
   final String? difficulty;
   final String? subjectDomain;
   final String? progress;
+  final String? projectScale;
+  final String? visibility;
+  final int journalEntryCount;
+  final Set<String> journalProgressValues;
 
   const Project({
     required this.id,
@@ -23,6 +27,10 @@ class Project {
     this.difficulty,
     this.subjectDomain,
     this.progress,
+    this.projectScale,
+    this.visibility,
+    this.journalEntryCount = 0,
+    this.journalProgressValues = const {},
   });
 
   factory Project.fromMap(Map<String, dynamic> map) => Project(
@@ -42,5 +50,28 @@ class Project {
     difficulty: map['difficulty']?.toString(),
     subjectDomain: map['subject_domain']?.toString(),
     progress: map['progress']?.toString(),
+    projectScale: map['project_scale']?.toString(),
+    visibility: map['visibility']?.toString(),
+    journalEntryCount: () {
+      final entries = map['journal_entries'];
+      if (entries is List && entries.isNotEmpty && entries[0] is Map) {
+        // count aggregate format: [{"count": N}]
+        final first = entries[0] as Map;
+        if (first.containsKey('count')) return first['count'] as int? ?? 0;
+        // progress format: [{progress: "..."}, ...] — count by length
+        return entries.length;
+      }
+      return 0;
+    }(),
+    journalProgressValues: () {
+      final entries = map['journal_entries'];
+      if (entries is! List) return <String>{};
+      return entries
+          .whereType<Map>()
+          .map((e) => e['progress']?.toString())
+          .whereType<String>()
+          .where((s) => s.isNotEmpty)
+          .toSet();
+    }(),
   );
 }

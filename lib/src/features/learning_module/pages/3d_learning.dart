@@ -3,6 +3,7 @@ import 'package:juniper_journal/src/shared/styling/theme.dart';
 import 'package:intl/intl.dart';
 import 'package:juniper_journal/src/features/learning_module/learning_module.dart';
 import '../../../backend/db/repositories/learning_module_repo.dart';
+import 'package:juniper_journal/src/shared/widgets/top_snack_bar.dart';
 
 /*
 Purpose:
@@ -119,7 +120,9 @@ class _ThreeDLearningState extends State<ThreeDLearning> {
   @override
   void initState() {
     super.initState();
-    _loadFreshModuleData();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _loadFreshModuleData();
+    });
   }
 
   void _loadFreshModuleData() async {
@@ -478,7 +481,7 @@ class _ThreeDLearningState extends State<ThreeDLearning> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                   decoration: BoxDecoration(
-                    color: Colors.green[100],
+                    color: AppColors.accent,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: DropdownButtonHideUnderline(
@@ -486,22 +489,22 @@ class _ThreeDLearningState extends State<ThreeDLearning> {
                       value: 'LEARNING',
                       icon: const Icon(
                         Icons.keyboard_arrow_down,
-                        color: Colors.green,
+                        color: AppColors.primary,
                         size: 16,
                       ),
                       style: const TextStyle(
-                        color: Colors.green,
+                        color: AppColors.primary,
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
                       ),
-                      dropdownColor: Colors.green[50],
+                      dropdownColor: AppColors.accent.withValues(alpha: 0.5),
                       items: const [
                         DropdownMenuItem(
                           value: 'TITLE',
                           child: Text(
                             'TITLE',
                             style: TextStyle(
-                              color: Colors.green,
+                              color: AppColors.primary,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -511,7 +514,7 @@ class _ThreeDLearningState extends State<ThreeDLearning> {
                           child: Text(
                             'ANCHORING PHENOMENON',
                             style: TextStyle(
-                              color: Colors.green,
+                              color: AppColors.primary,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -521,7 +524,7 @@ class _ThreeDLearningState extends State<ThreeDLearning> {
                           child: Text(
                             'OBJECTIVE',
                             style: TextStyle(
-                              color: Colors.green,
+                              color: AppColors.primary,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -531,7 +534,7 @@ class _ThreeDLearningState extends State<ThreeDLearning> {
                           child: Text(
                             'LEARNING',
                             style: TextStyle(
-                              color: Colors.green,
+                              color: AppColors.primary,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -652,7 +655,6 @@ class _ThreeDLearningState extends State<ThreeDLearning> {
                 height: 56,
                 child: ElevatedButton(
                   onPressed: () async {
-                    final messenger = ScaffoldMessenger.of(context);
                     final repo = LearningModuleRepo();
                     final moduleId = widget.module['id'].toString();
 
@@ -675,22 +677,12 @@ class _ThreeDLearningState extends State<ThreeDLearning> {
 
                       // Validation: Check that SEP and CCC have at least one selection
                       if (sepData.isEmpty) {
-                        messenger.showSnackBar(
-                          const SnackBar(
-                            content: Text('Please select at least one Science and Engineering Practice (SEP)'),
-                            backgroundColor: AppColors.error,
-                          ),
-                        );
+                        showTopSnackBar(context, 'Please select at least one Science and Engineering Practice (SEP)', isError: true);
                         return;
                       }
 
                       if (cccData.isEmpty) {
-                        messenger.showSnackBar(
-                          const SnackBar(
-                            content: Text('Please select at least one Cross Cutting Concept (CCC)'),
-                            backgroundColor: AppColors.error,
-                          ),
-                        );
+                        showTopSnackBar(context, 'Please select at least one Cross Cutting Concept (CCC)', isError: true);
                         return;
                       }
 
@@ -721,20 +713,10 @@ class _ThreeDLearningState extends State<ThreeDLearning> {
                           ),
                         );
                       } else {
-                        messenger.showSnackBar(
-                          const SnackBar(
-                            content: Text('Failed to save some data. Please try again.'),
-                            backgroundColor: AppColors.error,
-                          ),
-                        );
+                        showTopSnackBar(context, 'Failed to save some data. Please try again.', isError: true);
                       }
                     } catch (e) {
-                      messenger.showSnackBar(
-                        const SnackBar(
-                          content: Text('Error saving module data'),
-                          backgroundColor: AppColors.error,
-                        ),
-                      );
+                      showTopSnackBar(context, 'Error saving module data', isError: true);
                     }
                   },
                   style: ElevatedButton.styleFrom(

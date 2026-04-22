@@ -46,7 +46,9 @@ class _ActivityScreen extends State<ActivityScreen> {
   @override
   void initState() {
     super.initState();
-    _loadDocument();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _loadDocument();
+    });
   }
 
   @override
@@ -121,22 +123,12 @@ class _ActivityScreen extends State<ActivityScreen> {
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(success ? 'Document saved successfully!' : 'Failed to save document'),
-            backgroundColor: success ? AppColors.primary : AppColors.error,
-          ),
-        );
+        showTopSnackBar(context, success ? 'Document saved successfully!' : 'Failed to save document', isError: !success);
       }
     } catch (e) {
       debugPrint('Error saving document: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Error saving document'),
-            backgroundColor: AppColors.error,
-          ),
-        );
+        showTopSnackBar(context, 'Error saving document', isError: true);
       }
     }
   }
@@ -228,12 +220,7 @@ class _ActivityScreen extends State<ActivityScreen> {
 
       // Show loading indicator
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Uploading image...'),
-            duration: Duration(seconds: 30),
-          ),
-        );
+        showTopSnackBar(context, 'Uploading image...');
       }
 
       // Upload to Supabase Storage
@@ -245,12 +232,7 @@ class _ActivityScreen extends State<ActivityScreen> {
       if (imageUrl == null) {
         if (mounted) {
           ScaffoldMessenger.of(context).hideCurrentSnackBar();
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to upload image'),
-              backgroundColor: AppColors.error,
-            ),
-          );
+          showTopSnackBar(context, 'Failed to upload image', isError: true);
         }
         return;
       }
@@ -260,24 +242,13 @@ class _ActivityScreen extends State<ActivityScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Image added successfully!'),
-            backgroundColor: AppColors.primary,
-            duration: Duration(seconds: 2),
-          ),
-        );
+        showTopSnackBar(context, 'Image added successfully!');
       }
     } catch (e) {
       debugPrint('Error picking/uploading image: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to add image'),
-            backgroundColor: AppColors.error,
-          ),
-        );
+        showTopSnackBar(context, 'Failed to add image', isError: true);
       }
     }
   }
@@ -319,7 +290,7 @@ class _ActivityScreen extends State<ActivityScreen> {
     final result = await showDialog<Map<String, int>>(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
+        return AlertDialog(backgroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: const Text('Insert Table'),
           content: SingleChildScrollView(
             child: Column(
@@ -467,25 +438,13 @@ class _ActivityScreen extends State<ActivityScreen> {
 
       // Show success message
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Table inserted!'),
-            backgroundColor: AppColors.primary,
-            duration: Duration(seconds: 1),
-          ),
-        );
+        showTopSnackBar(context, 'Table inserted!');
       }
     } catch (e, stackTrace) {
       debugPrint('Error inserting table: $e');
       debugPrint('Stack trace: $stackTrace');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to insert table'),
-            backgroundColor: AppColors.error,
-            duration: Duration(seconds: 2),
-          ),
-        );
+        showTopSnackBar(context, 'Failed to insert table', isError: true);
       }
     }
   }
@@ -636,7 +595,7 @@ class _ActivityScreen extends State<ActivityScreen> {
     final result = await showDialog<String>(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
+        return AlertDialog(backgroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: const Text('Insert Math Equation'),
           content: SingleChildScrollView(
             child: Column(
@@ -776,26 +735,14 @@ class _ActivityScreen extends State<ActivityScreen> {
 
       // Show success message
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Math equation inserted!'),
-            backgroundColor: AppColors.primary,
-            duration: Duration(seconds: 1),
-          ),
-        );
+        showTopSnackBar(context, 'Math equation inserted!');
       }
 
     } catch (e, stackTrace) {
       debugPrint('!!! ERROR in _insertMathIntoDocument: $e');
       debugPrint('Stack trace: $stackTrace');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to insert equation'),
-            backgroundColor: AppColors.error,
-            duration: Duration(seconds: 2),
-          ),
-        );
+        showTopSnackBar(context, 'Failed to insert equation', isError: true);
       }
     }
   }
@@ -1009,7 +956,7 @@ class _ActivityScreen extends State<ActivityScreen> {
       height: 28,
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
       decoration: BoxDecoration(
-        color: Colors.green[100],
+        color: AppColors.accent,
         borderRadius: BorderRadius.circular(20),
       ),
       child: DropdownButtonHideUnderline(
@@ -1018,22 +965,22 @@ class _ActivityScreen extends State<ActivityScreen> {
           icon: const Icon(
             Icons.keyboard_arrow_down,
             size: 16,
-            color: Colors.green,
+            color: AppColors.primary,
           ),
           style: const TextStyle(
-            color: Colors.green,
+            color: AppColors.primary,
             fontSize: 11,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.5,
           ),
-          dropdownColor: Colors.green[50],
+          dropdownColor: AppColors.accent.withValues(alpha: 0.5),
           items: const [
             DropdownMenuItem(
               value: 'TITLE',
               child: Text(
                 'TITLE',
                 style: TextStyle(
-                  color: Colors.green,
+                  color: AppColors.primary,
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.5,
@@ -1045,7 +992,7 @@ class _ActivityScreen extends State<ActivityScreen> {
               child: Text(
                 'ANCHORING PHENOMENON',
                 style: TextStyle(
-                  color: Colors.green,
+                  color: AppColors.primary,
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.5,
@@ -1057,7 +1004,7 @@ class _ActivityScreen extends State<ActivityScreen> {
               child: Text(
                 'OBJECTIVE',
                 style: TextStyle(
-                  color: Colors.green,
+                  color: AppColors.primary,
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.5,
@@ -1069,7 +1016,7 @@ class _ActivityScreen extends State<ActivityScreen> {
               child: Text(
                 'LEARNING',
                 style: TextStyle(
-                  color: Colors.green,
+                  color: AppColors.primary,
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.5,
@@ -1081,7 +1028,7 @@ class _ActivityScreen extends State<ActivityScreen> {
               child: Text(
                 'CONCEPT EXPLORATION',
                 style: TextStyle(
-                  color: Colors.green,
+                  color: AppColors.primary,
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.5,
@@ -1093,7 +1040,7 @@ class _ActivityScreen extends State<ActivityScreen> {
               child: Text(
                 'ACTIVITY',
                 style: TextStyle(
-                  color: Colors.green,
+                  color: AppColors.primary,
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.5,

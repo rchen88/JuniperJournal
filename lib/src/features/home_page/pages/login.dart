@@ -47,15 +47,22 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       final User? user;
       if (input.contains('@')) {
-        user = await _authService.signInWithEmail(email: input, password: password);
+        user = await _authService.signInWithEmail(
+          email: input,
+          password: password,
+        );
       } else {
-        user = await _authService.signInWithUsername(username: input, password: password);
+        user = await _authService.signInWithUsername(
+          username: input,
+          password: password,
+        );
       }
 
       if (user != null && mounted) {
-        // Ensure a profile row exists (creates one for users who signed up
-        // before the profiles table was introduced). Fire-and-forget.
-        _usersRepo.ensureProfileExists();
+        // Backfill the profile row from auth metadata when signup completed
+        // before an authenticated session existed.
+        await _usersRepo.ensureProfileExists();
+        if (!mounted) return;
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (context) => const HomeShellScreen()),
           (route) => false,
@@ -67,8 +74,8 @@ class _LoginScreenState extends State<LoginScreen> {
         _showError(_mapAuthApiError(e));
       }
     } catch (e) {
-        debugPrint('Unknown error: $e');
-        _showError('Invalid username or password');
+      debugPrint('Unknown error: $e');
+      _showError('Invalid username or password');
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -78,15 +85,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   /// Shows error message as SnackBar
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: Colors.red,
-      ),
-    );
+    showTopSnackBar(context, message, isError: true);
   }
 
-  
   String _mapAuthApiError(AuthApiException e) {
     switch (e.code) {
       case 'invalid_credentials':
@@ -99,14 +100,14 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppColors.white,
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          color: Colors.black87,
+          color: AppColors.textPrimary,
           onPressed: () => Navigator.maybePop(context),
         ),
-        backgroundColor: Colors.white,
+        backgroundColor: AppColors.white,
         elevation: 0,
       ),
       body: SafeArea(
@@ -125,7 +126,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.w700,
-                    color: Colors.black87,
+                    color: AppColors.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -134,7 +135,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   style: TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.w600,
-                    color: Colors.black87,
+                    color: AppColors.textPrimary,
                   ),
                 ),
                 const SizedBox(height: 40),
@@ -154,7 +155,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     FocusScope.of(context).requestFocus(_passwordFocus);
                   },
                 ),
-                
+
                 const SizedBox(height: 16),
 
                 // Password
@@ -162,20 +163,21 @@ class _LoginScreenState extends State<LoginScreen> {
                   controller: _passwordCtrl,
                   focusNode: _passwordFocus,
                   obscureText: _obscurePassword,
-                  decoration: authInputDecoration('Enter Your Password').copyWith(
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility_off_outlined
-                            : Icons.visibility_outlined,
+                  decoration: authInputDecoration('Enter Your Password')
+                      .copyWith(
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePassword
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscurePassword = !_obscurePassword;
+                            });
+                          },
+                        ),
                       ),
-                      onPressed: () {
-                        setState(() {
-                          _obscurePassword = !_obscurePassword;
-                        });
-                      },
-                    ),
-                  ),
                   validator: (v) {
                     final value = (v ?? '').trim();
                     if (value.isEmpty) return 'Enter a password';
@@ -195,7 +197,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   label: 'Login',
                   isLoading: _isLoading,
                   onPressed: _handleLogin,
-                  backgroundColor: AppColors.submitButton,
+                  backgroundColor: AppColors.primary,
                 ),
                 const SizedBox(height: 20),
 
@@ -211,7 +213,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: const Text(
                         'Sign up',
                         style: TextStyle(
-                          color: AppColors.submitButton,
+                          color: AppColors.primary,
                           fontWeight: FontWeight.w600,
                         ),
                       ),

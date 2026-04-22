@@ -1,23 +1,50 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:juniper_journal/src/shared/styling/theme.dart';
+import 'package:juniper_journal/src/shared/styling/app_colors.dart';
 import 'package:juniper_journal/src/shared/widgets/widgets.dart';
 import '../../../backend/db/repositories/projects_repo.dart';
-import 'project_dashboard.dart';
+
+// Domain → Focus options (shared constant)
+const _focusByDomain = <String, List<String>>{
+  'Environment & Sustainability': [
+    'Ecosystems & Biodiversity',
+    'Climate & Weather Patterns',
+    'Human Impact on Natural Systems',
+    'Natural Resources & Conservation',
+    'Pollution and Waste Management',
+  ],
+  'Engineering & Design': [
+    'Defining and Delimiting Engineering Problems',
+    'Designing Solutions and Prototyping',
+    'Materials and Their Properties',
+    'Iteration and Improvement Processes',
+    'Sustainable Innovation and Practices',
+  ],
+  'Energy & Systems': [
+    'Energy Sources and Forms',
+    'Energy Transfer and Transformation',
+    'Renewable and Nonrenewable Resources',
+    'Efficiency and Conservation of Energy',
+    'Energy Flow in Natural and Engineered Systems',
+  ],
+  'Community & Built Environment': [
+    'Sustainable Communities and Urban Planning',
+    'Green Building and Infrastructure',
+    'Transportation and Mobility Systems',
+    'Public Space Design and Equity',
+    'Interaction Between Human and Natural Environments',
+  ],
+};
+
+typedef _SubjectTag = ({String domain, String focus});
 
 class DefineProblemStatementScreen extends StatefulWidget {
-  final String? projectId;
-  final String projectName;
-  final List<String> tags;
-  final bool isNewProject;
+  final String projectId;
 
   const DefineProblemStatementScreen({
     super.key,
-    this.projectId,
-    required this.projectName,
-    required this.tags,
-    this.isNewProject = false,
+    required this.projectId,
   });
 
   @override
@@ -34,46 +61,53 @@ class _DefineProblemStatementScreenState
   bool _hasChanges = false;
   DateTime? _lastSavedAt;
   Timer? _autoSaveTimer;
+  String _projectName = '';
 
-  final List<String> _difficultyLevels = ['Basic', 'Intermediate', 'Advanced'];
-  final List<String> _subjectDomains = [
-    'Environment & Sustainability',
-    'Engineering & Design',
-    'Energy & Systems',
-    'Community & The Built Environment',
-  ];
-  final List<String> _progressOptions = [
-    'Discovering',
-    'Ideating',
-    'Prototyping',
-    'Testing & Iterating',
-    'Implemented',
-  ];
+  // Subject tags
+  String? _activeDomain;
+  String? _activeFocus;
+  final List<_SubjectTag> _subjectTags = [];
 
   String? _selectedDifficulty;
-  String? _selectedDomain;
-  String? _selectedProgress;
+  String? _selectedScale;
+  String? _selectedVisibility;
 
   @override
   void initState() {
     super.initState();
     _problemController.addListener(() => _hasChanges = true);
-    if (!widget.isNewProject) {
-      _autoSaveTimer = Timer.periodic(const Duration(minutes: 5), (_) => _autoSave());
-      _loadProject();
-    }
+    _autoSaveTimer = Timer.periodic(const Duration(minutes: 5), (_) => _autoSave());
+    _loadProject();
   }
 
   Future<void> _loadProject() async {
-    final project = await _projectsRepo.getProjectById(widget.projectId!);
+    final project = await _projectsRepo.getProjectById(widget.projectId);
     if (!mounted) return;
+
     _problemController.removeListener(() => _hasChanges = true);
     _problemController.text = project?.problemStatement ?? '';
     _problemController.addListener(() => _hasChanges = true);
+
+    // Parse stored "Domain|Focus" tag strings
+    final tags = (project?.tags ?? [])
+        .map((s) {
+          final parts = s.split('|');
+          if (parts.length == 2) {
+            return (domain: parts[0].trim(), focus: parts[1].trim());
+          }
+          return null;
+        })
+        .whereType<_SubjectTag>()
+        .toList();
+
     setState(() {
+      _projectName = project?.projectName ?? '';
+      _subjectTags
+        ..clear()
+        ..addAll(tags);
       _selectedDifficulty = project?.difficulty;
-      _selectedDomain = project?.subjectDomain;
-      _selectedProgress = project?.progress;
+      _selectedScale = project?.projectScale;
+      _selectedVisibility = project?.visibility;
       _hasChanges = false;
     });
   }
@@ -94,12 +128,14 @@ class _DefineProblemStatementScreenState
   }
 
   Future<bool> _persist() async {
+    final tags = _subjectTags.map((t) => '${t.domain}|${t.focus}').toList();
     return _projectsRepo.updateProjectConfiguration(
-      id: widget.projectId!,
+      id: widget.projectId,
       problemStatement: _problemController.text.trim(),
       difficulty: _selectedDifficulty,
-      subjectDomain: _selectedDomain,
-      progress: _selectedProgress,
+      tags: tags,
+      projectScale: _selectedScale,
+      visibility: _selectedVisibility,
     );
   }
 
@@ -117,14 +153,9 @@ class _DefineProblemStatementScreenState
     });
   }
 
-  // Used by back button and PopScope for existing projects.
   Future<void> _saveAndPop() async {
     if (_isSaving) return;
     final navigator = Navigator.of(context);
-    if (widget.isNewProject) {
-      navigator.pop();
-      return;
-    }
     setState(() => _isSaving = true);
     await _persist();
     if (!mounted) return;
@@ -132,114 +163,29 @@ class _DefineProblemStatementScreenState
     navigator.pop();
   }
 
-  // Used by the Complete button for new projects only.
-  Future<void> _complete() async {
-    if (_isSaving) return;
-
-    if (_problemController.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a problem statement.')),
-      );
+  void _addSubjectTag() {
+    if (_activeDomain == null || _activeFocus == null) return;
+    final domain = _activeDomain!;
+    final focus = _activeFocus!;
+    if (_subjectTags.any((t) => t.domain == domain && t.focus == focus)) {
+      setState(() {
+        _activeDomain = null;
+        _activeFocus = null;
+      });
       return;
     }
-    if (_selectedDomain == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a subject domain.')),
-      );
-      return;
-    }
-    if (_selectedDifficulty == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a difficulty level.')),
-      );
-      return;
-    }
-    if (_selectedProgress == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a progress stage.')),
-      );
-      return;
-    }
-
-    final navigator = Navigator.of(context);
-    setState(() => _isSaving = true);
-
-    final project = await _projectsRepo.createProject(
-      projectName: widget.projectName,
-      problemStatement: _problemController.text.trim(),
-      tags: widget.tags,
-      difficulty: _selectedDifficulty,
-      subjectDomain: _selectedDomain,
-      progress: _selectedProgress,
-    );
-
-    if (!mounted) return;
-
-    if (project == null) {
-      setState(() => _isSaving = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to create project. Please try again.')),
-      );
-      return;
-    }
-
-    setState(() => _isSaving = false);
-    navigator.pushAndRemoveUntil(
-      MaterialPageRoute(
-        builder: (_) => ProjectDashboard(
-          projectId: project.id,
-          projectName: widget.projectName,
-          tags: widget.tags,
-        ),
-      ),
-      (route) => route.isFirst,
-    );
-  }
-
-  Future<void> _showPicker(
-    List<String> items,
-    String? current,
-    ValueChanged<String?> onChanged,
-  ) async {
-    await showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const SizedBox(height: 12),
-          Container(
-            width: 40,
-            height: 4,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade300,
-              borderRadius: BorderRadius.circular(2),
-            ),
-          ),
-          const SizedBox(height: 8),
-          ...items.map(
-            (item) => ListTile(
-              title: Text(item),
-              trailing: current == item
-                  ? const Icon(Icons.check, color: AppColors.primary)
-                  : null,
-              onTap: () {
-                onChanged(item);
-                Navigator.pop(context);
-              },
-            ),
-          ),
-          const SizedBox(height: 16),
-        ],
-      ),
-    );
+    setState(() {
+      _subjectTags.add((domain: domain, focus: focus));
+      _activeDomain = null;
+      _activeFocus = null;
+      _hasChanges = true;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final dateStr = DateFormat('EEEE, MMMM d').format(DateTime.now());
+    final canAddTag = _activeDomain != null && _activeFocus != null;
 
     return PopScope(
       canPop: false,
@@ -253,11 +199,7 @@ class _DefineProblemStatementScreenState
           elevation: 0,
           scrolledUnderElevation: 0,
           leading: IconButton(
-            icon: const Icon(
-              Icons.chevron_left,
-              size: 30,
-              color: AppColors.primary,
-            ),
+            icon: const Icon(Icons.chevron_left, size: 30, color: AppColors.primary),
             onPressed: _saveAndPop,
           ),
           centerTitle: false,
@@ -267,7 +209,7 @@ class _DefineProblemStatementScreenState
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                widget.projectName,
+                _projectName,
                 style: const TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
@@ -300,131 +242,213 @@ class _DefineProblemStatementScreenState
                 child: Center(
                   child: Text(
                     _savedLabel!,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Colors.black38,
-                    ),
+                    style: const TextStyle(fontSize: 12, color: Colors.black38),
                   ),
                 ),
               ),
           ],
         ),
         body: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Tags row
-              if (widget.tags.isNotEmpty) ...[
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    ...widget.tags.map((tag) => _TagChip(label: tag)),
-                    const _PillAddButton(),
-                  ],
-                ),
-                const SizedBox(height: 24),
-              ],
-
-              // Problem Statement
+              // ── Problem Statement ─────────────────────────────────────────
               _sectionLabel('Problem Statement'),
               const SizedBox(height: 10),
               TextFormField(
                 controller: _problemController,
                 maxLines: 5,
                 decoration: InputDecoration(
-                  hintText:
-                      'Describe the challenge your project aims to address…',
-                  hintStyle:
-                      TextStyle(color: Colors.grey.shade400, fontSize: 14),
-                  filled: true,
-                  fillColor: Colors.white,
-                  contentPadding: const EdgeInsets.all(14),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
-                  ),
+                  hintText: 'Describe the challenge your project aims to address…',
+                  hintStyle: const TextStyle(color: AppColors.hintText, fontSize: 14),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.grey.shade300),
+                    borderSide: const BorderSide(color: AppColors.borderLight),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide:
-                        const BorderSide(color: AppColors.primary, width: 1.5),
+                    borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: AppColors.borderLight),
                   ),
                 ),
               ),
+
               const SizedBox(height: 24),
 
-              // Subject Domain
-              _sectionLabel('Subject Domain'),
+              // ── Subject Domain & Focus ────────────────────────────────────
+              _sectionLabel('Subject Domain & Focus'),
               const SizedBox(height: 10),
-              Row(
-                children: [
-                  _PillDropdown(
-                    value: _selectedDomain,
-                    placeholder: 'Select Domain',
-                    style: _PillStyle.outlined,
-                    onTap: () => _showPicker(
-                      _subjectDomains,
-                      _selectedDomain,
-                      (v) => setState(() {
-                        _selectedDomain = v;
+
+              if (_subjectTags.isNotEmpty) ...[
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _subjectTags
+                      .map((t) => _SubjectTagChip(
+                            domain: t.domain,
+                            focus: t.focus,
+                            onRemove: () => setState(() {
+                              _subjectTags.remove(t);
+                              _hasChanges = true;
+                            }),
+                          ))
+                      .toList(),
+                ),
+                const SizedBox(height: 12),
+              ],
+
+              Container(
+                padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.03),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                      color: AppColors.primary.withValues(alpha: 0.18)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Domain',
+                        style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black45)),
+                    const SizedBox(height: 5),
+                    PillSelector(
+                      value: _activeDomain,
+                      placeholder: 'Select',
+                      items: _focusByDomain.keys.toList(),
+                      onChanged: (v) => setState(() {
+                        _activeDomain = v;
+                        _activeFocus = null;
                         _hasChanges = true;
                       }),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  const _PillAddButton(),
-                ],
+                    const SizedBox(height: 8),
+                    Center(
+                      child: Icon(Icons.add,
+                          size: 18,
+                          color: AppColors.primary.withValues(alpha: 0.5)),
+                    ),
+                    const SizedBox(height: 8),
+                    Text('Focus',
+                        style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black45)),
+                    const SizedBox(height: 5),
+                    PillSelector(
+                      value: _activeFocus,
+                      placeholder: _activeDomain == null
+                          ? 'Pick domain first'
+                          : 'Select',
+                      items: _activeDomain != null
+                          ? _focusByDomain[_activeDomain]!
+                          : [],
+                      onChanged: (v) =>
+                          setState(() => _activeFocus = v),
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        onPressed: canAddTag ? _addSubjectTag : null,
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          disabledBackgroundColor: Colors.grey.shade200,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          padding:
+                              const EdgeInsets.symmetric(vertical: 10),
+                        ),
+                        icon: Icon(Icons.add,
+                            size: 16,
+                            color: canAddTag
+                                ? Colors.white
+                                : Colors.grey.shade400),
+                        label: Text(
+                          'Add Combination',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: canAddTag
+                                ? Colors.white
+                                : Colors.grey.shade400,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
+
               const SizedBox(height: 24),
 
-              // Difficulty
+              // ── Difficulty ────────────────────────────────────────────────
               _sectionLabel('Difficulty'),
               const SizedBox(height: 10),
-              _PillDropdown(
+              PillSelector(
                 value: _selectedDifficulty,
                 placeholder: 'Select Difficulty',
-                style: _PillStyle.salmon,
-                onTap: () => _showPicker(
-                  _difficultyLevels,
-                  _selectedDifficulty,
-                  (v) => setState(() {
-                    _selectedDifficulty = v;
-                    _hasChanges = true;
-                  }),
-                ),
+                items: const ['Easy', 'Medium', 'Hard'],
+                onChanged: (v) => setState(() {
+                  _selectedDifficulty = v;
+                  _hasChanges = true;
+                }),
               ),
+
               const SizedBox(height: 24),
 
-              // Progress
-              _sectionLabel('Progress'),
+              // ── Project Scale ─────────────────────────────────────────────
+              _sectionLabel('Project Scale'),
               const SizedBox(height: 10),
-              _PillDropdown(
-                value: _selectedProgress,
-                placeholder: 'Select Progress',
-                style: _PillStyle.salmon,
-                onTap: () => _showPicker(
-                  _progressOptions,
-                  _selectedProgress,
-                  (v) => setState(() {
-                    _selectedProgress = v;
+              PillSelector(
+                value: _selectedScale,
+                placeholder: 'Select Scale',
+                items: const ['Small', 'Medium', 'Large'],
+                onChanged: (v) => setState(() {
+                  _selectedScale = v;
+                  _hasChanges = true;
+                }),
+              ),
+
+              const SizedBox(height: 24),
+
+              // ── Visibility ────────────────────────────────────────────────
+              _sectionLabel('Visibility'),
+              const SizedBox(height: 10),
+              if (_selectedVisibility == 'Community Only')
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryTint,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.lock_outline, size: 16, color: AppColors.primary),
+                      SizedBox(width: 8),
+                      Text('Community Only', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600)),
+                    ],
+                  ),
+                )
+              else
+                PillSelector(
+                  value: _selectedVisibility,
+                  placeholder: 'Select Visibility',
+                  items: const ['Private', 'Friends Only', 'Public'],
+                  onChanged: (v) => setState(() {
+                    _selectedVisibility = v;
                     _hasChanges = true;
                   }),
                 ),
-              ),
-              if (widget.isNewProject) ...[
-                const SizedBox(height: 40),
-                SubmitButton(
-                  label: 'Complete',
-                  isLoading: _isSaving,
-                  backgroundColor: AppColors.primary,
-                  onPressed: _complete,
-                ),
-              ],
             ],
           ),
         ),
@@ -442,116 +466,48 @@ class _DefineProblemStatementScreenState
       );
 }
 
-// ---------------------------------------------------------------------------
-// Private helpers
-// ---------------------------------------------------------------------------
+// ── _SubjectTagChip ──────────────────────────────────────────────────────────
 
-enum _PillStyle { outlined, salmon }
-
-class _PillDropdown extends StatelessWidget {
-  const _PillDropdown({
-    required this.value,
-    required this.placeholder,
-    required this.style,
-    required this.onTap,
+class _SubjectTagChip extends StatelessWidget {
+  const _SubjectTagChip({
+    required this.domain,
+    required this.focus,
+    required this.onRemove,
   });
 
-  final String? value;
-  final String placeholder;
-  final _PillStyle style;
-  final VoidCallback onTap;
+  final String domain;
+  final String focus;
+  final VoidCallback onRemove;
 
   @override
   Widget build(BuildContext context) {
-    final label = (value ?? placeholder).toUpperCase();
-
-    final Color bg;
-    final Color textColor;
-    final BoxBorder? border;
-
-    switch (style) {
-      case _PillStyle.outlined:
-        bg = const Color(0xFFE8F5E9);
-        textColor = AppColors.primary;
-        border = Border.all(color: AppColors.primary.withValues(alpha: 0.35));
-      case _PillStyle.salmon:
-        bg = const Color(0xFFFFD6D6);
-        textColor = const Color(0xFFD45C5C);
-        border = null;
-    }
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(999),
-          border: border,
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              label,
-              style: TextStyle(
+    return Container(
+      padding: const EdgeInsets.only(left: 12, right: 6, top: 6, bottom: 6),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(
+            child: Text(
+              '$domain • $focus',
+              style: const TextStyle(
                 fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: textColor,
-                letterSpacing: 0.3,
+                fontWeight: FontWeight.w500,
+                color: AppColors.primary,
               ),
             ),
-            const SizedBox(width: 4),
-            Icon(Icons.keyboard_arrow_down, size: 16, color: textColor),
-          ],
-        ),
+          ),
+          const SizedBox(width: 4),
+          GestureDetector(
+            onTap: onRemove,
+            child: const Icon(Icons.close, size: 14, color: AppColors.primary),
+          ),
+        ],
       ),
-    );
-  }
-}
-
-class _TagChip extends StatelessWidget {
-  const _TagChip({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-      decoration: BoxDecoration(
-        color: const Color(0xFFE8F5E9),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: AppColors.primary.withValues(alpha: 0.35),
-        ),
-      ),
-      child: Text(
-        label.toUpperCase(),
-        style: const TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          color: AppColors.primary,
-          letterSpacing: 0.3,
-        ),
-      ),
-    );
-  }
-}
-
-class _PillAddButton extends StatelessWidget {
-  const _PillAddButton();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 30,
-      height: 30,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: const Icon(Icons.add, size: 16, color: Colors.black45),
     );
   }
 }

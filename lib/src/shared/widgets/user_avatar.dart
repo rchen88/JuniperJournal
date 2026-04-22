@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:juniper_journal/src/shared/styling/app_colors.dart';
 
 class UserAvatar extends StatelessWidget {
   final String? avatarUrl;
@@ -11,14 +12,14 @@ class UserAvatar extends StatelessWidget {
     final hasImage = avatarUrl != null && avatarUrl!.isNotEmpty;
     return CircleAvatar(
       radius: radius,
-      backgroundColor: const Color(0xFFE6E8EC),
+      backgroundColor: AppColors.avatarBackground,
       backgroundImage: hasImage ? NetworkImage(avatarUrl!) : null,
       child: hasImage
           ? null
           : Icon(
               Icons.person,
               size: radius * 0.9,
-              color: const Color(0xFF4A4A4A),
+              color: AppColors.avatarIcon,
             ),
     );
   }

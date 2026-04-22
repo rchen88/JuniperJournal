@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:juniper_journal/src/features/learning_module/learning_module.dart';
 import 'package:juniper_journal/src/shared/styling/theme.dart';
+import 'package:juniper_journal/src/shared/widgets/top_snack_bar.dart';
 import 'package:juniper_journal/src/backend/db/repositories/learning_module_repo.dart';
 import 'package:intl/intl.dart';
 
@@ -23,7 +24,9 @@ class _CreateAnchoringPhenomenonScreenState extends State<AnchoringPhenomenon> {
   @override
   void initState() {
     super.initState();
-    _loadExistingData();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _loadExistingData();
+    });
   }
 
   @override
@@ -263,7 +266,6 @@ class _CreateAnchoringPhenomenonScreenState extends State<AnchoringPhenomenon> {
                   ),
                   onPressed: () async {
                     if (_formKey.currentState!.validate()) {
-                      final messenger = ScaffoldMessenger.of(context);
                       final repo = LearningModuleRepo();
                       final moduleId = widgetModule['id'].toString();
                       final navigator = Navigator.of(context);
@@ -291,12 +293,7 @@ class _CreateAnchoringPhenomenonScreenState extends State<AnchoringPhenomenon> {
                           ),
                         );
                       } else {
-                        messenger.showSnackBar(
-                          const SnackBar(
-                            content: Text('Failed to save anchoring phenomenon'),
-                            backgroundColor: AppColors.error,
-                          ),
-                        );
+                        showTopSnackBar(context, 'Failed to save anchoring phenomenon', isError: true);
                       }
                     }
                   },
@@ -316,7 +313,7 @@ class _CreateAnchoringPhenomenonScreenState extends State<AnchoringPhenomenon> {
       height: 28,
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
       decoration: BoxDecoration(
-        color: Colors.green[100],
+        color: AppColors.accent,
         borderRadius: BorderRadius.circular(20),
       ),
       child: DropdownButtonHideUnderline(
@@ -325,22 +322,22 @@ class _CreateAnchoringPhenomenonScreenState extends State<AnchoringPhenomenon> {
           icon: const Icon(
             Icons.keyboard_arrow_down,
             size: 16,
-            color: Colors.green,
+            color: AppColors.primary,
           ),
           style: const TextStyle(
-            color: Colors.green,
+            color: AppColors.primary,
             fontSize: 11,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.5,
           ),
-          dropdownColor: Colors.green[50],
+          dropdownColor: AppColors.accent.withValues(alpha: 0.5),
           items: const [
             DropdownMenuItem(
               value: 'TITLE',
               child: Text(
                 'TITLE',
                 style: TextStyle(
-                  color: Colors.green,
+                  color: AppColors.primary,
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.5,
@@ -352,7 +349,7 @@ class _CreateAnchoringPhenomenonScreenState extends State<AnchoringPhenomenon> {
               child: Text(
                 'ANCHORING PHENOMENON',
                 style: TextStyle(
-                  color: Colors.green,
+                  color: AppColors.primary,
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.5,

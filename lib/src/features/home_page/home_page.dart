@@ -8,3 +8,4 @@ export 'pages/settings.dart';
 export 'pages/user_profile.dart';
 export 'pages/email_verification_pending.dart';
 export 'pages/change_password.dart';
+export 'pages/journal_screen.dart';

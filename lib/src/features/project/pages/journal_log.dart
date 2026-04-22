@@ -1,12 +1,43 @@
-import 'dart:convert';
-
-import 'package:fleather/fleather.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:juniper_journal/src/backend/db/models/impact_entry.dart';
+import 'package:juniper_journal/src/shared/widgets/user_avatar.dart';
 import 'package:juniper_journal/src/backend/db/models/journal_entry.dart';
+import 'package:juniper_journal/src/backend/db/models/project.dart';
 import 'package:juniper_journal/src/backend/db/repositories/projects_repo.dart';
 import 'package:juniper_journal/src/features/project/pages/journal_entry_editor.dart';
 import 'package:juniper_journal/src/shared/styling/theme.dart';
+import 'package:juniper_journal/src/shared/widgets/top_snack_bar.dart';
+
+// ── EcoPoints helpers ─────────────────────────────────────────────────────────
+
+const _progressBase = {
+  'Discovering': 10.0,
+  'Ideating': 20.0,
+  'Prototyping': 50.0,
+  'Testing & Iterating': 75.0,
+  'Implemented': 100.0,
+};
+
+const _scaleMult = {
+  'Small': 1.00,
+  'Medium': 1.40,
+  'Large': 1.90,
+};
+
+const _diffMult = {
+  'Easy': 1.00,
+  'Medium': 1.25,
+  'Hard': 1.50,
+};
+
+double _progressEcoPoints(String? progress, String? scale, String? difficulty) {
+  final base = _progressBase[progress] ?? 0.0;
+  if (base == 0) return 0.0;
+  final s = _scaleMult[scale] ?? 1.0;
+  final d = _diffMult[difficulty] ?? 1.0;
+  return double.parse((base * s * d).toStringAsFixed(2));
+}
 
 class JournalLogScreen extends StatefulWidget {
   final String projectId;
@@ -36,50 +67,129 @@ class _JournalLogScreenState extends State<JournalLogScreen> {
 
   bool _isLoading = true;
   List<JournalEntry> _entries = const [];
+  Map<String, double> _impactTotals = const {};
+  String? _projectScale;
+  String? _projectDifficulty;
+
+  // Selection mode state
+  bool _isSelecting = false;
+  final Set<String> _selectedIds = {};
 
   @override
   void initState() {
     super.initState();
-    _loadEntries();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _loadAll();
+    });
   }
 
-  Future<void> _loadEntries() async {
+  Future<void> _loadAll() async {
     setState(() => _isLoading = true);
 
-    var entries = await _projectsRepo.getJournalEntries(
-      projectId: widget.projectId,
-    );
-    if (entries == null) {
-      if (!mounted) return;
-      setState(() {
-        _entries = const <JournalEntry>[];
-        _isLoading = false;
-      });
-      return;
-    }
+    final futures = await Future.wait([
+      _projectsRepo.getJournalEntries(projectId: widget.projectId),
+      _projectsRepo.getImpactEntries(projectId: widget.projectId),
+      _projectsRepo.getProjectById(widget.projectId),
+    ]);
 
     if (!mounted) return;
+
+    final entries = (futures[0] as List<JournalEntry>?) ?? const <JournalEntry>[];
+    final impactEntries = (futures[1] as List<ImpactEntry>?) ?? const <ImpactEntry>[];
+    final project = futures[2] as Project?;
+
+    final totals = <String, double>{};
+    for (final impact in impactEntries) {
+      final linkedId = impact.linkedJournalEntryId;
+      if (linkedId != null) {
+        totals[linkedId] = (totals[linkedId] ?? 0.0) + impact.ecoPoints;
+      }
+    }
+
     setState(() {
       _entries = entries;
+      _impactTotals = totals;
+      _projectScale = project?.projectScale;
+      _projectDifficulty = project?.difficulty;
       _isLoading = false;
     });
   }
 
+  Future<void> _loadEntries() => _loadAll();
+
+  void _enterSelectMode() => setState(() {
+        _isSelecting = true;
+        _selectedIds.clear();
+      });
+
+  void _exitSelectMode() => setState(() {
+        _isSelecting = false;
+        _selectedIds.clear();
+      });
+
+  void _toggleSelection(String id) {
+    setState(() {
+      if (_selectedIds.contains(id)) {
+        _selectedIds.remove(id);
+      } else {
+        _selectedIds.add(id);
+      }
+    });
+  }
+
+  Future<void> _deleteSelected() async {
+    final count = _selectedIds.length;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Delete $count ${count == 1 ? 'entry' : 'entries'}?'),
+        content: Text(
+          '$count journal ${count == 1 ? 'entry' : 'entries'} will be permanently removed.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    int failed = 0;
+    for (final id in _selectedIds) {
+      final ok = await _projectsRepo.deleteJournalEntry(entryId: id);
+      if (!ok) failed++;
+    }
+
+    if (!mounted) return;
+    _exitSelectMode();
+    _loadEntries();
+
+    if (failed > 0) {
+      showTopSnackBar(context, 'Failed to delete $failed entries', isError: true);
+    }
+  }
+
   Future<void> _createEntry() async {
     final nextNumber = _entries.length + 1;
-    final doc = jsonDecode(jsonEncode(ParchmentDocument())) as List<dynamic>;
-
     final created = await _projectsRepo.createJournalEntry(
       projectId: widget.projectId,
       title: 'Entry $nextNumber',
-      content: doc,
+      content: const [],
     );
 
     if (!mounted) return;
     if (created == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to create journal entry')),
-      );
+      showTopSnackBar(context, 'Failed to create journal entry', isError: true);
       return;
     }
 
@@ -96,52 +206,15 @@ class _JournalLogScreenState extends State<JournalLogScreen> {
           tags: widget.tags,
           entryId: entry.id,
           initialTitle: entry.title.isNotEmpty ? entry.title : 'Entry',
-          initialContent: entry.content.isNotEmpty
-              ? entry.content
-              : (jsonDecode(jsonEncode(ParchmentDocument())) as List<dynamic>),
+          initialContent: entry.content.isNotEmpty ? entry.content : const [],
+          initialProgress: entry.progress,
+          readOnly: !widget.isOwner,
         ),
       ),
     );
 
     if (!mounted) return;
-    _loadEntries();
-  }
-
-  Future<void> _deleteEntry(JournalEntry entry) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete entry?'),
-        content: const Text('This journal entry will be permanently removed.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true) return;
-
-    final ok = await _projectsRepo.deleteJournalEntry(
-      entryId: entry.id,
-    );
-    if (!mounted) return;
-
-    if (!ok) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Failed to delete entry')));
-      return;
-    }
-
-    _loadEntries();
+    if (widget.isOwner) _loadEntries();
   }
 
   String _formattedDate(DateTime? value) {
@@ -149,140 +222,338 @@ class _JournalLogScreenState extends State<JournalLogScreen> {
     return DateFormat('MMM d, yyyy • h:mm a').format(value.toLocal());
   }
 
-  Widget _buildBody() {
-    if (_isLoading) return const Center(child: CircularProgressIndicator());
+  Widget _buildEntryCard(JournalEntry entry) {
+    final imageUrls = entry.content
+        .whereType<Map>()
+        .where((b) => b['type'] == 'image')
+        .map((b) => b['url']?.toString() ?? '')
+        .where((u) => u.isNotEmpty)
+        .toList();
 
-    final list = _entries.isEmpty
-        ? Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'No journal entries yet.',
-                  textAlign: TextAlign.center,
-                ),
-                if (widget.isOwner) ...[
-                  const SizedBox(height: 12),
-                  FilledButton.icon(
-                    onPressed: _createEntry,
-                    icon: const Icon(Icons.add),
-                    label: const Text('New Entry'),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          )
-        : RefreshIndicator(
-            onRefresh: _loadEntries,
-            child: ListView.separated(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-              itemCount: _entries.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 12),
-              itemBuilder: (context, index) {
-                final entry = _entries[index];
-                return InkWell(
-                  borderRadius: BorderRadius.circular(12),
-                  onTap: widget.isOwner ? () => _openEntry(entry) : null,
-                  child: Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.shade200),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.book_outlined,
-                          color: AppColors.primary,
-                        ),
-                        const SizedBox(width: 12),
+    final progressPts = _progressEcoPoints(entry.progress, _projectScale, _projectDifficulty);
+    final impactPts = _impactTotals[entry.id] ?? 0.0;
+    final totalPts = double.parse((progressPts + impactPts).toStringAsFixed(2));
+
+    final isSelected = _selectedIds.contains(entry.id);
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: _isSelecting
+          ? () => _toggleSelection(entry.id)
+          : () => _openEntry(entry),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? AppColors.primary : AppColors.borderLight,
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (imageUrls.isNotEmpty)
+              ClipRRect(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                child: SizedBox(
+                  height: 140,
+                  child: Row(
+                    children: [
+                      for (int i = 0; i < imageUrls.length && i < 3; i++)
                         Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                entry.title.isNotEmpty
-                                    ? entry.title
-                                    : 'Untitled Entry',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 16,
+                          child: Container(
+                            decoration: i > 0
+                                ? const BoxDecoration(
+                                    border: Border(
+                                      left: BorderSide(color: Colors.white, width: 2),
+                                    ),
+                                  )
+                                : null,
+                            child: Image.network(
+                              imageUrls[i],
+                              fit: BoxFit.cover,
+                              height: 140,
+                              errorBuilder: (_, __, ___) => Container(
+                                color: Colors.grey.shade100,
+                                child: const Icon(
+                                  Icons.broken_image_outlined,
+                                  color: Colors.black26,
                                 ),
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                _formattedDate(
-                                  entry.updatedAt ?? entry.createdAt,
-                                ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            Padding(
+              padding: const EdgeInsets.all(14),
+              child: Row(
+                children: [
+                  if (_isSelecting)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 12),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 150),
+                        width: 22,
+                        height: 22,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: isSelected ? AppColors.primary : Colors.transparent,
+                          border: Border.all(
+                            color: isSelected ? AppColors.primary : Colors.grey.shade400,
+                            width: 2,
+                          ),
+                        ),
+                        child: isSelected
+                            ? const Icon(Icons.check, size: 14, color: Colors.white)
+                            : null,
+                      ),
+                    )
+                  else
+                    const Padding(
+                      padding: EdgeInsets.only(right: 12),
+                      child: Icon(Icons.book_outlined, color: AppColors.primary),
+                    ),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          entry.title.isNotEmpty ? entry.title : 'Untitled Entry',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 16,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                _formattedDate(entry.updatedAt ?? entry.createdAt),
+                                overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
                                   color: Colors.black54,
                                   fontSize: 12,
                                 ),
                               ),
-                            ],
-                          ),
-                        ),
-                        if (widget.isOwner)
-                          IconButton(
-                            tooltip: 'Delete entry',
-                            onPressed: () => _deleteEntry(entry),
-                            icon: const Icon(
-                              Icons.delete_outline,
-                              color: Colors.black45,
                             ),
+                            if (entry.progress != null) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 7, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                                child: Text(
+                                  entry.progress!,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: AppColors.primary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        if (entry.tags.isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          Wrap(
+                            spacing: 4,
+                            runSpacing: 4,
+                            children: entry.tags.map((tag) {
+                              return Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 7, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                                child: Text(
+                                  tag,
+                                  style: const TextStyle(
+                                    fontSize: 10,
+                                    color: AppColors.primary,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              );
+                            }).toList(),
                           ),
+                        ],
                       ],
                     ),
                   ),
-                );
-              },
+                  if (!_isSelecting) ...[
+                    if (totalPts > 0) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        width: 50,
+                        height: 50,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: AppColors.primary.withValues(alpha: 0.35),
+                            width: 1.5,
+                          ),
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              totalPts.toStringAsFixed(1),
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                            const Text(
+                              'EP',
+                              style: TextStyle(
+                                fontSize: 9,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    const SizedBox(width: 8),
+                    _AuthorAvatar(
+                      avatarUrl: entry.authorAvatarUrl,
+                      displayName: entry.authorDisplayName,
+                    ),
+                  ],
+                ],
+              ),
             ),
-          );
+          ],
+        ),
+      ),
+    );
+  }
 
-    return list;
+  Widget _buildBody() {
+    if (_isLoading) return const Center(child: CircularProgressIndicator());
+
+    if (_entries.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('No journal entries yet.', textAlign: TextAlign.center),
+            if (widget.isOwner) ...[
+              const SizedBox(height: 12),
+              FilledButton.icon(
+                onPressed: _createEntry,
+                icon: const Icon(Icons.add),
+                label: const Text('New Entry'),
+                style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
+              ),
+            ],
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadEntries,
+      child: ListView.separated(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+        itemCount: _entries.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        itemBuilder: (_, index) => _buildEntryCard(_entries[index]),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    // Embedded mode: return body only, no Scaffold or AppBar.
+    // ── Embedded mode ─────────────────────────────────────────────────────────
     if (widget.embedded) {
       return Stack(
         children: [
           _buildBody(),
-          if (widget.isOwner && !_isLoading && _entries.isNotEmpty)
-            Positioned(
-              bottom: 16,
-              right: 16,
-              child: FloatingActionButton.extended(
-                backgroundColor: AppColors.primary,
-                onPressed: _createEntry,
-                icon: const Icon(Icons.add),
-                label: const Text('New Entry'),
+          if (widget.isOwner && !_isLoading && _entries.isNotEmpty) ...[
+            if (_isSelecting)
+              Positioned(
+                bottom: 16,
+                left: 16,
+                right: 16,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: _exitSelectMode,
+                        child: const Text('Cancel'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: FilledButton.icon(
+                        onPressed: _selectedIds.isEmpty ? null : _deleteSelected,
+                        icon: const Icon(Icons.delete_outline),
+                        label: Text(_selectedIds.isEmpty
+                            ? 'Delete'
+                            : 'Delete (${_selectedIds.length})'),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.error,
+                          disabledBackgroundColor: AppColors.error.withValues(alpha: 0.4),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              Positioned(
+                bottom: 16,
+                right: 16,
+                child: FloatingActionButton.extended(
+                  backgroundColor: AppColors.primary,
+                  onPressed: _createEntry,
+                  icon: const Icon(Icons.add),
+                  label: const Text('New Entry'),
+                ),
               ),
-            ),
+          ],
         ],
       );
     }
 
+    // ── Full-screen mode ──────────────────────────────────────────────────────
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: AppColors.background,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(
-            Icons.arrow_back_ios,
-            size: 18,
-            color: AppColors.border,
-          ),
-          onPressed: () => Navigator.pop(context),
-        ),
+        leadingWidth: _isSelecting ? 72 : 56,
+        leading: _isSelecting
+            ? TextButton(
+                onPressed: _exitSelectMode,
+                style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                ),
+                child: const Text('Cancel', maxLines: 1),
+              )
+            : IconButton(
+                icon: const Icon(Icons.arrow_back_ios, size: 18, color: AppColors.border),
+                onPressed: () => Navigator.pop(context),
+              ),
         title: Text(
-          '${widget.projectName} Journal',
+          _isSelecting
+              ? (_selectedIds.isEmpty
+                  ? 'Select entries'
+                  : '${_selectedIds.length} selected')
+              : '${widget.projectName} Journal',
           style: const TextStyle(
             color: AppColors.textPrimary,
             fontSize: 18,
@@ -291,10 +562,29 @@ class _JournalLogScreenState extends State<JournalLogScreen> {
         ),
         centerTitle: true,
         shape: const Border(
-          bottom: BorderSide(color: Color(0xFFE5E5EA), width: 0.6),
+          bottom: BorderSide(color: AppColors.divider, width: 0.6),
         ),
+        actions: [
+          if (widget.isOwner && _entries.isNotEmpty)
+            if (_isSelecting)
+              TextButton(
+                onPressed: _selectedIds.isEmpty ? null : _deleteSelected,
+                child: Text(
+                  _selectedIds.isEmpty ? 'Delete' : 'Delete (${_selectedIds.length})',
+                  style: TextStyle(
+                    color: _selectedIds.isEmpty ? Colors.black26 : AppColors.error,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              )
+            else
+              TextButton(
+                onPressed: _enterSelectMode,
+                child: const Text('Edit'),
+              ),
+        ],
       ),
-      floatingActionButton: widget.isOwner
+      floatingActionButton: widget.isOwner && !_isSelecting
           ? FloatingActionButton.extended(
               backgroundColor: AppColors.primary,
               onPressed: _createEntry,
@@ -303,6 +593,21 @@ class _JournalLogScreenState extends State<JournalLogScreen> {
             )
           : null,
       body: SafeArea(child: _buildBody()),
+    );
+  }
+}
+
+class _AuthorAvatar extends StatelessWidget {
+  const _AuthorAvatar({this.avatarUrl, this.displayName});
+
+  final String? avatarUrl;
+  final String? displayName;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: displayName ?? '',
+      child: UserAvatar(avatarUrl: avatarUrl, radius: 14),
     );
   }
 }

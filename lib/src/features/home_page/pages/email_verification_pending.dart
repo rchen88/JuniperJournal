@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:juniper_journal/src/backend/auth/auth_service.dart';
 import 'package:juniper_journal/src/features/home_page/home_page.dart';
+import 'package:juniper_journal/src/shared/styling/app_colors.dart';
+import 'package:juniper_journal/src/shared/widgets/top_snack_bar.dart';
 
 class EmailVerificationPendingScreen extends StatefulWidget {
   const EmailVerificationPendingScreen({super.key, required this.email});
@@ -31,16 +33,9 @@ class _EmailVerificationPendingScreenState
 
     if (ok) {
       _startCooldown();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Verification email resent.')),
-      );
+      showTopSnackBar(context, 'Verification email resent.');
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to resend email. Please try again.'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      showTopSnackBar(context, 'Failed to resend email. Please try again.', isError: true);
     }
   }
 
@@ -79,7 +74,7 @@ class _EmailVerificationPendingScreenState
               children: [
                 const Spacer(),
                 const Icon(Icons.mark_email_unread_outlined,
-                    size: 72, color: Color(0xFF5B7B63)),
+                    size: 72, color: AppColors.primary),
                 const SizedBox(height: 24),
                 const Text(
                   'Check your email',
@@ -116,7 +111,7 @@ class _EmailVerificationPendingScreenState
                   child: OutlinedButton(
                     onPressed: _cooldownSeconds > 0 ? null : _resendEmail,
                     style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Color(0xFF5B7B63)),
+                      side: const BorderSide(color: AppColors.primary),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),
@@ -126,7 +121,7 @@ class _EmailVerificationPendingScreenState
                           ? 'Resend Email ($_cooldownSeconds s)'
                           : 'Resend Email',
                       style: const TextStyle(
-                        color: Color(0xFF5B7B63),
+                        color: AppColors.primary,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -144,7 +139,7 @@ class _EmailVerificationPendingScreenState
                   child: FilledButton(
                     onPressed: _goToLogin,
                     style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF5B7B63),
+                      backgroundColor: AppColors.primary,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10),
                       ),

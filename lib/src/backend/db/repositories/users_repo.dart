@@ -8,6 +8,28 @@ class UsersRepo {
 
   SupabaseClient get _client => SupabaseDatabase.instance.client;
 
+  Map<String, dynamic> _profileSeedDataFromUser(User user) {
+    final metadata = user.userMetadata ?? const <String, dynamic>{};
+    final data = <String, dynamic>{'id': user.id, 'is_public_profile': true};
+
+    final username = metadata['username']?.toString().trim().toLowerCase();
+    if (username != null && username.isNotEmpty) {
+      data['username'] = username;
+    }
+
+    final displayName = metadata['display_name']?.toString().trim();
+    if (displayName != null && displayName.isNotEmpty) {
+      data['display_name'] = displayName;
+    }
+
+    final birthday = metadata['birthday']?.toString().trim();
+    if (birthday != null && birthday.isNotEmpty) {
+      data['birthday'] = birthday;
+    }
+
+    return data;
+  }
+
   Future<UserProfile?> getCurrentUserProfile() async {
     final currentUserId = _client.auth.currentUser?.id;
     if (currentUserId == null) return null;
@@ -38,12 +60,9 @@ class UsersRepo {
     if (user == null) return;
 
     try {
-      final data = <String, dynamic>{
-        'id': user.id,
-        'is_public_profile': true,
-      };
+      final data = _profileSeedDataFromUser(user);
       if (username != null && username.trim().isNotEmpty) {
-        data['username'] = username.trim();
+        data['username'] = username.trim().toLowerCase();
       }
       if (displayName != null && displayName.trim().isNotEmpty) {
         data['display_name'] = displayName.trim();
@@ -80,10 +99,9 @@ class UsersRepo {
     if (user == null) return;
 
     try {
-      await _client.from(profilesTable).upsert(
-        {'id': user.id, 'is_public_profile': true},
-        ignoreDuplicates: true,
-      );
+      await _client
+          .from(profilesTable)
+          .upsert(_profileSeedDataFromUser(user), onConflict: 'id', ignoreDuplicates: true);
     } catch (e, st) {
       debugPrint('ensureProfileExists error: $e\n$st');
     }
@@ -97,13 +115,18 @@ class UsersRepo {
     final currentUserId = _client.auth.currentUser?.id;
     if (currentUserId == null) return false;
 
-    final data = <String, dynamic>{'id': currentUserId};
+    final data = <String, dynamic>{};
     if (avatarUrl != null) data['avatar_url'] = avatarUrl;
     if (displayName != null) data['display_name'] = displayName;
     if (isPublicProfile != null) data['is_public_profile'] = isPublicProfile;
 
+    if (data.isEmpty) return true;
+
     try {
-      await _client.from(profilesTable).upsert(data, onConflict: 'id');
+      await _client
+          .from(profilesTable)
+          .update(data)
+          .eq('id', currentUserId);
       return true;
     } catch (e, st) {
       debugPrint('updateCurrentUserProfile error: $e\n$st');
@@ -111,9 +134,21 @@ class UsersRepo {
     }
   }
 
-  Future<List<UserProfile>?> searchPublicUsers({
-    required String query,
-  }) async {
+  Future<List<UserProfile>> getProfilesByIds(List<String> ids) async {
+    if (ids.isEmpty) return [];
+    try {
+      final rows = await _client
+          .from(profilesTable)
+          .select('id, display_name, username, avatar_url')
+          .inFilter('id', ids);
+      return List<Map<String, dynamic>>.from(rows).map(UserProfile.fromMap).toList();
+    } catch (e, st) {
+      debugPrint('getProfilesByIds error: $e\n$st');
+      return [];
+    }
+  }
+
+  Future<List<UserProfile>?> searchPublicUsers({required String query}) async {
     try {
       final currentUserId = _client.auth.currentUser?.id;
       var request = _client
@@ -133,7 +168,9 @@ class UsersRepo {
       }
 
       final rows = await request.limit(30);
-      return List<Map<String, dynamic>>.from(rows).map(UserProfile.fromMap).toList();
+      return List<Map<String, dynamic>>.from(
+        rows,
+      ).map(UserProfile.fromMap).toList();
     } catch (e, st) {
       debugPrint('searchPublicUsers error: $e\n$st');
       return null;

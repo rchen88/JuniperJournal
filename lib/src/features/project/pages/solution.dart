@@ -54,7 +54,9 @@ class _SolutionScreenState extends State<SolutionScreen> {
   @override
   void initState() {
     super.initState();
-    _loadDocument();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _loadDocument();
+    });
   }
 
   @override
@@ -101,12 +103,7 @@ class _SolutionScreenState extends State<SolutionScreen> {
     } catch (e) {
       debugPrint('Error saving document: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Error saving solution'),
-            backgroundColor: AppColors.error,
-          ),
-        );
+        showTopSnackBar(context, 'Error saving solution', isError: true);
       }
     }
   }
@@ -159,12 +156,7 @@ class _SolutionScreenState extends State<SolutionScreen> {
 
       // Show loading indicator
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Uploading image...'),
-            duration: Duration(seconds: 30),
-          ),
-        );
+        showTopSnackBar(context, 'Uploading image...');
       }
 
       // Upload to Supabase Storage
@@ -176,12 +168,7 @@ class _SolutionScreenState extends State<SolutionScreen> {
       if (imageUrl == null) {
         if (mounted) {
           ScaffoldMessenger.of(context).hideCurrentSnackBar();
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to upload image'),
-              backgroundColor: AppColors.error,
-            ),
-          );
+          showTopSnackBar(context, 'Failed to upload image', isError: true);
         }
         return;
       }
@@ -191,24 +178,13 @@ class _SolutionScreenState extends State<SolutionScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Image added successfully!'),
-            backgroundColor: AppColors.primary,
-            duration: Duration(seconds: 2),
-          ),
-        );
+        showTopSnackBar(context, 'Image added successfully!');
       }
     } catch (e) {
       debugPrint('Error picking/uploading image: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to add image'),
-            backgroundColor: AppColors.error,
-          ),
-        );
+        showTopSnackBar(context, 'Failed to add image', isError: true);
       }
     }
   }
@@ -250,7 +226,7 @@ class _SolutionScreenState extends State<SolutionScreen> {
     final result = await showDialog<Map<String, int>>(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
+        return AlertDialog(backgroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: const Text('Insert Table'),
           content: SingleChildScrollView(
             child: Column(
@@ -398,25 +374,13 @@ class _SolutionScreenState extends State<SolutionScreen> {
 
       // Show success message
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Table inserted!'),
-            backgroundColor: AppColors.primary,
-            duration: Duration(seconds: 1),
-          ),
-        );
+        showTopSnackBar(context, 'Table inserted!');
       }
     } catch (e, stackTrace) {
       debugPrint('Error inserting table: $e');
       debugPrint('Stack trace: $stackTrace');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to insert table'),
-            backgroundColor: AppColors.error,
-            duration: Duration(seconds: 2),
-          ),
-        );
+        showTopSnackBar(context, 'Failed to insert table', isError: true);
       }
     }
   }
@@ -567,7 +531,7 @@ class _SolutionScreenState extends State<SolutionScreen> {
     final result = await showDialog<String>(
       context: context,
       builder: (BuildContext context) {
-        return AlertDialog(
+        return AlertDialog(backgroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: const Text('Insert Math Equation'),
           content: SingleChildScrollView(
             child: Column(
@@ -707,26 +671,14 @@ class _SolutionScreenState extends State<SolutionScreen> {
 
       // Show success message
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Math equation inserted!'),
-            backgroundColor: AppColors.primary,
-            duration: Duration(seconds: 1),
-          ),
-        );
+        showTopSnackBar(context, 'Math equation inserted!');
       }
 
     } catch (e, stackTrace) {
       debugPrint('!!! ERROR in _insertMathIntoDocument: $e');
       debugPrint('Stack trace: $stackTrace');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to insert equation'),
-            backgroundColor: AppColors.error,
-            duration: Duration(seconds: 2),
-          ),
-        );
+        showTopSnackBar(context, 'Failed to insert equation', isError: true);
       }
     }
   }
@@ -926,7 +878,7 @@ class _SolutionScreenState extends State<SolutionScreen> {
       height: 28,
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
       decoration: BoxDecoration(
-        color: Colors.green[100],
+        color: AppColors.accent,
         borderRadius: BorderRadius.circular(20),
       ),
       child: DropdownButtonHideUnderline(
@@ -935,22 +887,22 @@ class _SolutionScreenState extends State<SolutionScreen> {
           icon: const Icon(
             Icons.keyboard_arrow_down,
             size: 16,
-            color: Colors.green,
+            color: AppColors.primary,
           ),
           style: const TextStyle(
-            color: Colors.green,
+            color: AppColors.primary,
             fontSize: 11,
             fontWeight: FontWeight.w600,
             letterSpacing: 0.5,
           ),
-          dropdownColor: Colors.green[50],
+          dropdownColor: AppColors.accent.withValues(alpha: 0.5),
           items: const [
             DropdownMenuItem(
               value: 'PROJECT NAME',
               child: Text(
                 'PROJECT NAME',
                 style: TextStyle(
-                  color: Colors.green,
+                  color: AppColors.primary,
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.5,
@@ -962,7 +914,7 @@ class _SolutionScreenState extends State<SolutionScreen> {
               child: Text(
                 'PROBLEM STATEMENT',
                 style: TextStyle(
-                  color: Colors.green,
+                  color: AppColors.primary,
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.5,
@@ -974,7 +926,7 @@ class _SolutionScreenState extends State<SolutionScreen> {
               child: Text(
                 'TIMELINE',
                 style: TextStyle(
-                  color: Colors.green,
+                  color: AppColors.primary,
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.5,
@@ -986,7 +938,7 @@ class _SolutionScreenState extends State<SolutionScreen> {
               child: Text(
                 'MATERIALS COST',
                 style: TextStyle(
-                  color: Colors.green,
+                  color: AppColors.primary,
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.5,
@@ -998,7 +950,7 @@ class _SolutionScreenState extends State<SolutionScreen> {
               child: Text(
                 'METRICS',
                 style: TextStyle(
-                  color: Colors.green,
+                  color: AppColors.primary,
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.5,
@@ -1010,7 +962,7 @@ class _SolutionScreenState extends State<SolutionScreen> {
               child: Text(
                 'SOLUTION',
                 style: TextStyle(
-                  color: Colors.green,
+                  color: AppColors.primary,
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.5,
@@ -1030,8 +982,6 @@ class _SolutionScreenState extends State<SolutionScreen> {
                 MaterialPageRoute(
                   builder: (context) => DefineProblemStatementScreen(
                     projectId: widget.projectId,
-                    projectName: widget.projectName,
-                    tags: widget.tags,
                   ),
                 ),
               );

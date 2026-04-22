@@ -18,10 +18,14 @@ class StorageService {
   /// Returns the public URL of the uploaded image, or null if upload fails
   Future<String?> uploadImage(XFile imageFile, {String bucketName = "", String folder = ''}) async {
     try {
-      // Generate a unique filename using timestamp and original filename
+      // Generate a unique filename using timestamp and a sanitized original name.
+      // Supabase storage rejects keys with spaces or special characters.
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final extension = imageFile.name.split('.').last;
-      final fileName = '${timestamp}_${imageFile.name}';
+      final safeName = imageFile.name
+          .replaceAll(RegExp(r'\s+'), '_')
+          .replaceAll(RegExp(r'[^\w\-.]'), '');
+      final fileName = '${timestamp}_$safeName';
 
       // Construct the full path in the bucket
       final filePath = folder.isEmpty ? fileName : '$folder/$fileName';
