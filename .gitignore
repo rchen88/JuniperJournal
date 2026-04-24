@@ -12,6 +12,10 @@
 .swiftpm/
 migrate_working_dir/
 .env
+code.txt
+
+# Supabase local CLI state — contains DB connection strings and project refs
+supabase/.temp/
 
 # IntelliJ related
 *.iml

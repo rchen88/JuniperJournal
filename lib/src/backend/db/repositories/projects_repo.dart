@@ -416,6 +416,15 @@ class ProjectsRepo {
     final titleErr = InputValidator.journalTitle(title);
     if (titleErr != null) throw Exception(titleErr);
 
+    // Verify the current user owns the target project before writing
+    final owned = await _client
+        .from(table)
+        .select('id')
+        .eq('id', projectId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+    if (owned == null) throw Exception('Not authorized');
+
     try {
       final row = await _client
           .from(journalEntriesTable)
@@ -627,6 +636,15 @@ class ProjectsRepo {
   }) async {
     final user = _client.auth.currentUser;
     if (user == null) throw Exception('Not signed in');
+
+    // Verify the current user owns the target project before writing
+    final owned = await _client
+        .from(table)
+        .select('id')
+        .eq('id', projectId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+    if (owned == null) throw Exception('Not authorized');
 
     try {
       final row = await _client
