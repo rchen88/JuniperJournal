@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../db/supabase_database.dart';
+import '../security/input_validator.dart';
 import 'package:flutter/material.dart';
 
 /// Service class that handles all authentication operations using Supabase Auth.
@@ -52,6 +53,44 @@ class AuthService {
     String? displayName,
     DateTime? birthday,
   }) async {
+    // Validate inputs before hitting the network
+    final emailErr = InputValidator.email(email);
+    if (emailErr != null) {
+      return SignUpResult(
+        user: null, session: null,
+        requiresEmailConfirmation: false,
+        friendlyErrorMessage: emailErr,
+      );
+    }
+    final passwordErr = InputValidator.password(password);
+    if (passwordErr != null) {
+      return SignUpResult(
+        user: null, session: null,
+        requiresEmailConfirmation: false,
+        friendlyErrorMessage: passwordErr,
+      );
+    }
+    if (username != null && username.trim().isNotEmpty) {
+      final usernameErr = InputValidator.username(username);
+      if (usernameErr != null) {
+        return SignUpResult(
+          user: null, session: null,
+          requiresEmailConfirmation: false,
+          friendlyErrorMessage: usernameErr,
+        );
+      }
+    }
+    if (displayName != null && displayName.trim().isNotEmpty) {
+      final nameErr = InputValidator.displayName(displayName);
+      if (nameErr != null) {
+        return SignUpResult(
+          user: null, session: null,
+          requiresEmailConfirmation: false,
+          friendlyErrorMessage: nameErr,
+        );
+      }
+    }
+
     try {
       final data = <String, dynamic>{};
       if (username != null && username.trim().isNotEmpty) {
@@ -186,6 +225,13 @@ class AuthService {
     required String username,
     required String password,
   }) async {
+    final usernameErr = InputValidator.username(username);
+    if (usernameErr != null) throw Exception(usernameErr);
+    if (password.isEmpty) throw Exception('Password is required');
+    if (password.length > InputValidator.kPasswordMaxLen) {
+      throw Exception('Password is too long');
+    }
+
     final response = await _client.functions.invoke(
       'login-with-username',
       body: {'username': username, 'password': password},

@@ -5,6 +5,7 @@ import 'package:juniper_journal/src/backend/db/models/journal_entry.dart';
 import 'package:juniper_journal/src/backend/db/models/project.dart';
 import 'package:juniper_journal/src/backend/db/models/user_profile.dart';
 import 'package:juniper_journal/src/backend/db/supabase_database.dart';
+import 'package:juniper_journal/src/backend/security/input_validator.dart';
 
 class ProjectsRepo {
   static const table = 'projects';
@@ -80,9 +81,15 @@ class ProjectsRepo {
     String? visibility,
   }) async {
     final user = _client.auth.currentUser;
-    if (user == null) {
-      throw Exception('Not signed in');
-    }
+    if (user == null) throw Exception('Not signed in');
+
+    final nameErr = InputValidator.projectName(projectName);
+    if (nameErr != null) throw Exception(nameErr);
+    final stmtErr = InputValidator.problemStatement(problemStatement);
+    if (stmtErr != null) throw Exception(stmtErr);
+    final tagsErr = InputValidator.tags(tags);
+    if (tagsErr != null) throw Exception(tagsErr);
+
     try {
       final row = await _client
           .from('projects')
@@ -260,6 +267,16 @@ class ProjectsRepo {
     String? projectScale,
     String? visibility,
   }) async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return false;
+
+    final nameErr = InputValidator.projectName(projectName);
+    if (nameErr != null) return false;
+    final stmtErr = InputValidator.problemStatement(problemStatement);
+    if (stmtErr != null) return false;
+    final tagsErr = InputValidator.tags(tags);
+    if (tagsErr != null) return false;
+
     try {
       await _client
           .from(table)
@@ -272,7 +289,8 @@ class ProjectsRepo {
             'project_scale': projectScale,
             'visibility': visibility,
           })
-          .eq('id', id);
+          .eq('id', id)
+          .eq('user_id', userId);
       return true;
     } catch (e, st) {
       debugPrint('updateProjectMetadata error: $e\n$st');
@@ -310,8 +328,14 @@ class ProjectsRepo {
     required String id,
     required List<Map<String, String>> timeline,
   }) async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return false;
     try {
-      await _client.from(table).update({'timeline': timeline}).eq('id', id);
+      await _client
+          .from(table)
+          .update({'timeline': timeline})
+          .eq('id', id)
+          .eq('user_id', userId);
       return true;
     } catch (e, st) {
       debugPrint('updateTimeline error: $e\n$st');
@@ -388,6 +412,9 @@ class ProjectsRepo {
   }) async {
     final user = _client.auth.currentUser;
     if (user == null) throw Exception('Not signed in');
+
+    final titleErr = InputValidator.journalTitle(title);
+    if (titleErr != null) throw Exception(titleErr);
 
     try {
       final row = await _client
@@ -727,8 +754,14 @@ class ProjectsRepo {
     required String id,
     required String solutionJson,
   }) async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return false;
     try {
-      await _client.from(table).update({'solution': solutionJson}).eq('id', id);
+      await _client
+          .from(table)
+          .update({'solution': solutionJson})
+          .eq('id', id)
+          .eq('user_id', userId);
       return true;
     } catch (e, st) {
       debugPrint('updateSolution error: $e\n$st');
@@ -754,11 +787,14 @@ class ProjectsRepo {
     required String id,
     required List<Map<String, dynamic>> materials,
   }) async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return false;
     try {
       await _client
           .from(table)
           .update({'materials_cost': materials})
-          .eq('id', id);
+          .eq('id', id)
+          .eq('user_id', userId);
       return true;
     } catch (e, st) {
       debugPrint('updateMaterialsCost error: $e\n$st');

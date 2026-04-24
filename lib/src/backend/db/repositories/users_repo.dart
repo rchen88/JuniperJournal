@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:juniper_journal/src/backend/db/models/user_profile.dart';
 import 'package:juniper_journal/src/backend/db/supabase_database.dart';
+import 'package:juniper_journal/src/backend/security/input_validator.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class UsersRepo {
@@ -115,9 +116,14 @@ class UsersRepo {
     final currentUserId = _client.auth.currentUser?.id;
     if (currentUserId == null) return false;
 
+    if (displayName != null) {
+      final nameErr = InputValidator.displayName(displayName);
+      if (nameErr != null) return false;
+    }
+
     final data = <String, dynamic>{};
     if (avatarUrl != null) data['avatar_url'] = avatarUrl;
-    if (displayName != null) data['display_name'] = displayName;
+    if (displayName != null) data['display_name'] = displayName.trim();
     if (isPublicProfile != null) data['is_public_profile'] = isPublicProfile;
 
     if (data.isEmpty) return true;
@@ -149,6 +155,9 @@ class UsersRepo {
   }
 
   Future<List<UserProfile>?> searchPublicUsers({required String query}) async {
+    final queryErr = InputValidator.searchQuery(query);
+    if (queryErr != null) return null;
+
     try {
       final currentUserId = _client.auth.currentUser?.id;
       var request = _client
