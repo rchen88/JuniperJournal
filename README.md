@@ -1,4 +1,4 @@
-# Juniper Journal
+# .Juniper Journal
 
 Juniper Journal is an environmental education and collaborative learning app designed to help students and educators engage with sustainability through project-based learning. It serves as a project database and design tool where students create NGSS-aligned learning modules and user-led projects.
 
