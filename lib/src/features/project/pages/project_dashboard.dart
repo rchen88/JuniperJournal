@@ -1,4 +1,6 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:juniper_journal/src/backend/auth/auth_service.dart';
 import 'package:juniper_journal/src/backend/db/models/challenge_participant.dart';
 import 'package:juniper_journal/src/backend/db/models/design_challenge.dart';
@@ -7,6 +9,7 @@ import 'package:juniper_journal/src/backend/db/repositories/challenges_repo.dart
 import 'package:juniper_journal/src/backend/db/repositories/projects_repo.dart';
 import 'package:juniper_journal/src/features/project/pages/collaborators_sheet.dart';
 import 'package:juniper_journal/src/features/project/project.dart';
+import 'package:juniper_journal/src/services/media_service.dart';
 import 'package:juniper_journal/src/shared/styling/app_colors.dart';
 import 'package:juniper_journal/src/shared/styling/theme.dart';
 import 'package:juniper_journal/src/shared/widgets/top_snack_bar.dart';
@@ -17,6 +20,9 @@ class ProjectDashboard extends StatefulWidget {
   final List<String> tags;
   final bool isOwner;
   final String? challengeId;
+  final ProjectsRepo? projectsRepo;
+  final ChallengesRepo? challengesRepo;
+  final MediaService? mediaService;
 
   const ProjectDashboard({
     super.key,
@@ -25,6 +31,9 @@ class ProjectDashboard extends StatefulWidget {
     required this.tags,
     this.isOwner = true,
     this.challengeId,
+    this.projectsRepo,
+    this.challengesRepo,
+    this.mediaService,
   });
 
   @override
@@ -32,8 +41,9 @@ class ProjectDashboard extends StatefulWidget {
 }
 
 class _ProjectDashboardState extends State<ProjectDashboard> {
-  final _projectsRepo = ProjectsRepo();
-  final _challengesRepo = ChallengesRepo();
+  late final ProjectsRepo _projectsRepo;
+  late final ChallengesRepo _challengesRepo;
+  MediaService? _mediaService;
 
   late String _projectName;
   late List<String> _tags;
@@ -43,6 +53,7 @@ class _ProjectDashboardState extends State<ProjectDashboard> {
   String? _difficulty;
   String? _projectScale;
   bool _isLoading = true;
+  bool _isUpdatingImage = false;
 
   ChallengeParticipant? _challengeParticipation;
   DesignChallenge? _challenge;
@@ -51,6 +62,9 @@ class _ProjectDashboardState extends State<ProjectDashboard> {
   @override
   void initState() {
     super.initState();
+    _projectsRepo = widget.projectsRepo ?? ProjectsRepo();
+    _challengesRepo = widget.challengesRepo ?? ChallengesRepo();
+    _mediaService = widget.mediaService;
     _projectName = widget.projectName;
     _tags = List<String>.from(widget.tags);
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -208,12 +222,110 @@ class _ProjectDashboardState extends State<ProjectDashboard> {
     }
     setState(() {
       _projectName = result['project_name']?.toString() ?? _projectName;
+      _imageUrl = result.containsKey('project_image_url')
+          ? result['project_image_url']?.toString()
+          : _imageUrl;
       _tags = (result['tags'] as List?)
               ?.map((t) => t.toString())
               .where((t) => t.isNotEmpty)
               .toList() ??
           _tags;
     });
+  }
+
+  Future<void> _pickCoverImage(ImageSource source) async {
+    if (!widget.isOwner || _isUpdatingImage) return;
+
+    setState(() => _isUpdatingImage = true);
+    final imageUrl = await (_mediaService ??= MediaService())
+        .pickAndUploadImage(source, folder: 'project-images');
+    if (!mounted) return;
+
+    if (imageUrl == null) {
+      setState(() => _isUpdatingImage = false);
+      return;
+    }
+
+    final success = await _projectsRepo.updateProjectImage(
+      id: widget.projectId,
+      projectImageUrl: imageUrl,
+    );
+    if (!mounted) return;
+
+    setState(() {
+      if (success) _imageUrl = imageUrl;
+      _isUpdatingImage = false;
+    });
+
+    showTopSnackBar(
+      context,
+      success ? 'Cover image updated' : 'Failed to update cover image',
+      isError: !success,
+    );
+  }
+
+  Future<void> _removeCoverImage() async {
+    if (!widget.isOwner || _isUpdatingImage) return;
+
+    setState(() => _isUpdatingImage = true);
+    final success = await _projectsRepo.updateProjectImage(
+      id: widget.projectId,
+      projectImageUrl: null,
+    );
+    if (!mounted) return;
+
+    setState(() {
+      if (success) _imageUrl = null;
+      _isUpdatingImage = false;
+    });
+
+    showTopSnackBar(
+      context,
+      success ? 'Cover image removed' : 'Failed to remove cover image',
+      isError: !success,
+    );
+  }
+
+  Future<void> _showCoverImageSheet() async {
+    if (!widget.isOwner || _isUpdatingImage) return;
+
+    final hasImage = _imageUrl != null && _imageUrl!.isNotEmpty;
+    showCupertinoModalPopup<void>(
+      context: context,
+      builder: (context) => CupertinoActionSheet(
+        title: const Text('Project Cover Image'),
+        message: const Text('Choose image source'),
+        actions: [
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.pop(context);
+              _pickCoverImage(ImageSource.camera);
+            },
+            child: const Text('Take Photo'),
+          ),
+          CupertinoActionSheetAction(
+            onPressed: () {
+              Navigator.pop(context);
+              _pickCoverImage(ImageSource.gallery);
+            },
+            child: const Text('Choose from Gallery'),
+          ),
+          if (hasImage)
+            CupertinoActionSheetAction(
+              isDestructiveAction: true,
+              onPressed: () {
+                Navigator.pop(context);
+                _removeCoverImage();
+              },
+              child: const Text('Remove Cover Image'),
+            ),
+        ],
+        cancelButton: CupertinoActionSheetAction(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+      ),
+    );
   }
 
   @override
@@ -264,25 +376,7 @@ class _ProjectDashboardState extends State<ProjectDashboard> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Hero image
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: AspectRatio(
-                      aspectRatio: 16 / 9,
-                      child: (_imageUrl != null && _imageUrl!.isNotEmpty)
-                          ? Image.network(_imageUrl!, fit: BoxFit.cover)
-                          : Container(
-                              color: AppColors.avatarBackground,
-                              child: const Center(
-                                child: Icon(
-                                  Icons.landscape_outlined,
-                                  size: 40,
-                                  color: AppColors.avatarIcon,
-                                ),
-                              ),
-                            ),
-                    ),
-                  ),
+                  _buildHeroImage(),
                   const SizedBox(height: 16),
 
                   // Project name
@@ -334,6 +428,75 @@ class _ProjectDashboardState extends State<ProjectDashboard> {
   }
 
   // ── Action grid ────────────────────────────────────────────────────────────
+
+  Widget _buildHeroImage() {
+    final hasImage = _imageUrl != null && _imageUrl!.isNotEmpty;
+    final image = ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: AspectRatio(
+        aspectRatio: 16 / 9,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (hasImage)
+              Image.network(
+                _imageUrl!,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => _buildCoverPlaceholder(),
+              )
+            else
+              _buildCoverPlaceholder(),
+            if (widget.isOwner)
+              Positioned(
+                right: 12,
+                bottom: 12,
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.62),
+                    shape: BoxShape.circle,
+                  ),
+                  child: _isUpdatingImage
+                      ? const Padding(
+                          padding: EdgeInsets.all(10),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Icon(
+                          Icons.camera_alt_outlined,
+                          color: Colors.white,
+                          size: 21,
+                        ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+
+    if (!widget.isOwner) return image;
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(onTap: _showCoverImageSheet, child: image),
+    );
+  }
+
+  Widget _buildCoverPlaceholder() {
+    return Container(
+      color: AppColors.avatarBackground,
+      child: const Center(
+        child: Icon(
+          Icons.landscape_outlined,
+          size: 40,
+          color: AppColors.avatarIcon,
+        ),
+      ),
+    );
+  }
 
   Widget _buildActionGrid() {
     final items = [

@@ -298,6 +298,26 @@ class ProjectsRepo {
     }
   }
 
+  Future<bool> updateProjectImage({
+    required String id,
+    String? projectImageUrl,
+  }) async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return false;
+
+    try {
+      await _client
+          .from(table)
+          .update({'project_image_url': projectImageUrl})
+          .eq('id', id)
+          .eq('user_id', userId);
+      return true;
+    } catch (e, st) {
+      debugPrint('updateProjectImage error: $e\n$st');
+      return false;
+    }
+  }
+
   Future<bool> deleteProject({required String id}) async {
     final user = _client.auth.currentUser;
     if (user == null) return false;
