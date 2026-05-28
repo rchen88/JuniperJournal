@@ -1,3 +1,4 @@
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -10,7 +11,7 @@ class StorageService {
   /// The name of the storage bucket for learning module images
   static const String bucketName = 'learning-module-images';
 
-  /// Uploads an image file to Supabase Storage and returns the public URL
+  /// Uploads an image file to Supabase Storage as WebP and returns the public URL
   ///
   /// [imageFile] - The image file picked by the user
   /// [folder] - Optional folder path within the bucket (e.g., 'concept-exploration')
@@ -18,10 +19,10 @@ class StorageService {
   /// Returns the public URL of the uploaded image, or null if upload fails
   Future<String?> uploadImage(XFile imageFile, {String folder = ''}) async {
     try {
-      // Generate a unique filename using timestamp and original filename
+      // Generate a unique filename using timestamp and original filename (forced .webp)
       final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final extension = imageFile.name.split('.').last;
-      final fileName = '${timestamp}_${imageFile.name}';
+      final baseName = imageFile.name.split('.').first;
+      final fileName = '${timestamp}_$baseName.webp';
 
       // Construct the full path in the bucket
       final filePath = folder.isEmpty ? fileName : '$folder/$fileName';
@@ -29,14 +30,21 @@ class StorageService {
       // Read the file as bytes
       final bytes = await imageFile.readAsBytes();
 
+      // Convert to WebP before upload
+      final convertedBytes = await FlutterImageCompress.compressWithList(
+        bytes,
+        format: CompressFormat.webp,
+        quality: 85,
+      );
+
       // Upload to Supabase Storage
       await _client.storage
           .from(bucketName)
           .uploadBinary(
             filePath,
-            bytes,
-            fileOptions: FileOptions(
-              contentType: _getContentType(extension),
+            convertedBytes,
+            fileOptions: const FileOptions(
+              contentType: 'image/webp',
               upsert: false,
             ),
           );
@@ -85,25 +93,6 @@ class StorageService {
     } catch (e) {
       debugPrint('Error deleting image: $e');
       return false;
-    }
-  }
-
-  /// Gets the MIME type for a file extension
-  String _getContentType(String extension) {
-    switch (extension.toLowerCase()) {
-      case 'jpg':
-      case 'jpeg':
-        return 'image/jpeg';
-      case 'png':
-        return 'image/png';
-      case 'gif':
-        return 'image/gif';
-      case 'webp':
-        return 'image/webp';
-      case 'heic':
-        return 'image/heic';
-      default:
-        return 'image/jpeg';
     }
   }
 }
