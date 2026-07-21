@@ -1,79 +1,18 @@
-import 'package:flutter/material.dart';
-import 'package:flutter/cupertino.dart';
-import 'package:intl/intl.dart';
-import 'package:fleather/fleather.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:flutter_math_fork/flutter_math.dart';
 import 'dart:convert';
-import 'dart:math' as math;
-import 'package:juniper_journal/src/shared/styling/theme.dart';
-import '../../../backend/db/repositories/learning_module_repo.dart';
-import '../../../backend/storage/storage_service.dart';
-import 'package:juniper_journal/src/shared/widgets/widgets.dart';
-import 'package:juniper_journal/src/features/learning_module/learning_module.dart';
 
-/// ---------------------------------------------------------------------------
-/// CLASS: ConceptExploration
-///
-/// PURPOSE:
-/// The `ConceptExploration` model represents an interactive, multimedia-driven
-/// learning section designed to build foundational understanding of a concept
-/// through engaging and accessible experiences. It helps students connect
-/// prior knowledge with new ideas by integrating rich text, visuals, and
-/// interactive media elements in one structured model.
-///
-/// This class supports the creator’s ability to:
-/// - Configure 1–5 short written content blocks (with optional visuals/calculations)
-/// - Embed videos, animations, or interactive diagrams
-/// - Define glossary terms with clickable pop-up definitions
-/// - Create quick polls or surveys to gauge prior knowledge
-/// - Add note-taking and reflection prompts (e.g., “What surprised you?”)
-///
-/// It also defines how users interact with the content:
-/// - Reading and exploring multimedia concept blocks
-/// - Clicking glossary terms for definitions or examples
-/// - Responding to embedded polls and surveys
-/// - Entering notes and reflections for comprehension tracking
-///
-/// USAGE OF FLEATHER:
-/// This model uses the [Fleather](https://pub.dev/packages/fleather) package
-/// to handle creator-written and user-editable rich text content. Fleather
-/// provides a Quill-compatible WYSIWYG editor that supports:
-/// - Inline text formatting (bold, italics, lists, headings)
-/// - Embedded media (images, videos)
-/// - Real-time editing and persistence of rich text fields
-///
-/// Within the `ConceptExploration` workflow, Fleather is typically used for:
-/// - Authoring the short content blocks and explanatory text sections
-/// - Allowing users to take in-app notes and reflections directly within
-///   a rich text editor, maintaining formatting and embedded visuals.
-///
-/// EXAMPLE:
-/// ```dart
-/// final concept = ConceptExploration(
-///   title: "The Greenhouse Effect",
-///   contentBlocks: [
-///     FleatherDocument.fromJson(json1),
-///     FleatherDocument.fromJson(json2),
-///   ],
-///   videos: [VideoEmbed(url: "https://example.com/video.mp4")],
-///   glossary: {"Infrared Radiation": "A type of heat energy emitted by objects"},
-///   poll: QuickPoll(question: "Have you heard of the greenhouse effect before?"),
-/// );
-/// ```
-///
-/// ---------------------------------------------------------------------------
-
-/// Custom embed for math equations
-// class MathEmbed extends BlockEmbed {
-//   MathEmbed(String latex) : super('math:$latex');
-
-//   static MathEmbed fromJson(String data) {
-//     return MathEmbed(data);
-//   }
-
-//   String get latex => type.substring(5); // Remove 'math:' prefix
-// }
+import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:juniper_journal/src/backend/db/repositories/learning_module_repo.dart';
+import 'package:juniper_journal/src/features/learning_module/pages/assessment_block.dart';
+import 'package:juniper_journal/src/features/learning_module/pages/graph_block_editor.dart';
+import 'package:juniper_journal/src/features/learning_module/pages/image_block_editor.dart';
+import 'package:juniper_journal/src/features/learning_module/pages/inquiry_lens_selector.dart';
+import 'package:juniper_journal/src/features/learning_module/pages/link_block_editor.dart';
+import 'package:juniper_journal/src/features/learning_module/pages/module_dashboard.dart';
+import 'package:juniper_journal/src/features/learning_module/pages/sketch_block_editor.dart';
+import 'package:juniper_journal/src/features/learning_module/pages/table_block_editor.dart';
+import 'package:juniper_journal/src/features/learning_module/pages/text_block_editor.dart';
+import 'package:juniper_journal/src/features/learning_module/pages/video_block_editor.dart';
 
 class ConceptExplorationScreen extends StatefulWidget {
   final Map<String, dynamic> module;
@@ -81,1190 +20,1622 @@ class ConceptExplorationScreen extends StatefulWidget {
   const ConceptExplorationScreen({super.key, required this.module});
 
   @override
-  State<ConceptExplorationScreen> createState() => _ConceptExplorationScreenState();
+  State<ConceptExplorationScreen> createState() =>
+      _ConceptExplorationScreenState();
 }
 
 class _ConceptExplorationScreenState extends State<ConceptExplorationScreen> {
-  Map<String, dynamic>? _freshModuleData;
-  final String _currentSection = 'CONCEPT EXPLORATION';
+  static const _green = Color(0xFF5DB075);
+  static const _text = Color(0xFF141414);
+  static const _mutedText = Color(0xFF565656);
+  static const _border = Color(0xFFD8D0D0);
+  static const _screenWidth = 393.0;
 
-  FleatherController? _controller;
-  final FocusNode _focusNode = FocusNode();
-  final ImagePicker _imagePicker = ImagePicker();
-  final StorageService _storageService = StorageService();
-  bool _isLoading = true;
-  bool _isHeaderCollapsed = false;
+  final List<_AddedBlock> _blocks = [];
+  final _repo = LearningModuleRepo();
+  bool _loading = true;
+
+  final List<_BlockType> _contentBlocks = const [
+    _BlockType(
+      title: 'Text',
+      description: 'Write and format text.',
+      cardSubtitle: 'How the Earth gets heat.',
+      iconAsset: 'assets/learning_module/concept_text.svg',
+      tileColor: Color(0xFFE1EFFD),
+      iconWidth: 43,
+      iconHeight: 29,
+    ),
+    _BlockType(
+      title: 'Images',
+      description: 'Upload or create images.',
+      cardSubtitle: 'The Greenhouse Effect',
+      iconAsset: 'assets/learning_module/concept_image.svg',
+      tileColor: Color(0xFFD8F0DF),
+      iconWidth: 37,
+      iconHeight: 37,
+    ),
+    _BlockType(
+      title: 'Sketch',
+      description: 'Create sketches.',
+      iconAsset: 'assets/learning_module/concept_sketch.svg',
+      tileColor: Color(0xFFE2F4F5),
+      iconWidth: 24,
+      iconHeight: 19,
+    ),
+    _BlockType(
+      title: 'Video',
+      description: 'Upload or embed a video.',
+      cardSubtitle: 'How Greenhouse gases capture...',
+      iconAsset: 'assets/learning_module/concept_video.svg',
+      tileColor: Color(0xFFFFE2E2),
+      iconWidth: 41,
+      iconHeight: 25,
+    ),
+    _BlockType(
+      title: 'Link',
+      description: 'Embed a website link or PDF.',
+      iconAsset: 'assets/learning_module/concept_link.svg',
+      tileColor: Color(0xFFFFEFE7),
+      iconWidth: 26,
+      iconHeight: 13,
+    ),
+  ];
+
+  final List<_BlockType> _dataBlocks = const [
+    _BlockType(
+      title: 'Graph',
+      description: 'Visualize data and trends.',
+      iconAsset: 'assets/learning_module/concept_graph.svg',
+      tileColor: Color(0xFFE8E8E8),
+      iconWidth: 21,
+      iconHeight: 18,
+    ),
+    _BlockType(
+      title: 'Table',
+      description: 'Organize data in rows and columns.',
+      iconAsset: 'assets/learning_module/concept_table.svg',
+      tileColor: Color(0xFFE8E8E8),
+      iconWidth: 20,
+      iconHeight: 20,
+    ),
+  ];
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _loadDocument();
-    });
+    _loadBlocks();
   }
 
-  @override
-  void dispose() {
-    // Auto-save before disposing
-    _saveDocument();
-    _controller?.dispose();
-    _focusNode.dispose();
-    super.dispose();
+  _BlockType? _typeForTitle(String title) {
+    for (final type in [..._contentBlocks, ..._dataBlocks]) {
+      if (type.title == title) return type;
+    }
+    return null;
   }
 
-  /// Loads the document from database if it exists, otherwise creates empty document
-  Future<void> _loadDocument() async {
-    try {
-      if (widget.module['id'] != null) {
-        final repo = LearningModuleRepo();
-        final freshData = await repo.getModule(widget.module['id'].toString());
-
-        if (freshData != null) {
-          _freshModuleData = freshData;
-
-          // Check if concept_exploration data exists
-          final conceptExplorationData = freshData['concept_exploration'];
-
-          if (conceptExplorationData != null && conceptExplorationData is String) {
-            // Decode JSON string and load document
-            final decodedJson = jsonDecode(conceptExplorationData);
-            final doc = ParchmentDocument.fromJson(decodedJson);
-            setState(() {
-              _controller = FleatherController(document: doc);
-              _isLoading = false;
-            });
-          } else {
-            // Create empty document
-            setState(() {
-              _controller = FleatherController();
-              _isLoading = false;
-            });
+  Future<void> _loadBlocks() async {
+    final moduleId = widget.module['id']?.toString();
+    if (moduleId == null || moduleId.isEmpty) {
+      setState(() => _loading = false);
+      return;
+    }
+    final freshModule = await _repo.getModule(moduleId);
+    final raw = freshModule?['concept_exploration'];
+    if (raw is String && raw.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(raw);
+        final rows = decoded is Map<String, dynamic> ? decoded['blocks'] : null;
+        if (rows is List) {
+          for (final row in rows) {
+            if (row is! Map) continue;
+            final json = Map<String, dynamic>.from(row);
+            final type = _typeForTitle(json['type']?.toString() ?? '');
+            if (type == null) continue;
+            final block = _AddedBlock.fromJson(type, json);
+            if (block != null) _blocks.add(block);
           }
-        } else {
-          // Create empty document if module not found
-          setState(() {
-            _controller = FleatherController();
-            _isLoading = false;
-          });
         }
-      }
-    } catch (e) {
-      debugPrint('Error loading document: $e');
-      // Create empty document on error
-      setState(() {
-        _controller = FleatherController();
-        _isLoading = false;
-      });
-    }
-  }
-
-  /// Saves the current document to the database as JSON
-  Future<void> _saveDocument() async {
-    if (_controller == null || widget.module['id'] == null) return;
-
-    try {
-      // Serialize document to JSON string
-      // Parchment documents can be easily serialized to JSON by passing to jsonEncode directly
-      final documentJson = jsonEncode(_controller!.document);
-
-      // Save to database
-      final repo = LearningModuleRepo();
-      final success = await repo.updateConceptExploration(
-        id: widget.module['id'].toString(),
-        conceptExplorationJson: documentJson,
-      );
-
-      if (mounted) {
-        showTopSnackBar(context, success ? 'Document saved successfully!' : 'Failed to save document', isError: !success);
-      }
-    } catch (e) {
-      debugPrint('Error saving document: $e');
-      if (mounted) {
-        showTopSnackBar(context, 'Error saving document', isError: true);
+      } catch (_) {
+        // Preserve compatibility with older concept-exploration document data.
       }
     }
+    if (mounted) setState(() => _loading = false);
   }
 
-  String _formatDate(String? createdAt) {
-    if (createdAt == null) return 'Date not available';
-
-    try {
-      final dateTime = DateTime.parse(createdAt).toLocal();
-      final formatter = DateFormat('EEEE, MMMM d');
-      return formatter.format(dateTime);
-    } catch (e) {
-      return 'Date error';
-    }
-  }
-
-  List<String> _getPerformanceExpectations() {
-    final moduleData = _freshModuleData ?? widget.module;
-    final perfExpectations = moduleData['performance_expectation'];
-
-    if (perfExpectations == null) return [];
-
-    if (perfExpectations is List) {
-      return List<String>.from(perfExpectations);
-    } else if (perfExpectations is String && perfExpectations.isNotEmpty) {
-      if (perfExpectations.startsWith('[') && perfExpectations.endsWith(']')) {
-        try {
-          final cleanString = perfExpectations.substring(1, perfExpectations.length - 1);
-          return cleanString
-              .split(',')
-              .map((s) => s.trim().replaceAll('"', '').replaceAll("'", ''))
-              .where((s) => s.isNotEmpty)
-              .toList();
-        } catch (e) {
-          return [perfExpectations];
-        }
-      } else {
-        return [perfExpectations];
-      }
-    }
-
-    return [];
-  }
-
-  /// Shows a dialog to let the user choose between camera or gallery
-  Future<void> _openCamera() async {
-    showCupertinoModalPopup(
-      context: context,
-      builder: (BuildContext context) => CupertinoActionSheet(
-        title: const Text('Add Image'),
-        message: const Text('Choose a source for your image'),
-        actions: [
-          CupertinoActionSheetAction(
-            onPressed: () {
-              Navigator.pop(context);
-              _pickAndUploadImage(ImageSource.camera);
-            },
-            child: const Text('Take Photo'),
+  Future<bool> _persistBlocks() async {
+    final moduleId = widget.module['id']?.toString();
+    if (moduleId == null || moduleId.isEmpty) return false;
+    final now = DateTime.now().toUtc().toIso8601String();
+    final document = {
+      'version': 1,
+      'module_id': moduleId,
+      'section_id': 'concept-exploration-$moduleId',
+      'updated_at': now,
+      'blocks': [
+        for (var index = 0; index < _blocks.length; index++)
+          _blocks[index].toJson(
+            moduleId: moduleId,
+            orderIndex: index,
+            updatedAt: now,
           ),
-          CupertinoActionSheetAction(
-            onPressed: () {
-              Navigator.pop(context);
-              _pickAndUploadImage(ImageSource.gallery);
-            },
-            child: const Text('Choose from Gallery'),
-          ),
-        ],
-        cancelButton: CupertinoActionSheetAction(
-          onPressed: () => Navigator.pop(context),
-          isDestructiveAction: true,
-          child: const Text('Cancel'),
-        ),
+      ],
+    };
+    return _repo.updateConceptExploration(
+      id: moduleId,
+      conceptExplorationJson: jsonEncode(document),
+    );
+  }
+
+  void _returnToDashboard() {
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+      return;
+    }
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (context) => ModuleDashboardScreen(module: widget.module),
       ),
     );
   }
 
-  /// Picks an image from the specified source, uploads it to Supabase, and inserts it into the document
-  Future<void> _pickAndUploadImage(ImageSource source) async {
-    try {
-      // Pick the image
-      final XFile? image = await _imagePicker.pickImage(
-        source: source,
-        maxWidth: 1920,
-        maxHeight: 1920,
-        imageQuality: 85,
-      );
-
-      if (image == null) return;
-
-      // Show loading indicator
-      if (mounted) {
-        showTopSnackBar(context, 'Uploading image...');
-      }
-
-      // Upload to Supabase Storage
-      final imageUrl = await _storageService.uploadImage(
-        image,
-        folder: 'concept-exploration',
-      );
-
-      if (imageUrl == null) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).hideCurrentSnackBar();
-          showTopSnackBar(context, 'Failed to upload image', isError: true);
-        }
-        return;
-      }
-
-      // Insert image into Fleather document
-      _insertImageIntoDocument(imageUrl);
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        showTopSnackBar(context, 'Image added successfully!');
-      }
-    } catch (e) {
-      debugPrint('Error picking/uploading image: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        showTopSnackBar(context, 'Failed to add image', isError: true);
-      }
-    }
-  }
-
-  /// Inserts an image embed into the Fleather document at the current cursor position
-  void _insertImageIntoDocument(String imageUrl) {
-    if (_controller == null) return;
-
-    final index = _controller!.selection.extentOffset;
-
-    // Create the image embed using BlockEmbed
-    final embed = BlockEmbed.image(imageUrl);
-
-    // Insert the embed into the document
-    _controller!.replaceText(index, 0, embed);
-
-    // Add a newline after the image for better UX
-    _controller!.replaceText(index + 1, 0, '\n');
-
-    // Move cursor after the image
-    _controller!.updateSelection(
-      TextSelection.collapsed(offset: index + 2),
-    );
-  }
-
-  /// Shows a dialog to configure and insert a table
-  Future<void> _insertTable() async {
-    if (_controller == null) return;
-
-    // Save the current cursor position
-    final savedSelection = _controller!.selection;
-    final savedIndex = savedSelection.isValid && savedSelection.extentOffset >= 0
-        ? savedSelection.extentOffset
-        : _controller!.document.length - 1;
-
-    final rowsController = TextEditingController(text: '3');
-    final colsController = TextEditingController(text: '3');
-
-    final result = await showDialog<Map<String, int>>(
+  Future<void> _openAddBlockSheet() async {
+    final blockType = await showModalBottomSheet<_BlockType>(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(backgroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Insert Table'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Table dimensions:', style: TextStyle(fontWeight: FontWeight.w500)),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: rowsController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Rows',
-                    border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.all(12),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: colsController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'Columns',
-                    border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.all(12),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () {
-                final rows = int.tryParse(rowsController.text.trim()) ?? 3;
-                final cols = int.tryParse(colsController.text.trim()) ?? 3;
-
-                // Validate dimensions
-                if (rows > 0 && rows <= 10 && cols > 0 && cols <= 10) {
-                  Navigator.of(context).pop({'rows': rows, 'cols': cols});
-                }
-              },
-              child: const Text('Insert'),
-            ),
-          ],
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return _AddBlockSheet(
+          contentBlocks: _contentBlocks,
+          dataBlocks: _dataBlocks,
+          onSelected: (selected) => Navigator.of(context).pop(selected),
         );
       },
     );
 
-    if (result != null && mounted && _controller != null) {
-      _insertTableIntoDocument(result['rows']!, result['cols']!, savedIndex);
+    if (!mounted || blockType == null) return;
+    if (blockType.title == 'Text') {
+      await _openTextBlockEditor(blockType);
+      return;
     }
+    if (blockType.title == 'Images') {
+      await _openImageBlockEditor(blockType);
+      return;
+    }
+    if (blockType.title == 'Sketch') {
+      await _openSketchBlockEditor(blockType);
+      return;
+    }
+    if (blockType.title == 'Video') {
+      await _openVideoBlockEditor(blockType);
+      return;
+    }
+    if (blockType.title == 'Link') {
+      await _openLinkBlockEditor(blockType);
+      return;
+    }
+    if (blockType.title == 'Table') {
+      await _openTableBlockEditor(blockType);
+      return;
+    }
+    if (blockType.title == 'Graph') {
+      await _openGraphBlockEditor(blockType);
+      return;
+    }
+    setState(() => _blocks.add(_AddedBlock(type: blockType)));
+    await _persistBlocks();
   }
 
-  /// Updates a table embed in the document with new data
-  void _updateTableEmbed(String oldTableUrl, String newTableUrl) {
-    if (_controller == null || !mounted) return;
-
-    try {
-      // Search through the document to find the old table embed
-      final doc = _controller!.document;
-      var offset = 0;
-
-      for (final node in doc.root.children) {
-        if (node is BlockNode) {
-          for (final child in node.children) {
-            if (child is EmbedNode) {
-              final embed = child.value;
-              if (embed.type == 'image') {
-                final url = embed.data['source'] as String?;
-                if (url == oldTableUrl) {
-                  // Found the table, replace it
-                  final newEmbed = BlockEmbed.image(newTableUrl);
-                  _controller!.replaceText(offset, 1, newEmbed);
-                  return;
-                }
-              }
-            }
-            offset += child.length;
-          }
-        } else {
-          offset += node.length;
-        }
-      }
-    } catch (e) {
-      debugPrint('Error updating table embed: $e');
-    }
-  }
-
-  /// Inserts a table into the Fleather document at the specified index
-  void _insertTableIntoDocument(int rows, int cols, int insertIndex) {
-    if (_controller == null || !mounted) return;
-
-    try {
-      final docLength = _controller!.document.length;
-
-      // If document is empty or nearly empty, add a space first
-      if (docLength <= 1) {
-        _controller!.replaceText(0, 0, '\n');
-      }
-
-      // Recalculate index after potentially adding content
-      final maxIndex = _controller!.document.length - 1;
-      final safeIndex = math.max(0, math.min(insertIndex, maxIndex));
-
-      // Create table data structure - initially empty cells
-      final tableData = {
-        'rows': rows,
-        'cols': cols,
-        'cells': List.generate(rows, (_) => List.generate(cols, (_) => '')),
-      };
-
-      // Encode table data
-      final encodedTable = base64Encode(utf8.encode(jsonEncode(tableData)));
-      final tableUrl = 'table://$encodedTable';
-      final embed = BlockEmbed.image(tableUrl);
-
-      // Insert the embed block into the document
-      _controller!.replaceText(safeIndex, 0, embed);
-
-      // Add a newline for spacing
-      _controller!.replaceText(safeIndex + 1, 0, '\n');
-
-      // Move cursor after the embed
-      _controller!.updateSelection(
-        TextSelection.collapsed(offset: safeIndex + 2),
-      );
-
-      // Trigger a rebuild after a delay
-      Future.delayed(const Duration(milliseconds: 300), () {
-        if (mounted) {
-          setState(() {});
-        }
-      });
-
-      // Request focus back to the editor
-      Future.delayed(const Duration(milliseconds: 400), () {
-        if (mounted && _focusNode.canRequestFocus) {
-          _focusNode.requestFocus();
-        }
-      });
-
-      // Show success message
-      if (mounted) {
-        showTopSnackBar(context, 'Table inserted!');
-      }
-    } catch (e, stackTrace) {
-      debugPrint('Error inserting table: $e');
-      debugPrint('Stack trace: $stackTrace');
-      if (mounted) {
-        showTopSnackBar(context, 'Failed to insert table', isError: true);
-      }
-    }
-  }
-
-  Widget _embedBuilder(BuildContext context, EmbedNode node) {
-    final embed = node.value;
-
-    // Handle images (which might be math equations in disguise)
-    if (embed.type == 'image') {
-      final imageUrl = embed.data['source'] as String?;
-
-      // Check if this is a math equation
-      if (imageUrl != null && imageUrl.startsWith('math://')) {
-        try {
-          // Extract and decode the LaTeX
-          final encodedLatex = imageUrl.substring(7); // Remove 'math://' prefix
-          final latex = utf8.decode(base64Decode(encodedLatex));
-
-          // Render LaTeX using flutter_math_fork
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8.0),
-            child: Math.tex(
-              latex,
-              textStyle: const TextStyle(fontSize: 18),
-              mathStyle: MathStyle.display,
-              onErrorFallback: (FlutterMathException exception) {
-                // Fallback to showing the raw LaTeX if rendering fails
-                return Text(
-                  latex,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontFamily: 'Courier',
-                    color: Colors.red,
-                  ),
-                );
-              },
-            ),
-          );
-        } catch (e) {
-          return const Icon(Icons.error, color: Colors.red);
-        }
-      }
-
-      // Check if this is a table
-      if (imageUrl != null && imageUrl.startsWith('table://')) {
-        try {
-          // Extract and decode the table data
-          final encodedTable = imageUrl.substring(8); // Remove 'table://' prefix
-          final tableJson = utf8.decode(base64Decode(encodedTable));
-          final tableData = jsonDecode(tableJson) as Map<String, dynamic>;
-
-          final rows = tableData['rows'] as int;
-          final cols = tableData['cols'] as int;
-          final cells = (tableData['cells'] as List)
-              .map((row) => (row as List).map((cell) => cell.toString()).toList())
-              .toList();
-
-          // Render editable table
-          return _EditableTable(
-            rows: rows,
-            cols: cols,
-            initialCells: cells,
-            onCellChanged: (rowIndex, colIndex, newValue) {
-              // Update the cell data
-              cells[rowIndex][colIndex] = newValue;
-
-              // Update the document with new table data
-              final updatedTableData = {
-                'rows': rows,
-                'cols': cols,
-                'cells': cells,
-              };
-
-              final newEncodedTable = base64Encode(utf8.encode(jsonEncode(updatedTableData)));
-              final newTableUrl = 'table://$newEncodedTable';
-
-              // Find and replace the old embed with the updated one
-              _updateTableEmbed(imageUrl, newTableUrl);
-            },
-          );
-        } catch (e) {
-          debugPrint('Error rendering table: $e');
-          return const Icon(Icons.error, color: Colors.red);
-        }
-      }
-
-      // Regular image
-      return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8.0),
-        child: Image.network(
-          imageUrl ?? '',
-          fit: BoxFit.contain,
-          errorBuilder: (context, error, stackTrace) =>
-              const Icon(Icons.broken_image, color: Colors.grey),
+  Future<void> _openTextBlockEditor(_BlockType type, [int? index]) async {
+    final moduleId = widget.module['id']?.toString() ?? '';
+    final result = await Navigator.of(context).push<TextBlockData>(
+      MaterialPageRoute(
+        builder: (context) => TextBlockEditorScreen(
+          moduleId: moduleId,
+          initialData: index == null ? null : _blocks[index].textData,
         ),
-      );
-    }
-
-    return const SizedBox.shrink();
-  }
-
-  /// Applies text formatting to the selected text or toggles formatting for new text
-  void _formatText(ParchmentAttribute attribute) {
-    if (_controller == null) return;
-
-    final selection = _controller!.selection;
-
-    // If there's a selection, format the selected text
-    if (selection.isValid && !selection.isCollapsed) {
-      _controller!.formatText(selection.start, selection.end - selection.start, attribute);
-    } else {
-      // If no selection, toggle the attribute for future typing
-      // Get the current style at cursor position
-      final currentStyle = _controller!.getSelectionStyle();
-
-      // Check if the attribute is already active
-      final isActive = currentStyle.contains(attribute);
-
-      if (isActive) {
-        // If active, unset it (turn off the formatting)
-        _controller!.formatSelection(attribute.unset);
-      } else {
-        // If not active, set it (turn on the formatting)
-        _controller!.formatSelection(attribute);
-      }
-    }
-
-    // Request focus back to the editor
-    _focusNode.requestFocus();
-  }
-
-  /// Shows a dialog to input a LaTeX math equation
-  Future<void> _insertMathEquation() async {
-    
-    if (_controller == null) {
-      debugPrint('Controller is null, returning');
-      return;
-    }
-
-    // Save the current cursor position BEFORE opening the dialog
-    final savedSelection = _controller!.selection;
-    final savedIndex = savedSelection.isValid && savedSelection.extentOffset >= 0
-        ? savedSelection.extentOffset
-        : _controller!.document.length - 1;
-    
-    final TextEditingController latexController = TextEditingController();
-    
-    final result = await showDialog<String>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(backgroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          title: const Text('Insert Math Equation'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Enter LaTeX equation:',
-                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-                ),
-                const SizedBox(height: 12),
-                TextField(
-                  controller: latexController,
-                  autofocus: true,
-                  decoration: const InputDecoration(
-                    hintText: r'E = mc^2',
-                    border: OutlineInputBorder(),
-                    contentPadding: EdgeInsets.all(12),
-                  ),
-                  maxLines: 3,
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Examples:',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey[700],
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  r'• E = mc^2' '\n'
-                  r'• \frac{a}{b}' '\n'
-                  r'• x = \frac{-b \pm \sqrt{b^2-4ac}}{2a}' '\n'
-                  r'• \int_0^1 x^2 dx',
-                  style: TextStyle(fontSize: 11, color: Colors.grey[600]),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () {
-                final latex = latexController.text.trim();
-                if (latex.isNotEmpty) {
-                  Navigator.of(context).pop(latex);
-                } else {
-                  debugPrint('LaTeX is empty, not popping');
-                }
-              },
-              child: const Text('Insert'),
-            ),
-          ],
-        );
-      },
+      ),
     );
 
-    if (result != null && result.isNotEmpty) {
+    if (!mounted || result == null) return;
 
-      if (!mounted) {
-        debugPrint('Widget not mounted after dialog, aborting');
-        return;
+    setState(() {
+      final block = _AddedBlock(type: type, textData: result);
+      if (index == null) {
+        _blocks.add(block);
+      } else {
+        _blocks[index] = block;
       }
-
-      if (_controller == null) {
-        debugPrint('Controller is null after dialog, aborting');
-        return;
-      }
-
-
-      // Insert directly - no callbacks needed
-      _insertMathIntoDocument(result, savedIndex);
-
-    } else {
-      debugPrint('Result was null or empty, not inserting');
-    }
-
+    });
+    await _persistBlocks();
   }
 
-  /// Remove the MathEmbed class definition and use this instead:
+  Future<void> _openImageBlockEditor(_BlockType type, [int? index]) async {
+    final moduleId = widget.module['id']?.toString() ?? '';
+    final result = await Navigator.of(context).push<ImageBlockData>(
+      MaterialPageRoute(
+        builder: (context) => ImageBlockEditorScreen(
+          moduleId: moduleId,
+          initialData: index == null ? null : _blocks[index].imageData,
+        ),
+      ),
+    );
 
-  /// Inserts a math equation into the Fleather document at the specified index
-  void _insertMathIntoDocument(String latex, int insertIndex) {
-    if (_controller == null || !mounted) {
-      debugPrint('Controller null or not mounted, returning');
+    if (!mounted || result == null) return;
+
+    setState(() {
+      final block = _AddedBlock(type: type, imageData: result);
+      if (index == null) {
+        _blocks.add(block);
+      } else {
+        _blocks[index] = block;
+      }
+    });
+    await _persistBlocks();
+  }
+
+  Future<void> _openSketchBlockEditor(_BlockType type, [int? index]) async {
+    final moduleId = widget.module['id']?.toString() ?? '';
+    final result = await Navigator.of(context).push<SketchBlockData>(
+      MaterialPageRoute(
+        builder: (context) => SketchBlockEditorScreen(
+          moduleId: moduleId,
+          initialData: index == null ? null : _blocks[index].sketchData,
+        ),
+      ),
+    );
+
+    if (!mounted || result == null) return;
+
+    setState(() {
+      final block = _AddedBlock(type: type, sketchData: result);
+      if (index == null) {
+        _blocks.add(block);
+      } else {
+        _blocks[index] = block;
+      }
+    });
+    await _persistBlocks();
+  }
+
+  Future<void> _openVideoBlockEditor(_BlockType type, [int? index]) async {
+    final moduleId = widget.module['id']?.toString();
+    if (moduleId == null || moduleId.isEmpty) {
+      _showError('Save the module before adding a video block.');
       return;
     }
-
-    try {
-      final docLength = _controller!.document.length;
-
-      // If document is empty or nearly empty, add a space first
-      if (docLength <= 1) {
-        _controller!.replaceText(0, 0, '\n');
+    final result = await Navigator.of(context).push<VideoBlockData>(
+      MaterialPageRoute(
+        builder: (context) => VideoBlockEditorScreen(
+          moduleId: moduleId,
+          initialData: index == null ? null : _blocks[index].videoData,
+        ),
+      ),
+    );
+    if (!mounted || result == null) return;
+    setState(() {
+      final block = _AddedBlock(type: type, videoData: result);
+      if (index == null) {
+        _blocks.add(block);
+      } else {
+        _blocks[index] = block;
       }
+    });
+    final saved = await _persistBlocks();
+    if (!saved && mounted) {
+      _showError('Video block could not be saved. Your draft is still open.');
+    }
+  }
 
-      // Recalculate index after potentially adding content
-      final maxIndex = _controller!.document.length - 1;
-      final safeIndex = math.max(0, math.min(insertIndex, maxIndex));
-
-      // Create an image embed but use a special URL format to indicate it's math
-      final encodedLatex = base64Encode(utf8.encode(latex));
-      final mathUrl = 'math://$encodedLatex';
-      final embed = BlockEmbed.image(mathUrl);
-
-      // Insert the embed block into the document
-      _controller!.replaceText(safeIndex, 0, embed);
-
-      // Add a newline for spacing
-      _controller!.replaceText(safeIndex + 1, 0, '\n');
-
-      // Move cursor after the embed
-      _controller!.updateSelection(
-        TextSelection.collapsed(offset: safeIndex + 2),
-      );
-
-      // Trigger a rebuild after a delay to ensure dialog is fully closed
-      Future.delayed(const Duration(milliseconds: 300), () {
-        if (mounted) {
-          setState(() {});
-        }
-      });
-
-      // Request focus back to the editor after the rebuild
-      Future.delayed(const Duration(milliseconds: 400), () {
-        if (mounted && _focusNode.canRequestFocus) {
-          _focusNode.requestFocus();
-        }
-      });
-
-      // Show success message
-      if (mounted) {
-        showTopSnackBar(context, 'Math equation inserted!');
+  Future<void> _openTableBlockEditor(_BlockType type, [int? index]) async {
+    final result = await Navigator.of(context).push<TableBlockData>(
+      MaterialPageRoute(
+        builder: (context) => TableBlockEditorScreen(
+          initialData: index == null ? null : _blocks[index].tableData,
+        ),
+      ),
+    );
+    if (!mounted || result == null) return;
+    setState(() {
+      final block = _AddedBlock(type: type, tableData: result);
+      if (index == null) {
+        _blocks.add(block);
+      } else {
+        _blocks[index] = block;
       }
+    });
+    final saved = await _persistBlocks();
+    if (!saved && mounted) {
+      _showError('Table block could not be saved. Your draft is still open.');
+    }
+  }
 
-    } catch (e, stackTrace) {
-      debugPrint('!!! ERROR in _insertMathIntoDocument: $e');
-      debugPrint('Stack trace: $stackTrace');
-      if (mounted) {
-        showTopSnackBar(context, 'Failed to insert equation', isError: true);
+  Future<void> _openLinkBlockEditor(_BlockType type, [int? index]) async {
+    final result = await Navigator.of(context).push<LinkBlockData>(
+      MaterialPageRoute(
+        builder: (context) => LinkBlockEditorScreen(
+          initialData: index == null ? null : _blocks[index].linkData,
+        ),
+      ),
+    );
+    if (!mounted || result == null) return;
+    setState(() {
+      final block = _AddedBlock(type: type, linkData: result);
+      if (index == null) {
+        _blocks.add(block);
+      } else {
+        _blocks[index] = block;
       }
+    });
+    final saved = await _persistBlocks();
+    if (!saved && mounted) {
+      _showError('Link block could not be saved. Your draft is still open.');
+    }
+  }
+
+  Future<void> _openGraphBlockEditor(_BlockType type, [int? index]) async {
+    final result = await Navigator.of(context).push<GraphBlockData>(
+      MaterialPageRoute(
+        builder: (context) => GraphBlockEditorScreen(
+          initialData: index == null ? null : _blocks[index].graphData,
+        ),
+      ),
+    );
+    if (!mounted || result == null) return;
+    setState(() {
+      final block = _AddedBlock(type: type, graphData: result);
+      if (index == null) {
+        _blocks.add(block);
+      } else {
+        _blocks[index] = block;
+      }
+    });
+    final saved = await _persistBlocks();
+    if (!saved && mounted) {
+      _showError('Graph block could not be saved. Your draft is still open.');
+    }
+  }
+
+  void _showPlaceholder(String label) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('$label coming soon'),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(milliseconds: 1200),
+      ),
+    );
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: const Color(0xFFD12E2E),
+      ),
+    );
+  }
+
+  Future<void> _deleteBlock(int index) async {
+    setState(() => _blocks.removeAt(index));
+    final saved = await _persistBlocks();
+    if (!saved && mounted) {
+      _showError('The block was removed locally but could not be saved.');
+    }
+  }
+
+  Future<void> _openReorder() async {
+    if (_blocks.length <= 1) return;
+    final reordered = await showModalBottomSheet<List<_AddedBlock>>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _ReorderSheet(blocks: _blocks),
+    );
+    if (!mounted || reordered == null) return;
+    setState(() {
+      _blocks
+        ..clear()
+        ..addAll(reordered);
+    });
+    final saved = await _persistBlocks();
+    if (!saved && mounted) {
+      _showError('Block order could not be saved.');
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final moduleName = widget.module['module_name'] ?? 'Module Name';
-    final formattedDate = _formatDate(widget.module['created_at']);
-    final performanceExpectations = _getPerformanceExpectations();
-
     return Scaffold(
-      backgroundColor: AppColors.background,
-      body: Stack(
-        children: [
-          // Main content with SafeArea
-          SafeArea(
-            bottom: false, // Don't apply SafeArea to bottom
-            child: Column(
-              children: [
-                // App bar
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  child: Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(CupertinoIcons.back, color: AppColors.iconPrimary),
-                        onPressed: () => Navigator.of(context).pop(),
-                        tooltip: 'Back',
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: _screenWidth),
+            child: SizedBox(
+              width: _screenWidth,
+              height: 852,
+              child: Stack(
+                children: [
+                  const Positioned(
+                    left: 0,
+                    right: 0,
+                    top: 21,
+                    child: Text(
+                      'Concept Exploration',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: _text,
+                        fontSize: 18,
+                        height: 1,
+                        fontWeight: FontWeight.w700,
                       ),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              moduleName,
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.darkText,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              formattedDate,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: AppColors.lightGrey,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      // Save button with options
-                      PopupMenuButton<String>(
-                        icon: const Icon(Icons.save, color: AppColors.primary),
-                        tooltip: 'Save',
-                        offset: const Offset(0, 40),
-                        onSelected: (value) async {
-                          if (value == 'save') {
-                            await _saveDocument();
-                          } else if (value == 'save_continue') {
-                            final navigator = Navigator.of(context);
-                            await _saveDocument();
-                            if (mounted) {
-                              // Navigate to Activity screen
-                              navigator.push(
-                                MaterialPageRoute(
-                                  builder: (context) => ActivityScreen(
-                                    module: widget.module,
-                                  ),
-                                ),
-                              );
-                            }
-                          }
-                        },
-                        itemBuilder: (BuildContext context) => [
-                          const PopupMenuItem<String>(
-                            value: 'save',
-                            child: Row(
-                              children: [
-                                Icon(Icons.save_outlined, size: 20, color: AppColors.darkText),
-                                SizedBox(width: 12),
-                                Text('Save'),
-                              ],
-                            ),
-                          ),
-                          const PopupMenuItem<String>(
-                            value: 'save_continue',
-                            child: Row(
-                              children: [
-                                Icon(Icons.arrow_forward, size: 20, color: AppColors.primary),
-                                SizedBox(width: 12),
-                                Text('Save & Continue'),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(width: 8),
-                    ],
+                    ),
                   ),
+                  Positioned(
+                    left: 25,
+                    top: 17,
+                    width: 20,
+                    height: 20,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: _returnToDashboard,
+                      child: const _BackChevron(),
+                    ),
+                  ),
+                  const Positioned(
+                    left: 0,
+                    right: 0,
+                    top: 64,
+                    child: Divider(
+                      height: 1,
+                      thickness: 1,
+                      color: Color(0xFFE6E6E6),
+                    ),
+                  ),
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    top: 96,
+                    bottom: 96,
+                    child: _loading
+                        ? const Center(
+                            child: CircularProgressIndicator(color: _green),
+                          )
+                        : _blocks.isEmpty
+                        ? _EmptyState(onAddBlock: _openAddBlockSheet)
+                        : _BlockList(
+                            blocks: _blocks,
+                            onTextBlockTap: _openTextBlockEditor,
+                            onImageBlockTap: _openImageBlockEditor,
+                            onSketchBlockTap: _openSketchBlockEditor,
+                            onVideoBlockTap: _openVideoBlockEditor,
+                            onTableBlockTap: _openTableBlockEditor,
+                            onLinkBlockTap: _openLinkBlockEditor,
+                            onGraphBlockTap: _openGraphBlockEditor,
+                            onDelete: _deleteBlock,
+                          ),
+                  ),
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    height: 96,
+                    child: _BottomActions(
+                      onAddBlock: _openAddBlockSheet,
+                      onReorder: _openReorder,
+                      canReorder: _blocks.length > 1,
+                      onPreview: () => _showPlaceholder('Preview'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BlockType {
+  final String title;
+  final String description;
+  final String? cardSubtitle;
+  final String iconAsset;
+  final Color tileColor;
+  final double iconWidth;
+  final double iconHeight;
+
+  const _BlockType({
+    required this.title,
+    required this.description,
+    this.cardSubtitle,
+    required this.iconAsset,
+    required this.tileColor,
+    required this.iconWidth,
+    required this.iconHeight,
+  });
+}
+
+class _AddedBlock {
+  final _BlockType type;
+  final TextBlockData? textData;
+  final ImageBlockData? imageData;
+  final SketchBlockData? sketchData;
+  final VideoBlockData? videoData;
+  final TableBlockData? tableData;
+  final LinkBlockData? linkData;
+  final GraphBlockData? graphData;
+
+  const _AddedBlock({
+    required this.type,
+    this.textData,
+    this.imageData,
+    this.sketchData,
+    this.videoData,
+    this.tableData,
+    this.linkData,
+    this.graphData,
+  });
+
+  Map<String, dynamic> toJson({
+    required String moduleId,
+    required int orderIndex,
+    required String updatedAt,
+  }) {
+    final data = switch (type.title) {
+      'Text' => {
+        'title': textData?.title ?? '',
+        'content': textData?.content ?? '',
+        'inquiry_lens': textData?.inquiryLens ?? 'None',
+        'inquiry_lens_data':
+            textData?.inquiryLensData.toJson() ?? <String, dynamic>{},
+        'caption': textData?.caption ?? '',
+        'font_size': textData?.fontSize ?? '10',
+        'bold': textData?.bold ?? false,
+        'italic': textData?.italic ?? false,
+        'underline': textData?.underline ?? false,
+        'alignment': textData?.alignment ?? 'left',
+        'assessment': textData?.assessment.toJson() ?? <String, dynamic>{},
+        'media_items': [
+          for (final item in textData?.mediaItems ?? const [])
+            {
+              'label': item.label,
+              'has_placeholder_image': item.hasPlaceholderImage,
+              'storage_path': item.storagePath,
+              'public_url': item.publicUrl,
+              'file_name': item.fileName,
+            },
+        ],
+      },
+      'Images' => {
+        'title': imageData?.title ?? '',
+        'caption': imageData?.caption ?? '',
+        'inquiry_lens': imageData?.inquiryLens ?? 'None',
+        'inquiry_lens_data':
+            imageData?.inquiryLensData.toJson() ?? <String, dynamic>{},
+        'assessment': imageData?.assessment.toJson() ?? <String, dynamic>{},
+        'images': [
+          for (final item in imageData?.images ?? const [])
+            {
+              'description': item.description,
+              'has_placeholder_image': item.hasPlaceholderImage,
+              'storage_path': item.storagePath,
+              'public_url': item.publicUrl,
+              'file_name': item.fileName,
+            },
+        ],
+      },
+      'Sketch' => sketchData?.toJson() ?? <String, dynamic>{},
+      'Video' => videoData?.toJson() ?? <String, dynamic>{},
+      'Table' => tableData?.toJson() ?? <String, dynamic>{},
+      'Link' => linkData?.toJson() ?? <String, dynamic>{},
+      'Graph' => graphData?.toJson() ?? <String, dynamic>{},
+      _ => <String, dynamic>{},
+    };
+    return {
+      'id':
+          videoData?.id ??
+          linkData?.id ??
+          graphData?.id ??
+          '${type.title.toLowerCase()}-$orderIndex-${DateTime.now().microsecondsSinceEpoch}',
+      'module_id': moduleId,
+      'section_id': 'concept-exploration-$moduleId',
+      'order_index': orderIndex,
+      'type': type.title,
+      'data': data,
+      'updated_at': updatedAt,
+    };
+  }
+
+  static _AddedBlock? fromJson(_BlockType type, Map<String, dynamic> json) {
+    final rawData = json['data'];
+    final data = rawData is Map
+        ? Map<String, dynamic>.from(rawData)
+        : <String, dynamic>{};
+    switch (type.title) {
+      case 'Text':
+        final media = data['media_items'];
+        return _AddedBlock(
+          type: type,
+          textData: TextBlockData(
+            title: data['title']?.toString() ?? '',
+            content: data['content']?.toString() ?? '',
+            inquiryLens: data['inquiry_lens']?.toString() ?? 'None',
+            inquiryLensData: InquiryLensData.fromJson(
+              data['inquiry_lens_data'],
+              legacyLens: data['inquiry_lens']?.toString() ?? 'None',
+            ),
+            caption: data['caption']?.toString() ?? '',
+            fontSize: data['font_size']?.toString() ?? '10',
+            bold: data['bold'] == true,
+            italic: data['italic'] == true,
+            underline: data['underline'] == true,
+            alignment: data['alignment']?.toString() ?? 'left',
+            assessment: AssessmentBlockData.fromJson(data['assessment']),
+            mediaItems: media is List
+                ? [
+                    for (final item in media)
+                      if (item is Map)
+                        TextBlockMediaItem(
+                          label: item['label']?.toString() ?? '',
+                          hasPlaceholderImage:
+                              item['has_placeholder_image'] == true,
+                          storagePath: item['storage_path']?.toString() ?? '',
+                          publicUrl: item['public_url']?.toString() ?? '',
+                          fileName: item['file_name']?.toString() ?? '',
+                        ),
+                  ]
+                : const [],
+          ),
+        );
+      case 'Images':
+        final images = data['images'];
+        return _AddedBlock(
+          type: type,
+          imageData: ImageBlockData(
+            title: data['title']?.toString() ?? '',
+            caption: data['caption']?.toString() ?? '',
+            inquiryLens: data['inquiry_lens']?.toString() ?? 'None',
+            inquiryLensData: InquiryLensData.fromJson(
+              data['inquiry_lens_data'],
+              legacyLens: data['inquiry_lens']?.toString() ?? 'None',
+            ),
+            assessment: AssessmentBlockData.fromJson(data['assessment']),
+            images: images is List
+                ? [
+                    for (final item in images)
+                      if (item is Map)
+                        ImageBlockItem(
+                          description: item['description']?.toString() ?? '',
+                          hasPlaceholderImage:
+                              item['has_placeholder_image'] == true,
+                          storagePath: item['storage_path']?.toString() ?? '',
+                          publicUrl: item['public_url']?.toString() ?? '',
+                          fileName: item['file_name']?.toString() ?? '',
+                        ),
+                  ]
+                : const [],
+          ),
+        );
+      case 'Sketch':
+        return _AddedBlock(
+          type: type,
+          sketchData: SketchBlockData.fromJson(data),
+        );
+      case 'Video':
+        return _AddedBlock(
+          type: type,
+          videoData: VideoBlockData.fromJson(data),
+        );
+      case 'Table':
+        return _AddedBlock(
+          type: type,
+          tableData: TableBlockData.fromJson(data),
+        );
+      case 'Link':
+        return _AddedBlock(type: type, linkData: LinkBlockData.fromJson(data));
+      case 'Graph':
+        return _AddedBlock(
+          type: type,
+          graphData: GraphBlockData.fromJson(data),
+        );
+      default:
+        return _AddedBlock(type: type);
+    }
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  final VoidCallback onAddBlock;
+
+  const _EmptyState({required this.onAddBlock});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        const SizedBox(height: 136),
+        const _ThreeCubesIllustration(),
+        const SizedBox(height: 35),
+        const Text(
+          'Nothing yet...',
+          style: TextStyle(
+            color: _ConceptExplorationScreenState._text,
+            fontSize: 15,
+            height: 1,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 11),
+        const Text(
+          'Add your first block',
+          style: TextStyle(
+            color: _ConceptExplorationScreenState._mutedText,
+            fontSize: 15,
+            height: 1,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 28),
+        SizedBox(
+          width: 345,
+          height: 48,
+          child: OutlinedButton(
+            onPressed: onAddBlock,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: _ConceptExplorationScreenState._green,
+              side: const BorderSide(
+                color: _ConceptExplorationScreenState._green,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            child: const Text(
+              '+  Add Block',
+              style: TextStyle(
+                fontSize: 16,
+                height: 1,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _BlockList extends StatelessWidget {
+  final List<_AddedBlock> blocks;
+  final void Function(_BlockType type, int index) onTextBlockTap;
+  final void Function(_BlockType type, int index) onImageBlockTap;
+  final void Function(_BlockType type, int index) onSketchBlockTap;
+  final void Function(_BlockType type, int index) onVideoBlockTap;
+  final void Function(_BlockType type, int index) onTableBlockTap;
+  final void Function(_BlockType type, int index) onLinkBlockTap;
+  final void Function(_BlockType type, int index) onGraphBlockTap;
+  final ValueChanged<int> onDelete;
+
+  const _BlockList({
+    required this.blocks,
+    required this.onTextBlockTap,
+    required this.onImageBlockTap,
+    required this.onSketchBlockTap,
+    required this.onVideoBlockTap,
+    required this.onTableBlockTap,
+    required this.onLinkBlockTap,
+    required this.onGraphBlockTap,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(33, 47, 32, 24),
+      itemCount: blocks.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 21),
+      itemBuilder: (context, index) {
+        final block = blocks[index];
+        VoidCallback? onTap;
+        if (block.type.title == 'Text') {
+          onTap = () => onTextBlockTap(block.type, index);
+        } else if (block.type.title == 'Images') {
+          onTap = () => onImageBlockTap(block.type, index);
+        } else if (block.type.title == 'Sketch') {
+          onTap = () => onSketchBlockTap(block.type, index);
+        } else if (block.type.title == 'Video') {
+          onTap = () => onVideoBlockTap(block.type, index);
+        } else if (block.type.title == 'Table') {
+          onTap = () => onTableBlockTap(block.type, index);
+        } else if (block.type.title == 'Link') {
+          onTap = () => onLinkBlockTap(block.type, index);
+        } else if (block.type.title == 'Graph') {
+          onTap = () => onGraphBlockTap(block.type, index);
+        }
+        return _BlockCard(
+          block: block,
+          onTap: onTap,
+          onDelete: () => onDelete(index),
+        );
+      },
+    );
+  }
+}
+
+class _BlockCard extends StatelessWidget {
+  final _AddedBlock block;
+  final VoidCallback? onTap;
+  final VoidCallback onDelete;
+
+  const _BlockCard({required this.block, required this.onDelete, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap:
+          onTap ??
+          () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('${block.type.title} editor coming soon'),
+                behavior: SnackBarBehavior.floating,
+                duration: const Duration(milliseconds: 1200),
+              ),
+            );
+          },
+      child: Container(
+        width: 328,
+        height: 94,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          border: Border.all(color: _ConceptExplorationScreenState._border),
+          borderRadius: BorderRadius.circular(10),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 25,
+              offset: const Offset(0, 12),
+              spreadRadius: -8,
+            ),
+          ],
+        ),
+        child: Stack(
+          children: [
+            Positioned(
+              left: 19,
+              top: 15,
+              width: 63,
+              height: 61,
+              child: _IconTile(block: block.type),
+            ),
+            Positioned(
+              left: 105,
+              top: 24,
+              child: Text(
+                block.type.title,
+                style: const TextStyle(
+                  color: _ConceptExplorationScreenState._text,
+                  fontSize: 18,
+                  height: 1,
+                  fontWeight: FontWeight.w400,
                 ),
-
-                // Navigation and performance expectation tags - Collapsible
-                AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  curve: Curves.easeInOut,
-                  height: _isHeaderCollapsed ? 36 : null,
-                  child: SingleChildScrollView(
-                    physics: const NeverScrollableScrollPhysics(),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Navigation dropdown
-                          _buildNavigationDropdown(),
-
-                          // Only show tags when not collapsed
-                          if (!_isHeaderCollapsed) ...[
-                            const SizedBox(height: 12),
-                            // Performance expectation tags
-                            if (performanceExpectations.isNotEmpty)
-                              Wrap(
-                                spacing: 8,
-                                runSpacing: 8,
-                                children: performanceExpectations.map((tag) {
-                                  return Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.tagBackground,
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(color: AppColors.tagBorder, width: 1),
-                                    ),
-                                    child: Text(
-                                      tag,
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(
-                                        color: AppColors.tagText,
-                                        fontSize: 10,
-                                        fontFamily: 'Inter',
-                                        fontWeight: FontWeight.w600,
-                                        letterSpacing: 0.5,
-                                      ),
-                                    ),
-                                  );
-                                }).toList(),
-                            ),
-                          ],
-                        ],
+              ),
+            ),
+            Positioned(
+              left: 106,
+              top: 47,
+              width: 194,
+              child: Text(
+                block.textData?.cardSubtitle ??
+                    block.imageData?.cardSubtitle ??
+                    block.sketchData?.cardSubtitle ??
+                    block.videoData?.cardSubtitle ??
+                    block.tableData?.cardSubtitle ??
+                    block.linkData?.cardSubtitle ??
+                    block.graphData?.cardSubtitle ??
+                    block.type.cardSubtitle ??
+                    block.type.description,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: _ConceptExplorationScreenState._mutedText,
+                  fontSize: 13,
+                  height: 1.2,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+            ),
+            Positioned(
+              right: 20,
+              top: 7,
+              child: PopupMenuButton<String>(
+                tooltip: 'Block options',
+                padding: EdgeInsets.zero,
+                position: PopupMenuPosition.under,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(7),
+                ),
+                onSelected: (value) {
+                  if (value == 'delete') onDelete();
+                },
+                itemBuilder: (context) => const [
+                  PopupMenuItem<String>(
+                    value: 'delete',
+                    height: 40,
+                    child: Text(
+                      'Delete',
+                      style: TextStyle(
+                        color: Color(0xFFD12E2E),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+                child: const SizedBox(
+                  width: 28,
+                  height: 28,
+                  child: Center(
+                    child: Text(
+                      '...',
+                      style: TextStyle(
+                        color: Color(0xFF8B8B8B),
+                        fontSize: 16,
+                        height: 1,
+                        fontWeight: FontWeight.w700,
                       ),
                     ),
                   ),
                 ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
-                const SizedBox(height: 16),
+class _AddBlockSheet extends StatelessWidget {
+  final List<_BlockType> contentBlocks;
+  final List<_BlockType> dataBlocks;
+  final ValueChanged<_BlockType> onSelected;
 
-                // Fleather rich text editor with loading state
-                Expanded(
-                  child: _isLoading
-                      ? const Center(child: CircularProgressIndicator())
-                      : NotificationListener<ScrollNotification>(
-                          onNotification: (ScrollNotification notification) {
-                            if (notification is ScrollUpdateNotification) {
-                              // Update scroll position for header collapse
-                              final offset = notification.metrics.pixels;
-                              final shouldCollapse = offset > 50;
+  const _AddBlockSheet({
+    required this.contentBlocks,
+    required this.dataBlocks,
+    required this.onSelected,
+  });
 
-                              if (shouldCollapse != _isHeaderCollapsed) {
-                                setState(() {
-                                  _isHeaderCollapsed = shouldCollapse;
-                                });
-                              }
-                            }
-                            return false;
-                          },
-                          child: Container(
-                            color: AppColors.white,
-                            padding: const EdgeInsets.only(left: 16, right: 16, top: 16),
-                            child: FleatherEditor(
-                              controller: _controller!,
-                              focusNode: _focusNode,
-                              padding: const EdgeInsets.only(bottom: 120), // Extra space to scroll past toolbar
-                              autofocus: false,
-                              embedBuilder: _embedBuilder,
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+
+    return SafeArea(
+      top: false,
+      child: Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          boxShadow: [
+            BoxShadow(
+              color: Color(0x33000000),
+              blurRadius: 18,
+              offset: Offset(0, -4),
+            ),
+          ],
+        ),
+        padding: EdgeInsets.fromLTRB(13, 11, 13, 18 + bottomInset),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 30,
+              height: 3,
+              decoration: BoxDecoration(
+                color: const Color(0xFFD9D9D9),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 24,
+              child: Stack(
+                children: [
+                  const Center(
+                    child: Text(
+                      'Add Block',
+                      style: TextStyle(
+                        color: _ConceptExplorationScreenState._green,
+                        fontSize: 18,
+                        height: 1,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    left: 8,
+                    top: 1,
+                    width: 24,
+                    height: 22,
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => Navigator.of(context).pop(),
+                      child: const Align(
+                        alignment: Alignment.centerLeft,
+                        child: _BackChevron(),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 19),
+            _MenuSection(
+              title: 'Content Blocks',
+              blocks: contentBlocks,
+              onSelected: onSelected,
+            ),
+            const SizedBox(height: 12),
+            _MenuSection(
+              title: 'Data Blocks',
+              blocks: dataBlocks,
+              onSelected: onSelected,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MenuSection extends StatelessWidget {
+  final String title;
+  final List<_BlockType> blocks;
+  final ValueChanged<_BlockType> onSelected;
+
+  const _MenuSection({
+    required this.title,
+    required this.blocks,
+    required this.onSelected,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 367,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: const Color(0xFFE1E1E1)),
+        borderRadius: BorderRadius.circular(7),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(19, 14, 19, 8),
+            child: Text(
+              title,
+              style: const TextStyle(
+                color: _ConceptExplorationScreenState._text,
+                fontSize: 15,
+                height: 1,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          for (var index = 0; index < blocks.length; index++) ...[
+            _BlockMenuRow(
+              block: blocks[index],
+              onTap: () => onSelected(blocks[index]),
+            ),
+            if (index != blocks.length - 1)
+              const Divider(height: 1, color: Color(0xFFE7E7E7)),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _BlockMenuRow extends StatelessWidget {
+  final _BlockType block;
+  final VoidCallback onTap;
+
+  const _BlockMenuRow({required this.block, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: SizedBox(
+        height: 56,
+        child: Row(
+          children: [
+            const SizedBox(width: 19),
+            SizedBox(width: 34, height: 33, child: _IconTile(block: block)),
+            const SizedBox(width: 23),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    block.title,
+                    style: const TextStyle(
+                      color: _ConceptExplorationScreenState._text,
+                      fontSize: 15,
+                      height: 1,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    block.description,
+                    style: const TextStyle(
+                      color: _ConceptExplorationScreenState._mutedText,
+                      fontSize: 12,
+                      height: 1,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const _RightChevron(),
+            const SizedBox(width: 17),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _IconTile extends StatelessWidget {
+  final _BlockType block;
+
+  const _IconTile({required this.block});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: block.tileColor,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      alignment: Alignment.center,
+      child: SvgPicture.asset(
+        block.iconAsset,
+        width: block.iconWidth,
+        height: block.iconHeight,
+      ),
+    );
+  }
+}
+
+class _ReorderSheet extends StatefulWidget {
+  final List<_AddedBlock> blocks;
+
+  const _ReorderSheet({required this.blocks});
+
+  @override
+  State<_ReorderSheet> createState() => _ReorderSheetState();
+}
+
+class _ReorderSheetState extends State<_ReorderSheet> {
+  late final List<_AddedBlock> _draftBlocks = List<_AddedBlock>.from(
+    widget.blocks,
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).padding.bottom;
+    return SafeArea(
+      top: false,
+      child: Container(
+        height: 470 + bottomInset,
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          boxShadow: [
+            BoxShadow(
+              color: Color(0x33000000),
+              blurRadius: 18,
+              offset: Offset(0, -4),
+            ),
+          ],
+        ),
+        padding: EdgeInsets.fromLTRB(20, 12, 20, 18 + bottomInset),
+        child: Column(
+          children: [
+            Container(
+              width: 30,
+              height: 3,
+              decoration: BoxDecoration(
+                color: const Color(0xFFD9D9D9),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 18),
+            const Text(
+              'Reorder',
+              style: TextStyle(
+                color: _ConceptExplorationScreenState._text,
+                fontSize: 18,
+                height: 1,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Expanded(
+              child: ReorderableListView.builder(
+                padding: EdgeInsets.zero,
+                itemCount: _draftBlocks.length,
+                onReorder: (oldIndex, newIndex) {
+                  setState(() {
+                    if (newIndex > oldIndex) newIndex -= 1;
+                    final block = _draftBlocks.removeAt(oldIndex);
+                    _draftBlocks.insert(newIndex, block);
+                  });
+                },
+                itemBuilder: (context, index) {
+                  final block = _draftBlocks[index];
+                  return Container(
+                    key: ValueKey('${block.type.title}-$index'),
+                    height: 58,
+                    margin: const EdgeInsets.only(bottom: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      border: Border.all(
+                        color: _ConceptExplorationScreenState._border,
+                      ),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Row(
+                      children: [
+                        const SizedBox(width: 14),
+                        _IconTile(block: block.type),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Text(
+                            block.type.title,
+                            style: const TextStyle(
+                              color: _ConceptExplorationScreenState._text,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
                             ),
                           ),
                         ),
+                        ReorderableDragStartListener(
+                          index: index,
+                          child: SvgPicture.asset(
+                            'assets/learning_module/concept_reorder.svg',
+                            width: 28,
+                            height: 28,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+            SizedBox(
+              width: 345,
+              height: 48,
+              child: ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(_draftBlocks),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _ConceptExplorationScreenState._green,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
-              ],
+                child: const Text(
+                  'Save',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BottomActions extends StatelessWidget {
+  final VoidCallback onAddBlock;
+  final VoidCallback onReorder;
+  final bool canReorder;
+  final VoidCallback onPreview;
+
+  const _BottomActions({
+    required this.onAddBlock,
+    required this.onReorder,
+    required this.canReorder,
+    required this.onPreview,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(top: BorderSide(color: Color(0xFFDADADA))),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _BottomAction(
+            label: 'Add Block',
+            isActive: true,
+            onTap: onAddBlock,
+            icon: const _AddBlockIcon(size: 40),
+          ),
+          _BottomAction(
+            label: 'Reorder',
+            onTap: canReorder ? onReorder : null,
+            icon: SvgPicture.asset(
+              'assets/learning_module/concept_reorder.svg',
+              width: 40,
+              height: 36,
             ),
           ),
+          _BottomAction(
+            label: 'Preview',
+            onTap: onPreview,
+            icon: const _PreviewIcon(),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
-          // Floating toolbar at bottom
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 12,
-            child: ConceptExplorationToolbar(
-              onFormat: _formatText,
-              onCamera: _openCamera,
-              onInsertMath: _insertMathEquation,
-              onInsertTable: _insertTable,
+class _BottomAction extends StatelessWidget {
+  final String label;
+  final Widget icon;
+  final VoidCallback? onTap;
+  final bool isActive;
+
+  const _BottomAction({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+    this.isActive = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = onTap == null
+        ? const Color(0xFFB8B8B8)
+        : isActive
+        ? _ConceptExplorationScreenState._green
+        : Colors.black;
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: SizedBox(
+        width: 96,
+        height: 82,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            SizedBox(width: 42, height: 42, child: icon),
+            const SizedBox(height: 7),
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontSize: 15,
+                height: 1,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ThreeCubesIllustration extends StatelessWidget {
+  const _ThreeCubesIllustration();
+
+  @override
+  Widget build(BuildContext context) {
+    return Transform.scale(
+      scale: 3.45,
+      child: const SizedBox(
+        width: 39.484375,
+        height: 25.71484375,
+        child: Stack(
+          children: [
+            _CubePart(left: 13.0390625, top: 9.572265625, isDot: true),
+            _CubePart(left: 10.64453125, top: 7.1787109375),
+            _CubePart(left: 22.609375, top: 0),
+            _CubePart(left: -0.125, top: 0),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CubePart extends StatelessWidget {
+  final double left;
+  final double top;
+  final bool isDot;
+
+  const _CubePart({required this.left, required this.top, this.isDot = false});
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      left: left,
+      top: top,
+      width: isDot ? 2.392857074737549 : 16.75,
+      height: isDot ? 2.392857074737549 : 19.14285659790039,
+      child: SvgPicture.asset(
+        isDot
+            ? 'assets/create_menu/learning_module_cube_dot.svg'
+            : 'assets/create_menu/learning_module_cube.svg',
+        fit: BoxFit.fill,
+      ),
+    );
+  }
+}
+
+class _AddBlockIcon extends StatelessWidget {
+  final double size;
+
+  const _AddBlockIcon({required this.size});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: size,
+      height: size,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          SvgPicture.asset(
+            'assets/learning_module/concept_addblock.svg',
+            width: size,
+            height: size,
+            colorFilter: const ColorFilter.mode(
+              _ConceptExplorationScreenState._green,
+              BlendMode.srcIn,
+            ),
+          ),
+          SvgPicture.asset(
+            'assets/learning_module/concept_addblock_vertical.svg',
+            width: size * 0.08,
+            height: size * 0.5,
+            colorFilter: const ColorFilter.mode(
+              _ConceptExplorationScreenState._green,
+              BlendMode.srcIn,
+            ),
+          ),
+          SvgPicture.asset(
+            'assets/learning_module/concept_addblock_horizontal.svg',
+            width: size * 0.5,
+            height: size * 0.08,
+            colorFilter: const ColorFilter.mode(
+              _ConceptExplorationScreenState._green,
+              BlendMode.srcIn,
             ),
           ),
         ],
       ),
     );
   }
-
-  Widget _buildNavigationDropdown() {
-    return Container(
-      height: 28,
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-      decoration: BoxDecoration(
-        color: AppColors.accent,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: _currentSection,
-          icon: const Icon(
-            Icons.keyboard_arrow_down,
-            size: 16,
-            color: AppColors.primary,
-          ),
-          style: const TextStyle(
-            color: AppColors.primary,
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 0.5,
-          ),
-          dropdownColor: AppColors.accent.withValues(alpha: 0.5),
-          items: const [
-            DropdownMenuItem(
-              value: 'TITLE',
-              child: Text(
-                'TITLE',
-                style: TextStyle(
-                  color: AppColors.primary,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-            DropdownMenuItem(
-              value: 'ANCHORING PHENOMENON',
-              child: Text(
-                'ANCHORING PHENOMENON',
-                style: TextStyle(
-                  color: AppColors.primary,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-            DropdownMenuItem(
-              value: 'OBJECTIVE',
-              child: Text(
-                'OBJECTIVE',
-                style: TextStyle(
-                  color: AppColors.primary,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-            DropdownMenuItem(
-              value: 'LEARNING',
-              child: Text(
-                'LEARNING',
-                style: TextStyle(
-                  color: AppColors.primary,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-            DropdownMenuItem(
-              value: 'CONCEPT EXPLORATION',
-              child: Text(
-                'CONCEPT EXPLORATION',
-                style: TextStyle(
-                  color: AppColors.primary,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-            DropdownMenuItem(
-              value: 'ACTIVITY',
-              child: Text(
-                'ACTIVITY',
-                style: TextStyle(
-                  color: AppColors.primary,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-          ],
-          onChanged: (value) {
-            if (value == 'TITLE') {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => CreateTemplateScreen(
-                    existingModule: widget.module,
-                  ),
-                ),
-              );
-            } else if (value == 'ANCHORING PHENOMENON') {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => AnchoringPhenomenon(
-                    existingModule: widget.module,
-                  ),
-                ),
-              );
-            } else if (value == 'OBJECTIVE') {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => LearningObjectiveScreen(
-                    module: widget.module,
-                  ),
-                ),
-              );
-            } else if (value == 'LEARNING') {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => ThreeDLearning(
-                    module: widget.module,
-                  ),
-                ),
-              );
-            } else if (value == 'ACTIVITY') {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => ActivityScreen(
-                    module: widget.module,
-                  ),
-                ),
-              );
-            }
-            // If CONCEPT EXPLORATION is selected, stay on current page
-          },
-        ),
-      ),
-    );
-  }
 }
 
-/// Editable table widget that allows users to tap and edit cells
-class _EditableTable extends StatefulWidget {
-  final int rows;
-  final int cols;
-  final List<List<String>> initialCells;
-  final Function(int rowIndex, int colIndex, String newValue) onCellChanged;
-
-  const _EditableTable({
-    required this.rows,
-    required this.cols,
-    required this.initialCells,
-    required this.onCellChanged,
-  });
-
-  @override
-  State<_EditableTable> createState() => _EditableTableState();
-}
-
-class _EditableTableState extends State<_EditableTable> {
-  late List<List<FleatherController>> _controllers;
-  late List<List<FocusNode>> _focusNodes;
-
-  @override
-  void initState() {
-    super.initState();
-    // Create Fleather controllers for each cell
-    _controllers = List.generate(
-      widget.rows,
-      (row) => List.generate(
-        widget.cols,
-        (col) {
-          // Try to parse existing cell data as Fleather JSON, or create empty doc
-          try {
-            final cellData = widget.initialCells[row][col];
-            if (cellData.isNotEmpty) {
-              final doc = ParchmentDocument.fromJson(jsonDecode(cellData));
-              return FleatherController(document: doc);
-            }
-          } catch (e) {
-            // If not valid JSON, treat as plain text
-            final cellData = widget.initialCells[row][col];
-            if (cellData.isNotEmpty) {
-              final doc = ParchmentDocument()..insert(0, cellData);
-              return FleatherController(document: doc);
-            }
-          }
-          return FleatherController();
-        },
-      ),
-    );
-
-    _focusNodes = List.generate(
-      widget.rows,
-      (row) => List.generate(widget.cols, (col) => FocusNode()),
-    );
-
-    // Listen to document changes
-    for (var row = 0; row < widget.rows; row++) {
-      for (var col = 0; col < widget.cols; col++) {
-        final r = row;
-        final c = col;
-        _controllers[r][c].document.changes.listen((_) {
-          // Save the document as JSON when it changes
-          final json = jsonEncode(_controllers[r][c].document);
-          widget.onCellChanged(r, c, json);
-        });
-      }
-    }
-  }
-
-  @override
-  void dispose() {
-    // Dispose all controllers and focus nodes
-    for (var row in _controllers) {
-      for (var controller in row) {
-        controller.dispose();
-      }
-    }
-    for (var row in _focusNodes) {
-      for (var node in row) {
-        node.dispose();
-      }
-    }
-    super.dispose();
-  }
+class _PreviewIcon extends StatelessWidget {
+  const _PreviewIcon();
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12.0),
-      child: Table(
-        border: TableBorder.all(
-          color: Colors.grey[400]!,
-          width: 1.0,
-        ),
-        defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-        children: List.generate(widget.rows, (rowIndex) {
-          return TableRow(
-            children: List.generate(widget.cols, (colIndex) {
-              return Container(
-                constraints: const BoxConstraints(minHeight: 40),
-                padding: const EdgeInsets.all(4.0),
-                child: FleatherEditor(
-                  controller: _controllers[rowIndex][colIndex],
-                  focusNode: _focusNodes[rowIndex][colIndex],
-                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-                ),
-              );
-            }),
-          );
-        }),
+    return SizedBox(
+      width: 42,
+      height: 42,
+      child: Stack(
+        children: [
+          Positioned(
+            left: 3,
+            top: 3,
+            child: SvgPicture.asset(
+              'assets/learning_module/concept_preview_outer.svg',
+              width: 36,
+              height: 36,
+            ),
+          ),
+          Positioned(
+            left: 18,
+            top: 18,
+            child: SvgPicture.asset(
+              'assets/learning_module/concept_preview_cursor.svg',
+              width: 21,
+              height: 21,
+            ),
+          ),
+        ],
       ),
     );
   }
+}
+
+class _BackChevron extends StatelessWidget {
+  const _BackChevron();
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      size: const Size(20, 20),
+      painter: _BackChevronPainter(),
+    );
+  }
+}
+
+class _BackChevronPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = _ConceptExplorationScreenState._green
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    final path = Path()
+      ..moveTo(size.width * 0.68, size.height * 0.08)
+      ..lineTo(size.width * 0.28, size.height * 0.5)
+      ..lineTo(size.width * 0.68, size.height * 0.92);
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _RightChevron extends StatelessWidget {
+  const _RightChevron();
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      size: const Size(8, 13),
+      painter: _RightChevronPainter(),
+    );
+  }
+}
+
+class _RightChevronPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0xFFB6B6B6)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5
+      ..strokeCap = StrokeCap.round
+      ..strokeJoin = StrokeJoin.round;
+
+    final path = Path()
+      ..moveTo(1, 1)
+      ..lineTo(size.width - 1, size.height / 2)
+      ..lineTo(1, size.height - 1);
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

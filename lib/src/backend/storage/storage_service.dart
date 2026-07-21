@@ -16,46 +16,100 @@ class StorageService {
   /// [folder] - Optional folder path within the bucket (e.g., 'concept-exploration')
   ///
   /// Returns the public URL of the uploaded image, or null if upload fails
-  Future<String?> uploadImage(XFile imageFile, {String bucketName = "", String folder = ''}) async {
+  Future<String?> uploadImage(
+    XFile imageFile, {
+    String bucketName = "",
+    String folder = '',
+  }) async {
     try {
-      // Generate a unique filename using timestamp and a sanitized original name.
-      // Supabase storage rejects keys with spaces or special characters.
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final extension = imageFile.name.split('.').last;
-      final safeName = imageFile.name
-          .replaceAll(RegExp(r'\s+'), '_')
-          .replaceAll(RegExp(r'[^\w\-.]'), '');
-      final fileName = '${timestamp}_$safeName';
-
-      // Construct the full path in the bucket
-      final filePath = folder.isEmpty ? fileName : '$folder/$fileName';
-
-      // Read the file as bytes
-      final bytes = await imageFile.readAsBytes();
-
-      // Upload to Supabase Storage
-      await _client.storage
-          .from(bucketName)
-          .uploadBinary(
-            filePath,
-            bytes,
-            fileOptions: FileOptions(
-              contentType: _getContentType(extension),
-              upsert: false,
-            ),
-          );
-
-      // Get the public URL
-      final publicUrl = _client.storage
-          .from(bucketName)
-          .getPublicUrl(filePath);
-
-      debugPrint('Image uploaded successfully: $publicUrl');
-      return publicUrl;
+      final uploaded = await uploadImageFile(
+        imageFile,
+        bucketName: bucketName,
+        folder: folder,
+      );
+      return uploaded.publicUrl;
     } catch (e) {
       debugPrint('Error uploading image: $e');
       return null;
     }
+  }
+
+  Future<UploadedStorageFile> uploadImageFile(
+    XFile imageFile, {
+    required String bucketName,
+    String folder = '',
+  }) async {
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final extension = imageFile.name.contains('.')
+        ? imageFile.name.split('.').last.toLowerCase()
+        : 'jpg';
+    final safeName = imageFile.name
+        .replaceAll(RegExp(r'\s+'), '_')
+        .replaceAll(RegExp(r'[^\w\-.]'), '');
+    final fallbackName = safeName.isEmpty ? 'image.$extension' : safeName;
+    final fileName = '${timestamp}_$fallbackName';
+    final filePath = folder.isEmpty ? fileName : '$folder/$fileName';
+    final bytes = await imageFile.readAsBytes();
+
+    await _client.storage
+        .from(bucketName)
+        .uploadBinary(
+          filePath,
+          bytes,
+          fileOptions: FileOptions(
+            contentType: _getContentType(extension),
+            upsert: false,
+          ),
+        );
+
+    final publicUrl = _client.storage.from(bucketName).getPublicUrl(filePath);
+    return UploadedStorageFile(
+      path: filePath,
+      signedUrl: '',
+      publicUrl: publicUrl,
+      fileName: imageFile.name,
+    );
+  }
+
+  Future<UploadedStorageFile> uploadVideo(
+    XFile videoFile, {
+    required String bucketName,
+    required String folder,
+  }) async {
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final extension = videoFile.name.contains('.')
+        ? videoFile.name.split('.').last.toLowerCase()
+        : 'mp4';
+    final safeName = videoFile.name
+        .replaceAll(RegExp(r'\s+'), '_')
+        .replaceAll(RegExp(r'[^\w\-.]'), '');
+    final fileName = '${timestamp}_$safeName';
+    final filePath = folder.isEmpty ? fileName : '$folder/$fileName';
+    final bytes = await videoFile.readAsBytes();
+
+    await _client.storage
+        .from(bucketName)
+        .uploadBinary(
+          filePath,
+          bytes,
+          fileOptions: FileOptions(
+            contentType: _getVideoContentType(extension),
+            upsert: false,
+          ),
+        );
+
+    final signedUrl = await _client.storage
+        .from(bucketName)
+        .createSignedUrl(filePath, 3600);
+    return UploadedStorageFile(path: filePath, signedUrl: signedUrl);
+  }
+
+  Future<String> createSignedUrl(
+    String path, {
+    required String bucketName,
+    int expiresIn = 3600,
+  }) {
+    return _client.storage.from(bucketName).createSignedUrl(path, expiresIn);
   }
 
   /// Deletes an image from Supabase Storage
@@ -80,9 +134,7 @@ class StorageService {
       final filePath = pathSegments.sublist(bucketIndex + 1).join('/');
 
       // Delete from Supabase Storage
-      await _client.storage
-          .from(bucketName)
-          .remove([filePath]);
+      await _client.storage.from(bucketName).remove([filePath]);
 
       debugPrint('Image deleted successfully: $filePath');
       return true;
@@ -110,4 +162,32 @@ class StorageService {
         return 'image/jpeg';
     }
   }
+
+  String _getVideoContentType(String extension) {
+    switch (extension.toLowerCase()) {
+      case 'mov':
+        return 'video/quicktime';
+      case 'webm':
+        return 'video/webm';
+      case 'm4v':
+        return 'video/x-m4v';
+      case 'mp4':
+      default:
+        return 'video/mp4';
+    }
+  }
+}
+
+class UploadedStorageFile {
+  final String path;
+  final String signedUrl;
+  final String publicUrl;
+  final String fileName;
+
+  const UploadedStorageFile({
+    required this.path,
+    required this.signedUrl,
+    this.publicUrl = '',
+    this.fileName = '',
+  });
 }
