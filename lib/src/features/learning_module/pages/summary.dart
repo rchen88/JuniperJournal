@@ -1,9 +1,8 @@
-import 'package:flutter/cupertino.dart';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:juniper_journal/src/backend/db/repositories/learning_module_repo.dart';
-import 'package:juniper_journal/src/features/learning_module/learning_module.dart';
-import 'package:juniper_journal/src/shared/styling/theme.dart';
 
 class Summary extends StatefulWidget {
   final Map<String, dynamic>? module;
@@ -11,546 +10,849 @@ class Summary extends StatefulWidget {
   const Summary({super.key, this.module});
 
   @override
-  State<Summary> createState() => _SummaryScreenState();
+  State<Summary> createState() => _SummaryState();
 }
 
-class _SummaryScreenState extends State<Summary> {
-  String _selectedNavigation = 'SUMMARY';
-  String _generatedSummary = '';
-  Map<String, dynamic>? _moduleData;
+class _SummaryState extends State<Summary> {
+  static const _green = Color(0xFF5DB075);
+  static const _text = Color(0xFF141414);
+  static const _muted = Color(0xFF666666);
+  static const _border = Color(0xFFD8D0D0);
+  static const _screenWidth = 393.0;
 
-  String? _subjectDomain;
-  String? _learningObjective;
-  String? _dci;
-  String? _sep;
-  String? _ccc;
-  String? _pes;
-  String? _anchoringPhenomenon;
+  static const _dciOptions = [
+    'Ecosystems & Biodiversity',
+    'Climate & Weather Patterns',
+    'Human Impact on Natural Systems',
+    'Natural Resources & Conservation',
+    'Pollution and Waste Management',
+  ];
+  static const _sepOptions = [
+    'Asking Questions & Defining Problems',
+    'Planning & Conducting Investigations',
+    'Analyzing & Interpreting Data',
+    'Constructing Explanations',
+    'Designing Solutions',
+  ];
+  static const _cccOptions = [
+    'Patterns',
+    'Cause & Effect',
+    'Systems & System Models',
+    'Energy & Matter',
+    'Stability & Change',
+  ];
 
-  bool _isLoading = true;
-  bool _hasGenerated = false;
+  final _repo = LearningModuleRepo();
+  Map<String, dynamic> _module = const {};
+  Map<String, bool> _dci = {for (final option in _dciOptions) option: false};
+  Map<String, bool> _sep = {for (final option in _sepOptions) option: false};
+  Map<String, bool> _ccc = {for (final option in _cccOptions) option: false};
+  bool _loading = true;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _loadExistingData();
-    });
+    _load();
   }
 
-  String? _stringFromListOrSingle(dynamic value) {
-    if (value == null) return null;
-    if (value is List) {
-      final cleaned = value
-          .where((e) => e != null && e.toString().trim().isNotEmpty)
-          .map((e) => e.toString().trim())
-          .toList();
-      if (cleaned.isEmpty) return null;
-      return cleaned.join(', ');
+  Future<void> _load() async {
+    final base = widget.module ?? {};
+    final moduleId = base['id']?.toString();
+    final fresh = moduleId == null || moduleId.isEmpty
+        ? null
+        : await _repo.getModule(moduleId);
+    final merged = {...base, if (fresh != null) ...fresh};
+    _hydrateSummary(merged['summary']);
+    if (mounted) {
+      setState(() {
+        _module = merged;
+        _loading = false;
+      });
     }
-    final s = value.toString().trim();
-    return s.isEmpty ? null : s;
   }
 
-  void _loadExistingData() async {
-    final module = widget.module;
-    if (module == null || module['id'] == null) {
-      setState(() => _isLoading = false);
-      return;
-    }
-
-    final repo = LearningModuleRepo();
-    final freshModuleData = await repo.getModule(module['id'].toString());
-
-    if (!mounted) return;
-
-    final merged = {
-      ...module,
-      if (freshModuleData != null) ...freshModuleData,
-    };
-
-    setState(() {
-      _moduleData = merged;
-
-      _subjectDomain = _stringFromListOrSingle(
-            merged['subject_domain'] ?? merged['domains'],
-          ) ??
-          'Subject domain(s) not set';
-
-      _learningObjective = _stringFromListOrSingle(
-            merged['learning_objective'] ?? merged['learning_objectives'],
-          ) ??
-          'Learning objective not set';
-
-      _dci = _stringFromListOrSingle(merged['dci'] ?? merged['dcis']) ??
-          'DCIs not set';
-
-      _sep = _stringFromListOrSingle(merged['sep'] ?? merged['seps']) ??
-          'SEPs not set';
-
-      _ccc = _stringFromListOrSingle(merged['ccc'] ?? merged['cccs']) ??
-          'CCCs not set';
-
-      _pes = _stringFromListOrSingle(
-            merged['performance_expectation'],
-          ) ??
-          'NGSS PEs not set';
-
-      _anchoringPhenomenon = _stringFromListOrSingle(
-            merged['inquiry'],
-          ) ??
-          'Anchoring phenomenon not set';
-
-      _isLoading = false;
-    });
-  }
-
-  String _formatDate(String? createdAt) {
-    if (createdAt == null) {
-      return DateFormat('EEEE, MMMM d').format(DateTime.now());
-    }
-
+  void _hydrateSummary(dynamic raw) {
+    if (raw == null) return;
     try {
-      final dateTime = DateTime.parse(createdAt).toLocal();
-      return DateFormat('EEEE, MMMM d').format(dateTime);
-    } catch (e) {
-      return 'Date';
+      final decoded = jsonDecode(raw.toString());
+      if (decoded is! Map) return;
+      final checklist = decoded['checklist'];
+      if (checklist is! Map) return;
+      _dci = _mergeChecklist(_dciOptions, checklist['dci']);
+      _sep = _mergeChecklist(_sepOptions, checklist['sep']);
+      _ccc = _mergeChecklist(_cccOptions, checklist['ccc']);
+    } catch (_) {
+      // Legacy summary text is intentionally ignored.
     }
   }
 
-  void _generateSummary() {
-    final module = _moduleData ?? widget.module ?? {};
-    final lessonTitle =
-        (module['module_name'] ?? 'this learning lesson').toString();
+  Map<String, bool> _mergeChecklist(List<String> options, dynamic raw) {
+    final source = raw is Map ? raw : const {};
+    return {
+      for (final option in options)
+        option:
+            source[option] == true ||
+            source[option]?.toString().toLowerCase() == 'true',
+    };
+  }
 
-    final lo =
-        _learningObjective ?? 'support the selected learning objective';
-    final domain = _subjectDomain ?? 'the selected subject domain(s)';
-    final pes = _pes ?? 'selected NGSS Performance Expectations';
-    final dci = _dci ?? 'the key disciplinary core ideas';
-    final sep = _sep ?? 'relevant Science and Engineering Practices';
-    final ccc = _ccc ?? 'important Crosscutting Concepts';
-    final anch = _anchoringPhenomenon ??
-        'the core anchoring phenomenon or problem for this lesson';
-
-    final summary = '''
-“The “$lessonTitle” learning lesson is designed to $lo within the domain(s) of $domain, directly supporting NGSS Performance Expectations: $pes. It emphasizes key disciplinary ideas including $dci, engages students in critical Science and Engineering Practices such as $sep, and explores essential Crosscutting Concepts like $ccc.
-
-By focusing on the anchoring phenomenon "$anch", this lesson encourages learners to connect real-world issues with scientific understanding, fostering deeper exploration and practical problem-solving skills.”''';
-
+  Future<void> _toggle(String group, String option, bool value) async {
     setState(() {
-      _generatedSummary = summary.trim();
-      _hasGenerated = true;
+      switch (group) {
+        case 'dci':
+          _dci[option] = value;
+          break;
+        case 'sep':
+          _sep[option] = value;
+          break;
+        case 'ccc':
+          _ccc[option] = value;
+          break;
+      }
     });
+    await _persist();
+  }
+
+  Future<void> _persist() async {
+    final moduleId = _module['id']?.toString();
+    if (moduleId == null || moduleId.isEmpty) return;
+    final document = {
+      'version': 1,
+      'checklist': {'dci': _dci, 'sep': _sep, 'ccc': _ccc},
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
+    };
+    final saved = await _repo.updateSummary(
+      id: moduleId,
+      summary: jsonEncode(document),
+    );
+    if (!mounted) return;
+    if (!saved) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Failed to save summary choices.'),
+          backgroundColor: Color(0xFFD12E2E),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  String get _title =>
+      _firstString(_module['module_name']) ??
+      _firstString(_module['title']) ??
+      '';
+
+  String get _difficulty => _firstString(_module['difficulty']) ?? '';
+
+  String get _subjectDomain {
+    final raw = _module['subject_domain'] ?? _module['domains'];
+    final values = _stringValues(raw);
+    return values.isNotEmpty ? values.first : '';
+  }
+
+  String get _subjectFocus {
+    final combined = _stringValues(_module['subject_domain']);
+    if (combined.length > 1) return combined[1];
+    return _stringValues(_module['subject_focus']).firstOrNull ?? '';
+  }
+
+  List<String> get _objectives {
+    final raw = _module['learning_objectives'] ?? _module['learning_objective'];
+    final entries = raw is List
+        ? raw
+        : raw == null
+        ? const []
+        : [raw];
+    return [
+      for (final entry in entries)
+        if (_objectiveText(entry).isNotEmpty) _objectiveText(entry),
+    ];
+  }
+
+  String _objectiveText(dynamic entry) {
+    final text = entry?.toString().trim() ?? '';
+    if (text.isEmpty) return '';
+    try {
+      final decoded = jsonDecode(text);
+      if (decoded is Map) {
+        return decoded['description']?.toString().trim() ??
+            decoded['objective_text']?.toString().trim() ??
+            '';
+      }
+    } catch (_) {
+      return text;
+    }
+    return text;
+  }
+
+  String? _firstString(dynamic value) {
+    final values = _stringValues(value);
+    return values.firstOrNull;
+  }
+
+  List<String> _stringValues(dynamic value) {
+    if (value == null) return const [];
+    if (value is List) {
+      return [
+        for (final item in value)
+          if (item?.toString().trim().isNotEmpty == true)
+            item.toString().trim(),
+      ];
+    }
+    final rawText = value.toString().trim();
+    if (rawText.isEmpty) return const [];
+    if (rawText.startsWith('[') || rawText.startsWith('{')) {
+      try {
+        final decoded = jsonDecode(rawText);
+        if (decoded is List) return _stringValues(decoded);
+        if (decoded is Map) {
+          return [
+            for (final entry in decoded.values)
+              if (entry?.toString().trim().isNotEmpty == true)
+                entry.toString().trim(),
+          ];
+        }
+      } catch (_) {
+        // Fall through to the cleaned legacy text below.
+      }
+    }
+    return [rawText.replaceAll(RegExp(r'^\[|\]$'), '').replaceAll('"', '')];
   }
 
   @override
   Widget build(BuildContext context) {
-    final widgetModule = _moduleData ?? widget.module ?? {};
-    final moduleName = widgetModule['module_name'] ?? 'Module Name';
-    final formattedDate = _formatDate(widgetModule['created_at']);
-
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: Colors.white,
       body: SafeArea(
-        child: _isLoading
-            ? const Center(child: CupertinoActivityIndicator())
-            : SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 20, vertical: 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Top bar – matches AnchoringPhenomenon
-                    Row(
-                      children: [
-                        IconButton(
-                          icon: const Icon(
-                            CupertinoIcons.back,
-                            color: AppColors.buttonPrimary,
-                          ),
-                          onPressed: () => Navigator.of(context).pop(),
-                          tooltip: 'Back',
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: _screenWidth),
+            child: Column(
+              children: [
+                _Header(onBack: () => Navigator.of(context).pop()),
+                Expanded(
+                  child: _loading
+                      ? const Center(
+                          child: CircularProgressIndicator(color: _green),
+                        )
+                      : SingleChildScrollView(
+                          padding: const EdgeInsets.fromLTRB(31, 25, 31, 45),
                           child: Column(
-                            crossAxisAlignment:
-                                CrossAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                moduleName.toString(),
-                                style: const TextStyle(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.darkText,
-                                ),
+                              _LearningCodeCard(
+                                code: 'ENV-02B',
+                                focus: _subjectFocus,
                               ),
-                              const SizedBox(height: 2),
-                              Text(
-                                formattedDate,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: AppColors.lightGrey,
-                                ),
+                              const SizedBox(height: 29),
+                              const _SectionTitle('Three Dimensional Learning'),
+                              const SizedBox(height: 9),
+                              const _SectionCopy(
+                                'These NGSS 3D learning components have been generated based on your input.',
+                              ),
+                              const SizedBox(height: 18),
+                              _ChecklistCard(
+                                title: 'DCI',
+                                subtitle: 'Disciplinary Core Ideas',
+                                iconAsset:
+                                    'assets/learning_module/summary_dci.svg',
+                                accent: const Color(0xFF0AA5FF),
+                                generatedCount: _dci.values
+                                    .where((v) => v)
+                                    .length,
+                                options: _dci,
+                                onChanged: (option, value) =>
+                                    _toggle('dci', option, value),
+                              ),
+                              const SizedBox(height: 29),
+                              _ChecklistCard(
+                                title: 'SEP',
+                                subtitle: 'Science and Engineering Practices',
+                                iconAsset:
+                                    'assets/learning_module/summary_sep.svg',
+                                accent: const Color(0xFF5B78AD),
+                                generatedCount: _sep.values
+                                    .where((v) => v)
+                                    .length,
+                                options: _sep,
+                                onChanged: (option, value) =>
+                                    _toggle('sep', option, value),
+                              ),
+                              const SizedBox(height: 29),
+                              _ChecklistCard(
+                                title: 'CCCs',
+                                subtitle: 'Crosscutting Concepts',
+                                iconAsset:
+                                    'assets/learning_module/summary_ccc.svg',
+                                accent: const Color(0xFF434AAB),
+                                generatedCount: _ccc.values
+                                    .where((v) => v)
+                                    .length,
+                                options: _ccc,
+                                onChanged: (option, value) =>
+                                    _toggle('ccc', option, value),
+                              ),
+                              const SizedBox(height: 31),
+                              const _SectionTitle('Module Overview'),
+                              const SizedBox(height: 11),
+                              const _SectionCopy(
+                                'Review the key details that define your learning module before it is generated.',
+                              ),
+                              const SizedBox(height: 20),
+                              _ModuleOverviewCard(
+                                title: _title,
+                                subjectDomain: _subjectDomain,
+                                subjectFocus: _subjectFocus,
+                                difficulty: _difficulty,
+                              ),
+                              const SizedBox(height: 31),
+                              const _SectionTitle('Learning Overview'),
+                              const SizedBox(height: 11),
+                              const _SectionCopy(
+                                'Review the learning objectives that define the intended student outcomes.',
+                              ),
+                              const SizedBox(height: 20),
+                              _ObjectivesCard(objectives: _objectives),
+                              const SizedBox(height: 31),
+                              const _SectionTitle(
+                                'NGSS Performance Expectations',
+                              ),
+                              const SizedBox(height: 18),
+                              const _SectionCopy(
+                                'The follow NGSS Performance Expectations align with the modules generated 3D components.',
+                              ),
+                              const SizedBox(height: 19),
+                              const Wrap(
+                                spacing: 16,
+                                runSpacing: 8,
+                                children: [
+                                  _NgssTag('MS-LS2-4'),
+                                  _NgssTag('MS-ESS2-2'),
+                                ],
                               ),
                             ],
                           ),
                         ),
-                        const SizedBox(width: 8),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Navigation dropdown styled like AnchoringPhenomenon
-                    Wrap(
-                      spacing: 10,
-                      runSpacing: 8,
-                      children: [
-                        _buildNavigationDropdown(widgetModule),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Generate button disappears after click
-                    if (!_hasGenerated)
-                      SizedBox(
-                        width: double.infinity,
-                        height: 52,
-                        child: FilledButton(
-                          style: FilledButton.styleFrom(
-                            backgroundColor: AppColors.buttonPrimary,
-                            foregroundColor: AppColors.buttonText,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            textStyle: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          onPressed: _generateSummary,
-                          child:
-                              const Text('Generate Summary Report'),
-                        ),
-                      ),
-                    
-                      const SizedBox(height: 10),
-                      ...[
-                      const Text(
-                        'Standards Summary:',
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.darkText,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      // Standards Summary card – accent background
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(18),
-                        decoration: BoxDecoration(
-                          color: AppColors.accent,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          _generatedSummary,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            height: 1.5,
-                            color: AppColors.darkText,
-                          ),
-                        ),
-                      ),
-
-                      const SizedBox(height: 24),
-                      const Text(
-                        'Selected Components',
-                        style: TextStyle(
-                          fontSize: 17,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.darkText,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                  
-                      // Tags side-by-side, using tag colors, answers only
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(20), 
-                        ),
-                        child: Wrap(
-                          spacing: 16,  
-                          runSpacing: 10,
-                          children: [
-                            _buildChip(_subjectDomain),
-                            _buildChip(_learningObjective),
-                            _buildChip(_pes),
-                            _buildChip(_dci),
-                            _buildChip(_sep),
-                            _buildChip(_ccc),
-                          ],
-                        ),
-                      ),
-
-                      const SizedBox(height: 28),
-                      SizedBox(
-                        width: double.infinity,
-                        height: 52,
-                        child: FilledButton(
-                          style: FilledButton.styleFrom(
-                            backgroundColor: AppColors.buttonPrimary,
-                            foregroundColor: AppColors.buttonText,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            textStyle: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          onPressed: () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (context) => CallToAction( existingModule: widgetModule ,),
-                              ),
-                            );
-                          },
-                          child: const Text('Complete'),
-                        ),
-                      ),
-                    ],
-                  ],
                 ),
-              ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
+}
 
-  /// Navigation dropdown – same visual style as AnchoringPhenomenon
-  Widget _buildNavigationDropdown(Map<String, dynamic> module) {
-  return Container(
-    height: 28,
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-      decoration: BoxDecoration(
-        color: AppColors.accent,
-        borderRadius: BorderRadius.circular(20),
+class _Header extends StatelessWidget {
+  final VoidCallback onBack;
+
+  const _Header({required this.onBack});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 97,
+      child: Stack(
+        children: [
+          const Positioned(
+            left: 0,
+            right: 0,
+            top: 43,
+            child: Text(
+              'Learning Summary',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: _SummaryState._text,
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          Positioned(
+            left: 26,
+            top: 36,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: onBack,
+              child: const Icon(
+                Icons.chevron_left,
+                color: _SummaryState._green,
+                size: 34,
+              ),
+            ),
+          ),
+          const Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: Divider(height: 1, color: Color(0xFFE6E6E6)),
+          ),
+        ],
       ),
-    child: DropdownButtonHideUnderline(
-      child: DropdownButton<String>(
-        value: _selectedNavigation,
-        icon: const Icon(
-          Icons.keyboard_arrow_down,
-          size: 20,
-          color: AppColors.primary,
-        ),
-        style: const TextStyle(
-          color: AppColors.primary,
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.5,
-        ),
-        dropdownColor: AppColors.accent.withValues(alpha: 0.5),
-        items: const [
-          DropdownMenuItem(
-            value: 'TITLE',
-            child: Text(
-              'TITLE',
-              style: TextStyle(
-                color: AppColors.primary,
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.5,
-              ),
+    );
+  }
+}
+
+class _LearningCodeCard extends StatelessWidget {
+  final String code;
+  final String focus;
+
+  const _LearningCodeCard({required this.code, required this.focus});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minHeight: 122),
+      padding: const EdgeInsets.fromLTRB(15, 14, 18, 14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE1F1E5),
+        borderRadius: BorderRadius.circular(9),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Juniper Learning Code',
+            style: TextStyle(
+              color: _SummaryState._green,
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
             ),
           ),
-          DropdownMenuItem(
-            value: 'ANCHORING PHENOMENON',
-            child: Text(
-              'ANCHORING PHENOMENON',
-              style: TextStyle(
-                color: AppColors.primary,
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.5,
+          const SizedBox(height: 15),
+          Row(
+            children: [
+              Container(
+                width: 65,
+                height: 65,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: _SummaryState._green),
+                ),
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.public,
+                  color: _SummaryState._green,
+                  size: 34,
+                ),
               ),
-            ),
-          ),
-          DropdownMenuItem(
-            value: 'OBJECTIVE',
-            child: Text(
-              'OBJECTIVE',
-              style: TextStyle(
-                color: AppColors.primary,
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.5,
+              const SizedBox(width: 23),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      code,
+                      style: const TextStyle(
+                        color: _SummaryState._text,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 7),
+                    Text(
+                      focus,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: _SummaryState._text,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
+            ],
           ),
-          DropdownMenuItem(
-            value: 'LEARNING',
-            child: Text(
-              'LEARNING',
-              style: TextStyle(
-                color: AppColors.primary,
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.5,
+        ],
+      ),
+    );
+  }
+}
+
+class _ChecklistCard extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final String iconAsset;
+  final Color accent;
+  final int generatedCount;
+  final Map<String, bool> options;
+  final void Function(String option, bool value) onChanged;
+
+  const _ChecklistCard({
+    required this.title,
+    required this.subtitle,
+    required this.iconAsset,
+    required this.accent,
+    required this.generatedCount,
+    required this.options,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 353,
+      padding: const EdgeInsets.fromLTRB(21, 17, 14, 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: _SummaryState._border),
+        borderRadius: BorderRadius.circular(9),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              SvgPicture.asset(iconAsset, width: 32, height: 32),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        color: accent,
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    Text(
+                      subtitle,
+                      style: const TextStyle(
+                        color: _SummaryState._muted,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ),
-          DropdownMenuItem(
-            value: 'CONCEPT EXPLORATION',
-            child: Text(
-              'CONCEPT EXPLORATION',
-              style: TextStyle(
-                color: AppColors.primary,
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.5,
+              Container(
+                height: 27,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE1F1E5),
+                  borderRadius: BorderRadius.circular(5),
+                ),
+                child: Text(
+                  '$generatedCount Generated',
+                  style: const TextStyle(
+                    color: _SummaryState._green,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
-          DropdownMenuItem(
-            value: 'ACTIVITY',
-            child: Text(
-              'ACTIVITY',
-              style: TextStyle(
-                color: AppColors.primary,
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.5,
-              ),
+          const SizedBox(height: 17),
+          for (final entry in options.entries) ...[
+            _ChecklistRow(
+              label: entry.key,
+              checked: entry.value,
+              onChanged: (value) => onChanged(entry.key, value),
             ),
-          ),
-          DropdownMenuItem(
-            value: 'ASSESSMENT',
-            child: Text(
-              'ASSESSMENT',
-              style: TextStyle(
-                color: AppColors.primary,
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.5,
-              ),
+            const SizedBox(height: 13),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ChecklistRow extends StatelessWidget {
+  final String label;
+  final bool checked;
+  final ValueChanged<bool> onChanged;
+
+  const _ChecklistRow({
+    required this.label,
+    required this.checked,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: () => onChanged(!checked),
+      child: Row(
+        children: [
+          Container(
+            width: 20,
+            height: 20,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(3),
+              border: Border.all(color: _SummaryState._green, width: 1.6),
             ),
+            child: checked
+                ? const Icon(Icons.check, size: 15, color: _SummaryState._green)
+                : null,
           ),
-          DropdownMenuItem(
-            value: 'SUMMARY',
+          const SizedBox(width: 21),
+          Expanded(
             child: Text(
-              'SUMMARY',
-              style: TextStyle(
-                color: AppColors.primary,
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.5,
+              label,
+              style: const TextStyle(
+                color: _SummaryState._text,
+                fontSize: 13,
+                fontWeight: FontWeight.w700,
               ),
             ),
           ),
         ],
-        onChanged: (value) {
-          if (value == null) return;
-
-          // Update selected state
-          setState(() {
-            _selectedNavigation = value;
-          });
-
-          if (value == 'TITLE') {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => CreateTemplateScreen(
-                  existingModule: module,
-                ),
-              ),
-            );
-          } else if (value == 'ANCHORING PHENOMENON') {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => AnchoringPhenomenon(
-                  existingModule: module,
-                ),
-              ),
-            );
-          } else if (value == 'OBJECTIVE') {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => LearningObjectiveScreen(
-                  module: module,
-                ),
-              ),
-            );
-          } else if (value == 'LEARNING') {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => ThreeDLearning(
-                  module: module,
-                ),
-              ),
-            );
-          } else if (value == 'CONCEPT EXPLORATION') {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => ConceptExplorationScreen(
-                  module: module,
-                ),
-              ),
-            );
-          } else if (value == 'ACTIVITY') {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => ActivityScreen(
-                  module: module,
-                ),
-              ),
-            );
-          } else if (value == 'ASSESSMENT') {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => Assessment(
-                  module: module,
-                ),
-              ),
-            );
-          }
-          // If SUMMARY is selected, stay on this page
-        },
       ),
-    ),
-  );
+    );
+  }
 }
 
+class _ModuleOverviewCard extends StatelessWidget {
+  final String title;
+  final String subjectDomain;
+  final String subjectFocus;
+  final String difficulty;
 
-  /// Tag-style chip with tag colors, showing only the value
-  Widget _buildChip(String? value) {
-  final content = (value ?? '').trim();
-  final textToShow = content.isEmpty ? 'Not set' : content;
+  const _ModuleOverviewCard({
+    required this.title,
+    required this.subjectDomain,
+    required this.subjectFocus,
+    required this.difficulty,
+  });
 
-  return Container(
-    margin: const EdgeInsets.only(right: 4, bottom: 4), 
-    padding: const EdgeInsets.symmetric(
-      horizontal: 18,  // 🔹 wider pill
-      vertical: 8,
-    ),
-    decoration: BoxDecoration(
-      color: AppColors.tagBackground,
-      borderRadius: BorderRadius.circular(20), 
-    ),
-    child: Text(
-      textToShow,
-      style: const TextStyle(
-        color: AppColors.tagText,
-        fontSize: 11,
-        fontWeight: FontWeight.w600,
-        letterSpacing: 0.5,
+  @override
+  Widget build(BuildContext context) {
+    return _InfoCard(
+      children: [
+        _InfoRow(
+          iconAsset: 'assets/learning_module/summary_title.svg',
+          label: 'Lesson Title',
+          value: title,
+        ),
+        const SizedBox(height: 26),
+        _InfoRow(
+          iconAsset: 'assets/learning_module/summary_domain.svg',
+          label: 'Subject Domain',
+          value: subjectDomain,
+        ),
+        if (subjectFocus.isNotEmpty) ...[
+          const SizedBox(height: 26),
+          _InfoRow(
+            iconAsset: 'assets/learning_module/summary_domain.svg',
+            label: 'Subject Focus',
+            value: subjectFocus,
+          ),
+        ],
+        const SizedBox(height: 26),
+        _InfoRow(
+          iconAsset: 'assets/learning_module/summary_difficulty.svg',
+          label: 'Difficulty',
+          value: difficulty,
+        ),
+      ],
+    );
+  }
+}
+
+class _ObjectivesCard extends StatelessWidget {
+  final List<String> objectives;
+
+  const _ObjectivesCard({required this.objectives});
+
+  @override
+  Widget build(BuildContext context) {
+    return _InfoCard(
+      children: [
+        const Text(
+          'Objectives',
+          style: TextStyle(
+            color: _SummaryState._muted,
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 17),
+        for (var index = 0; index < objectives.length; index++) ...[
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 19,
+                height: 19,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: _SummaryState._green,
+                  borderRadius: BorderRadius.circular(3),
+                ),
+                child: Text(
+                  '${index + 1}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Text(
+                  objectives[index],
+                  style: const TextStyle(
+                    color: _SummaryState._text,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    height: 1.2,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (index != objectives.length - 1) const SizedBox(height: 14),
+        ],
+      ],
+    );
+  }
+}
+
+class _InfoCard extends StatelessWidget {
+  final List<Widget> children;
+
+  const _InfoCard({required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 353,
+      padding: const EdgeInsets.fromLTRB(16, 15, 14, 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: _SummaryState._border),
+        borderRadius: BorderRadius.circular(9),
       ),
-      overflow: TextOverflow.ellipsis,
-    ),
-  );
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: children,
+      ),
+    );
+  }
+}
 
+class _InfoRow extends StatelessWidget {
+  final String iconAsset;
+  final String label;
+  final String value;
 
+  const _InfoRow({
+    required this.iconAsset,
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        SizedBox(
+          width: 55,
+          child: Center(
+            child: SvgPicture.asset(iconAsset, width: 32, height: 32),
+          ),
+        ),
+        const SizedBox(width: 15),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  color: _SummaryState._muted,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                value,
+                style: const TextStyle(
+                  color: _SummaryState._text,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  final String text;
+
+  const _SectionTitle(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: const TextStyle(
+        color: _SummaryState._text,
+        fontSize: 16,
+        fontWeight: FontWeight.w800,
+      ),
+    );
+  }
+}
+
+class _SectionCopy extends StatelessWidget {
+  final String text;
+
+  const _SectionCopy(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      style: const TextStyle(
+        color: _SummaryState._muted,
+        fontSize: 15,
+        height: 1.1,
+        fontWeight: FontWeight.w500,
+      ),
+    );
+  }
+}
+
+class _NgssTag extends StatelessWidget {
+  final String label;
+
+  const _NgssTag(this.label);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 24,
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: const Color(0xFFD4D4D4),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: _SummaryState._text,
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
   }
 }
