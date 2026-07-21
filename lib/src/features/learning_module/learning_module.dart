@@ -7,3 +7,4 @@ export 'pages/assessment.dart';
 export 'pages/create_lm_template.dart';
 export 'pages/summary.dart';
 export 'pages/learning_objective.dart';
+export 'pages/module_dashboard.dart';
