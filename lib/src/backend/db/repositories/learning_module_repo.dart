@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:juniper_journal/src/backend/db/supabase_database.dart';
 
@@ -22,6 +24,10 @@ class LearningModuleRepo {
     required String difficulty,
     required int ecoPoints,
     String? authorId,
+    String? creatorAction,
+    List<String>? inquiry,
+    String? subjectDomain,
+    String? subjectFocus,
   }) async {
     try {
       final response = await _client
@@ -31,6 +37,13 @@ class LearningModuleRepo {
             'difficulty': difficulty,
             'eco_points': ecoPoints,
             if (authorId != null) 'author_id': authorId,
+            if (creatorAction != null) 'creator_action': creatorAction,
+            if (inquiry != null) 'inquiry': inquiry,
+            if (subjectDomain != null)
+              'subject_domain': [
+                subjectDomain,
+                if (subjectFocus != null) subjectFocus,
+              ],
           })
           .select()
           .single();
@@ -47,6 +60,10 @@ class LearningModuleRepo {
     required String moduleName,
     required String difficulty,
     required int ecoPoints,
+    String? creatorAction,
+    List<String>? inquiry,
+    String? subjectDomain,
+    String? subjectFocus,
   }) async {
     try {
       // First check if the record exists
@@ -68,6 +85,13 @@ class LearningModuleRepo {
             'module_name': moduleName,
             'difficulty': difficulty,
             'eco_points': ecoPoints,
+            if (creatorAction != null) 'creator_action': creatorAction,
+            if (inquiry != null) 'inquiry': inquiry,
+            if (subjectDomain != null)
+              'subject_domain': [
+                subjectDomain,
+                if (subjectFocus != null) subjectFocus,
+              ],
           })
           .eq('id', id);
 
@@ -81,9 +105,10 @@ class LearningModuleRepo {
       debugPrint('Updated record: $updatedRecord');
 
       // Check if the values were actually updated
-      final isUpdated = updatedRecord['module_name'] == moduleName &&
-                       updatedRecord['difficulty'] == difficulty &&
-                       updatedRecord['eco_points'] == ecoPoints;
+      final isUpdated =
+          updatedRecord['module_name'] == moduleName &&
+          updatedRecord['difficulty'] == difficulty &&
+          updatedRecord['eco_points'] == ecoPoints;
 
       debugPrint('Update successful: $isUpdated');
       return isUpdated;
@@ -102,19 +127,40 @@ class LearningModuleRepo {
       debugPrint('Learning objectives: $learningObjectives');
 
       // Filter out null/empty values
-      final filteredObjectives = learningObjectives.where((obj) => obj.isNotEmpty).toList();
+      final filteredObjectives = learningObjectives
+          .where((obj) => obj.isNotEmpty)
+          .toList();
 
       await _client
           .from(table)
-          .update({
-            'learning_objectives': filteredObjectives,
-          })
+          .update({'learning_objectives': filteredObjectives})
           .eq('id', id);
 
       debugPrint('Learning objectives updated successfully');
       return true;
     } catch (e) {
       debugPrint('Error updating learning objectives: $e');
+      return false;
+    }
+  }
+
+  Future<bool> updateLearningObjectiveRows({
+    required String id,
+    required List<Map<String, dynamic>> rows,
+  }) async {
+    try {
+      debugPrint('Updating structured learning objectives for module id: $id');
+      final encodedRows = rows.map(jsonEncode).toList();
+
+      await _client
+          .from(table)
+          .update({'learning_objectives': encodedRows})
+          .eq('id', id);
+
+      debugPrint('Structured learning objectives updated successfully');
+      return true;
+    } catch (e) {
+      debugPrint('Error updating structured learning objectives: $e');
       return false;
     }
   }
@@ -128,13 +174,13 @@ class LearningModuleRepo {
       debugPrint('Subject domains: $subjectDomains');
 
       // Filter out null/empty values
-      final filteredDomains = subjectDomains.where((domain) => domain.isNotEmpty).toList();
+      final filteredDomains = subjectDomains
+          .where((domain) => domain.isNotEmpty)
+          .toList();
 
       await _client
           .from(table)
-          .update({
-            'subject_domain': filteredDomains,
-          })
+          .update({'subject_domain': filteredDomains})
           .eq('id', id);
 
       debugPrint('Subject domains updated successfully');
@@ -160,10 +206,7 @@ class LearningModuleRepo {
 
       await _client
           .from(table)
-          .update({
-            'creator_action': creatorAction,
-            'inquiry': filteredInquiry,
-          })
+          .update({'creator_action': creatorAction, 'inquiry': filteredInquiry})
           .eq('id', id);
 
       debugPrint('Anchoring phenomenon updated successfully');
@@ -178,11 +221,7 @@ class LearningModuleRepo {
     try {
       debugPrint('Fetching module with id: $id');
 
-      final response = await _client
-          .from(table)
-          .select()
-          .eq('id', id)
-          .single();
+      final response = await _client.from(table).select().eq('id', id).single();
 
       debugPrint('Fetched module: $response');
       return response;
@@ -201,13 +240,13 @@ class LearningModuleRepo {
       debugPrint('Performance expectations: $performanceExpectations');
 
       // Filter out empty strings
-      final filteredExpectations = performanceExpectations.where((exp) => exp.isNotEmpty).toList();
+      final filteredExpectations = performanceExpectations
+          .where((exp) => exp.isNotEmpty)
+          .toList();
 
       await _client
           .from(table)
-          .update({
-            'performance_expectation': filteredExpectations,
-          })
+          .update({'performance_expectation': filteredExpectations})
           .eq('id', id);
 
       debugPrint('Performance expectations updated successfully');
@@ -226,12 +265,7 @@ class LearningModuleRepo {
       // Filter out empty strings
       final filteredDCI = dci.where((item) => item.isNotEmpty).toList();
 
-      await _client
-          .from(table)
-          .update({
-            'dci': filteredDCI,
-          })
-          .eq('id', id);
+      await _client.from(table).update({'dci': filteredDCI}).eq('id', id);
 
       debugPrint('DCI updated successfully');
       return true;
@@ -249,12 +283,7 @@ class LearningModuleRepo {
       // Filter out empty strings
       final filteredSEP = sep.where((item) => item.isNotEmpty).toList();
 
-      await _client
-          .from(table)
-          .update({
-            'sep': filteredSEP,
-          })
-          .eq('id', id);
+      await _client.from(table).update({'sep': filteredSEP}).eq('id', id);
 
       debugPrint('SEP updated successfully');
       return true;
@@ -272,12 +301,7 @@ class LearningModuleRepo {
       // Filter out empty strings
       final filteredCCC = ccc.where((item) => item.isNotEmpty).toList();
 
-      await _client
-          .from(table)
-          .update({
-            'ccc': filteredCCC,
-          })
-          .eq('id', id);
+      await _client.from(table).update({'ccc': filteredCCC}).eq('id', id);
 
       debugPrint('CCC updated successfully');
       return true;
@@ -296,9 +320,7 @@ class LearningModuleRepo {
 
       await _client
           .from(table)
-          .update({
-            'concept_exploration': conceptExplorationJson,
-          })
+          .update({'concept_exploration': conceptExplorationJson})
           .eq('id', id);
 
       debugPrint('Concept exploration updated successfully');
@@ -316,12 +338,7 @@ class LearningModuleRepo {
     try {
       debugPrint('Updating activity for module id: $id');
 
-      await _client
-          .from(table)
-          .update({
-            'activity': activityJson,
-          })
-          .eq('id', id);
+      await _client.from(table).update({'activity': activityJson}).eq('id', id);
 
       debugPrint('Activity updated successfully');
       return true;
@@ -340,9 +357,7 @@ class LearningModuleRepo {
 
       await _client
           .from(table)
-          .update({
-            'assessment': assessmentData,
-          })
+          .update({'assessment': assessmentData})
           .eq('id', id);
 
       debugPrint('Assessment updated successfully');
@@ -360,12 +375,7 @@ class LearningModuleRepo {
     try {
       debugPrint('Updating summary for module id: $id');
 
-      await _client
-          .from(table)
-          .update({
-            'summary': summary,
-          })
-          .eq('id', id);
+      await _client.from(table).update({'summary': summary}).eq('id', id);
 
       debugPrint('Summary updated successfully');
       return true;
@@ -384,9 +394,7 @@ class LearningModuleRepo {
 
       await _client
           .from(table)
-          .update({
-            'call_to_action': callToAction,
-          })
+          .update({'call_to_action': callToAction})
           .eq('id', id);
 
       debugPrint('Call to action updated successfully');
