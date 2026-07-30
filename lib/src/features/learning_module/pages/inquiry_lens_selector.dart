@@ -20,6 +20,30 @@ class InquiryLensData {
     return lensStates[config.value] ?? InquiryLensState.defaultsFor(config);
   }
 
+  Map<String, dynamic> toPreviewJson() {
+    final config = InquiryLensConfig.byValue(selectedLens);
+    if (config == null) {
+      return {
+        'lens': '',
+        'thinking_focus': <String>[],
+        'custom_focus': <String>[],
+        'student_response': '',
+        'student_instruction': '',
+      };
+    }
+    final state = activeState(config);
+    return {
+      'lens': selectedLens,
+      'thinking_focus': state.checkedFocusItems,
+      'custom_focus': state.customFocusItems
+          .map((item) => item.trim())
+          .where((item) => item.isNotEmpty)
+          .toList(),
+      'student_response': state.selectedStudentResponse,
+      'student_instruction': state.studentInstruction.trim(),
+    };
+  }
+
   InquiryLensData selectLens(String value) {
     if (value == noneValue) {
       return InquiryLensData(
@@ -103,7 +127,6 @@ class InquiryLensState {
 
   factory InquiryLensState.defaultsFor(InquiryLensConfig config) {
     return InquiryLensState(
-      checkedFocusItems: config.focusOptions.take(2).toList(),
       selectedStudentResponse: config.responses.first.value,
     );
   }
@@ -137,13 +160,12 @@ class InquiryLensState {
     Map<String, dynamic> json,
     InquiryLensConfig config,
   ) {
+    final hasCheckedFocus = json.containsKey('checked_focus_items');
     final checked = _stringList(json['checked_focus_items']);
     final custom = _stringList(json['custom_focus_items']);
     final response = json['selected_student_response']?.toString() ?? '';
     return InquiryLensState(
-      checkedFocusItems: checked.isEmpty
-          ? config.focusOptions.take(2).toList()
-          : checked,
+      checkedFocusItems: hasCheckedFocus ? checked : const [],
       customFocusItems: custom,
       selectedStudentResponse:
           config.responses.any((item) => item.value == response)

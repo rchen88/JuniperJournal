@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:juniper_journal/src/backend/db/repositories/learning_module_repo.dart';
 import 'package:juniper_journal/src/features/learning_module/pages/assessment_block.dart';
+import 'package:juniper_journal/src/features/learning_module/pages/concept_exploration_preview.dart';
 import 'package:juniper_journal/src/features/learning_module/pages/graph_block_editor.dart';
 import 'package:juniper_journal/src/features/learning_module/pages/image_block_editor.dart';
 import 'package:juniper_journal/src/features/learning_module/pages/inquiry_lens_selector.dart';
@@ -395,12 +396,11 @@ class _ConceptExplorationScreenState extends State<ConceptExplorationScreen> {
     }
   }
 
-  void _showPlaceholder(String label) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$label coming soon'),
-        behavior: SnackBarBehavior.floating,
-        duration: const Duration(milliseconds: 1200),
+  void _openPreview() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) =>
+            ConceptExplorationPreviewScreen(module: widget.module),
       ),
     );
   }
@@ -524,7 +524,7 @@ class _ConceptExplorationScreenState extends State<ConceptExplorationScreen> {
                       onAddBlock: _openAddBlockSheet,
                       onReorder: _openReorder,
                       canReorder: _blocks.length > 1,
-                      onPreview: () => _showPlaceholder('Preview'),
+                      onPreview: _blocks.isEmpty ? null : _openPreview,
                     ),
                   ),
                 ],
@@ -590,6 +590,8 @@ class _AddedBlock {
         'inquiry_lens': textData?.inquiryLens ?? 'None',
         'inquiry_lens_data':
             textData?.inquiryLensData.toJson() ?? <String, dynamic>{},
+        'inquiry':
+            textData?.inquiryLensData.toPreviewJson() ?? <String, dynamic>{},
         'caption': textData?.caption ?? '',
         'font_size': textData?.fontSize ?? '10',
         'bold': textData?.bold ?? false,
@@ -614,6 +616,8 @@ class _AddedBlock {
         'inquiry_lens': imageData?.inquiryLens ?? 'None',
         'inquiry_lens_data':
             imageData?.inquiryLensData.toJson() ?? <String, dynamic>{},
+        'inquiry':
+            imageData?.inquiryLensData.toPreviewJson() ?? <String, dynamic>{},
         'assessment': imageData?.assessment.toJson() ?? <String, dynamic>{},
         'images': [
           for (final item in imageData?.images ?? const [])
@@ -1354,7 +1358,7 @@ class _BottomActions extends StatelessWidget {
   final VoidCallback onAddBlock;
   final VoidCallback onReorder;
   final bool canReorder;
-  final VoidCallback onPreview;
+  final VoidCallback? onPreview;
 
   const _BottomActions({
     required this.onAddBlock,

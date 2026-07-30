@@ -48,6 +48,7 @@ class TableBlockData {
     'rows': rows,
     'inquiry_lens': inquiryLens,
     'inquiry_lens_data': inquiryLensData.toJson(),
+    'inquiry': inquiryLensData.toPreviewJson(),
     'assessment': assessment.toJson(),
     'updated_at': DateTime.now().toUtc().toIso8601String(),
   };

@@ -57,6 +57,7 @@ class SketchBlockData {
     'caption': caption,
     'inquiry_lens': inquiryLens,
     'inquiry_lens_data': inquiryLensData.toJson(),
+    'inquiry': inquiryLensData.toPreviewJson(),
     'assessment': assessment.toJson(),
     'strokes': [for (final stroke in strokes) stroke.toJson()],
     'text_items': [for (final item in textItems) item.toJson()],

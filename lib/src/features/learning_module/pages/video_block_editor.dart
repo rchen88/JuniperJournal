@@ -55,6 +55,7 @@ class VideoBlockData {
     'description': description,
     'inquiry_lens': inquiryLens,
     'inquiry_lens_data': inquiryLensData.toJson(),
+    'inquiry': inquiryLensData.toPreviewJson(),
     'assessment_type': assessment.type?.storageValue ?? '',
     'assessment': assessment.toJson(),
     'created_at': createdAt.toUtc().toIso8601String(),
